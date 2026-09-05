@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% block title %}Deactivate &mdash; {{ beneficiary.full_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-6">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'beneficiaries:beneficiary_list' %}">Beneficiaries</a> /
+    <a href="{% url 'beneficiaries:beneficiary_detail' beneficiary.pk %}">{{ beneficiary.full_name }}</a> /
+    Deactivate
+  </div>
+  <h4 class="fw-bold text-danger mb-4">
+    <i class="bi bi-person-x me-2"></i>Deactivate Beneficiary
+  </h4>
+
+  <div class="alert d-flex gap-3 align-items-start mb-4" style="background:#fff7ed; border:1px solid #fdba74;">
+    <i class="bi bi-exclamation-triangle-fill text-warning flex-shrink-0 mt-1" style="font-size:1.3rem;"></i>
+    <div>
+      <div class="fw-bold mb-1">This action does not delete any records.</div>
+      <div class="small">
+        The beneficiary's data, verification history, and audit logs are fully preserved.
+        Inactive and deceased beneficiaries cannot claim stipends. This action can be reversed by an admin.
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="fw-bold fs-5">{{ beneficiary.full_name }}</div>
+      <div class="font-mono text-muted small">{{ beneficiary.beneficiary_id }}</div>
+      <div class="text-muted small">{{ beneficiary.municipality }}, {{ beneficiary.province }}</div>
+      <div class="mt-2">
+        <span class="badge {% if beneficiary.status == 'active' %}bg-success{% elif beneficiary.status == 'deceased' %}bg-dark{% else %}bg-secondary{% endif %}">
+          Current: {{ beneficiary.get_status_display }}
+        </span>
+      </div>
+    </div>
+  </div>
+
+  {% if error %}
+  <div class="alert alert-danger mb-3">{{ error }}</div>
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-pencil-square me-2"></i>Deactivation Form
+    </div>
+    <div class="card-body p-4">
+      <form method="POST" novalidate>
+        {% csrf_token %}
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold">New Status <span class="text-danger">*</span></label>
+          <div class="d-flex gap-4">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="new_status" value="inactive" id="statusInactive" checked>
+              <label class="form-check-label fw-semibold" for="statusInactive">
+                <i class="bi bi-person-dash me-1 text-secondary"></i> Inactive
+                <div class="text-muted fw-normal small">No longer eligible (moved, incorrect data, etc.)</div>
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="new_status" value="deceased" id="statusDeceased">
+              <label class="form-check-label fw-semibold" for="statusDeceased">
+                <i class="bi bi-person-x me-1 text-dark"></i> Deceased
+                <div class="text-muted fw-normal small">Senior citizen has passed away</div>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label for="deactivate-reason" class="form-label fw-semibold">Reason <span class="text-danger">*</span></label>
+          <textarea id="deactivate-reason" name="reason" class="form-control" rows="3" required
+                    placeholder="Briefly explain why this beneficiary is being deactivated&hellip;"></textarea>
+          <div class="form-text">This reason is recorded in the audit log.</div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-danger fw-semibold px-4"
+                  onclick="return confirm('Deactivate {{ beneficiary.full_name }}? This action will be recorded in the audit log.')">
+            <i class="bi bi-person-x me-1"></i> Confirm Deactivation
+          </button>
+          <a href="{% url 'beneficiaries:beneficiary_detail' beneficiary.pk %}" class="btn btn-outline-secondary">
+            Cancel
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

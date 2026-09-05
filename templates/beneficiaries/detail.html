@@ -1,0 +1,641 @@
+{% extends "base.html" %}
+{% block title %}{{ beneficiary.full_name }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+      <a href="{% url 'beneficiaries:beneficiary_list' %}">Beneficiaries</a> /
+      {{ beneficiary.full_name }}
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">{{ beneficiary.full_name }}</h4>
+    <span class="font-mono text-muted small">{{ beneficiary.beneficiary_id }}</span>
+  </div>
+  <div class="d-flex gap-2 flex-wrap align-items-center">
+    {% if beneficiary.status == 'active' %}
+      {% if active_event and current_event_claimed %}
+        <span class="badge bg-success p-2 fs-6">
+          <i class="bi bi-check-circle-fill me-1"></i> Already Claimed &mdash; {{ active_event.title }}
+        </span>
+      {% elif has_embedding %}
+      <a href="{% url 'verification:verify_start' beneficiary.pk %}?claimant=beneficiary"
+         class="btn btn-success">
+        <i class="bi bi-camera-video me-1"></i> Verify Beneficiary
+      </a>
+      {% for rep in representatives %}{% if rep.is_active and rep.has_face_data %}
+      <a href="{% url 'verification:verify_start' beneficiary.pk %}?claimant=representative&rep_id={{ rep.pk }}"
+         class="btn btn-outline-primary">
+        <i class="bi bi-people me-1"></i> Verify {{ rep.first_name }}
+      </a>
+      {% endif %}{% endfor %}
+      {% for rep in representatives %}{% if rep.is_active and not rep.has_face_data %}
+      <a href="{% url 'verification:register_rep_face' beneficiary.pk rep.pk %}"
+         class="btn btn-outline-warning" title="{{ rep.full_name }} has no face data — register before verifying">
+        <i class="bi bi-exclamation-triangle me-1"></i> {{ rep.first_name }}: Register Face
+      </a>
+      {% endif %}{% endfor %}
+      {% else %}
+      <span class="badge bg-warning text-dark p-2 fs-6">
+        <i class="bi bi-exclamation-triangle me-1"></i> No face embedding &mdash; re-registration required
+      </span>
+      {% endif %}
+    {% else %}
+      <span class="badge p-2 fs-6
+        {% if beneficiary.status == 'deceased' %}bg-dark
+        {% elif beneficiary.status == 'disapproved' %}bg-danger
+        {% else %}bg-secondary{% endif %}">
+        <i class="bi bi-person-x me-1"></i>
+        {{ beneficiary.get_status_display }} &mdash; not eligible for claims
+      </span>
+    {% endif %}
+    <a href="{% url 'beneficiaries:beneficiary_edit' beneficiary.pk %}" class="btn btn-outline-secondary">
+      <i class="bi bi-pencil me-1"></i> Edit
+    </a>
+    {% if beneficiary.status == 'active' %}
+    <a href="{% url 'verification:update_face_data' beneficiary.pk %}"
+       class="btn btn-outline-warning"
+       title="Replace or augment the stored face embedding for this beneficiary">
+      <i class="bi bi-camera-video me-1"></i> Update Face Data
+    </a>
+    {% endif %}
+    {% if user.is_admin %}
+      {% if beneficiary.status == 'active' or beneficiary.status == 'pending' %}
+      <a href="{% url 'beneficiaries:beneficiary_deactivate' beneficiary.pk %}" class="btn btn-outline-danger">
+        <i class="bi bi-person-x me-1"></i> Deactivate
+      </a>
+      {% else %}
+      <form method="POST" action="{% url 'beneficiaries:beneficiary_reactivate' beneficiary.pk %}" style="display:inline;"
+            onsubmit="return confirm('Reactivate {{ beneficiary.full_name }} to Active status?')">
+        {% csrf_token %}
+        <button type="submit" class="btn btn-outline-success">
+          <i class="bi bi-person-check me-1"></i> Reactivate
+        </button>
+      </form>
+      {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{% if beneficiary.duplicate_review_required %}
+<div class="alert d-flex gap-3 align-items-start mb-4"
+     style="background:#fef2f2; border:2px solid #f87171;">
+  <i class="bi bi-person-bounding-box text-danger flex-shrink-0 mt-1" style="font-size:1.3rem;"></i>
+  <div class="flex-grow-1">
+    <div class="fw-bold mb-1 text-danger">Duplicate Face Detected — Unresolved</div>
+    <div class="small">
+      The face registered for this record matched
+      {% if beneficiary.duplicate_match_beneficiary %}
+        <strong>{{ beneficiary.duplicate_match_beneficiary.full_name }}</strong>
+        ({{ beneficiary.duplicate_match_beneficiary.beneficiary_id }})
+      {% else %}
+        an existing beneficiary
+      {% endif %}
+      {% if beneficiary.duplicate_match_score %}at {{ beneficiary.duplicate_match_score|floatformat:2 }} similarity{% endif %}.
+      This record cannot be approved, verified, or claim a stipend until an administrator reviews and resolves this conflict.
+    </div>
+    {% if user.is_admin %}
+    <div class="mt-2">
+      <a href="{% url 'beneficiaries:duplicate_review_detail' beneficiary.pk %}" class="btn btn-sm btn-danger">
+        <i class="bi bi-person-bounding-box me-1"></i> Review Duplicate Face Case
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if beneficiary.status == 'pending' %}
+<div class="alert d-flex gap-3 align-items-start mb-4"
+     style="background:#f0f4ff; border:1px solid #c7d7fa;">
+  <i class="bi bi-hourglass-split text-qc-blue flex-shrink-0 mt-1" style="font-size:1.3rem;"></i>
+  <div>
+    <div class="fw-bold mb-1 text-qc-blue">Awaiting Admin Approval</div>
+    <div class="small">
+      This registration is <strong>pending review</strong>. An administrator must approve it before the beneficiary can be verified or claim a stipend.
+    </div>
+    <div class="small mt-2">
+      <strong>What you can do now:</strong>
+      <ul class="mb-0 mt-1 ps-3">
+        <li>Add an authorized representative and register their face data — this can be done before approval.</li>
+        <li>Once approved, the beneficiary (and any registered representatives) will be eligible to claim.</li>
+      </ul>
+    </div>
+    {% if user.is_admin %}
+    <div class="mt-2">
+      <a href="{% url 'verification:registration_review' beneficiary.pk %}" class="btn btn-sm btn-primary">
+        <i class="bi bi-person-check me-1"></i> Review &amp; Approve Registration
+      </a>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% elif beneficiary.status == 'disapproved' %}
+<div class="alert d-flex gap-3 align-items-start mb-4"
+     style="background:#fef2f2; border:1px solid #fca5a5;">
+  <i class="bi bi-x-octagon-fill text-danger flex-shrink-0 mt-1" style="font-size:1.3rem;"></i>
+  <div>
+    <div class="fw-bold mb-1 text-danger">Registration Disapproved &mdash; Not a Registered Beneficiary</div>
+    <div class="small text-muted">
+      This application was reviewed and disapproved — it was never an active beneficiary.
+      The record is kept for audit purposes only and cannot be verified or claim a stipend.
+    </div>
+    {% if beneficiary.deactivated_reason %}
+    <div class="small mt-1"><strong>Reason:</strong> {{ beneficiary.deactivated_reason }}</div>
+    {% endif %}
+  </div>
+</div>
+{% elif beneficiary.status != 'active' %}
+<div class="alert d-flex gap-3 align-items-start mb-4"
+     style="background:#fff7ed; border:1px solid #fdba74;">
+  <i class="bi bi-person-x-fill text-warning flex-shrink-0 mt-1" style="font-size:1.3rem;"></i>
+  <div>
+    <div class="fw-bold mb-1">
+      {% if beneficiary.status == 'deceased' %}Beneficiary is Deceased{% else %}Beneficiary is Inactive{% endif %}
+      &mdash; Not Eligible for Claims
+    </div>
+    <div class="small text-muted">Inactive and deceased beneficiaries cannot be verified or claim a stipend until reactivated by an administrator.</div>
+    {% if beneficiary.deactivated_at %}
+    <div class="small mt-1">
+      <strong>Date:</strong> {{ beneficiary.deactivated_at|date:"M d, Y H:i" }}
+      {% if beneficiary.deactivated_by %}&bull; <strong>By:</strong> {{ beneficiary.deactivated_by.get_full_name|default:beneficiary.deactivated_by.username }}{% endif %}
+    </div>
+    {% endif %}
+    {% if beneficiary.deactivated_reason %}
+    <div class="small mt-1"><strong>Reason:</strong> {{ beneficiary.deactivated_reason }}</div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{# Special Claim Request Banner #}
+{% if active_event and current_event_claimed and beneficiary.status == 'active' %}
+<div class="alert d-flex gap-3 align-items-start mb-4"
+     style="background:#f0fdf4; border:1px solid #86efac;">
+  <i class="bi bi-check-circle-fill text-success flex-shrink-0 mt-1" style="font-size:1.3rem;"></i>
+  <div class="flex-grow-1">
+    <div class="fw-bold mb-1">Stipend already claimed for {{ active_event.title }}</div>
+    <div class="small text-muted">
+      This beneficiary has an existing claim record for the current event.
+      If a second claim is genuinely required (e.g., error, representative substitution),
+      a Special Claim Request must be submitted for admin approval.
+    </div>
+    {% if pending_special %}
+    <div class="mt-2 small text-warning fw-semibold">
+      <i class="bi bi-hourglass-split me-1"></i>
+      A special claim request is already pending admin review.
+    </div>
+    {% else %}
+    <button class="btn btn-sm btn-outline-warning mt-2" data-bs-toggle="collapse" data-bs-target="#specialClaimForm">
+      <i class="bi bi-plus-circle me-1"></i> Request Additional Claim
+    </button>
+    <div class="collapse mt-2" id="specialClaimForm">
+      <form method="POST" action="{% url 'verification:special_claim_request' beneficiary.pk %}">
+        {% csrf_token %}
+        <div class="mb-2">
+          <label for="additional-claim-reason" class="form-label small fw-semibold mb-1">Reason for additional claim <span class="text-danger">*</span></label>
+          <textarea id="additional-claim-reason" name="reason" class="form-control form-control-sm" rows="3"
+                    placeholder="Explain why a second claim is required for this event…" required></textarea>
+        </div>
+        <div class="mb-2">
+          <label for="additional-claim-notes" class="form-label small fw-semibold mb-1">Additional notes (optional)</label>
+          <textarea id="additional-claim-notes" name="notes" class="form-control form-control-sm" rows="2"
+                    placeholder="Any supporting details…"></textarea>
+        </div>
+        <button type="submit" class="btn btn-sm btn-warning">
+          <i class="bi bi-send me-1"></i> Submit for Admin Approval
+        </button>
+      </form>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-lg-5">
+
+    {# Identity summary — photo if available, otherwise a neutral initials avatar (never a biometric capture) #}
+    <div class="card mb-4">
+      <div class="card-body p-3 d-flex gap-3 align-items-center">
+        {% if beneficiary.profile_picture %}
+        <img src="{{ beneficiary.profile_picture.url }}" alt="Photo of {{ beneficiary.full_name }}"
+             class="rounded-circle" style="width:110px; height:110px; object-fit:cover; flex-shrink:0;">
+        {% else %}
+        <span class="d-flex align-items-center justify-content-center rounded-circle bg-qc-blue text-white fw-bold flex-shrink-0"
+              style="width:110px; height:110px; font-size:2.2rem;">
+          {{ beneficiary.first_name|slice:":1" }}{{ beneficiary.last_name|slice:":1" }}
+        </span>
+        {% endif %}
+        <div class="flex-grow-1">
+          <div class="fs-5 fw-bold">{{ beneficiary.full_name }}</div>
+          <div class="font-mono text-muted small">{{ beneficiary.beneficiary_id }}</div>
+          <div class="text-muted small">
+            SC ID: {% if beneficiary.senior_citizen_id %}<span class="font-mono">{{ beneficiary.senior_citizen_id }}</span>{% else %}<span class="text-danger">not provided</span>{% endif %}
+          </div>
+          <div class="d-flex flex-wrap gap-3 small text-muted mt-1">
+            <span><i class="bi bi-calendar3 me-1"></i>{{ beneficiary.age }} yrs old</span>
+            <span><i class="bi bi-geo-alt me-1"></i>Brgy. {{ beneficiary.barangay }}</span>
+          </div>
+          <span class="badge mt-2
+            {% if beneficiary.status == 'active' %}bg-success
+            {% elif beneficiary.status == 'deceased' %}bg-dark
+            {% elif beneficiary.status == 'inactive' %}bg-secondary
+            {% elif beneficiary.status == 'disapproved' %}bg-danger
+            {% else %}bg-warning text-dark{% endif %}">
+            {{ beneficiary.get_status_display }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-person me-2"></i>Personal Information
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-borderless mb-0">
+          <tbody>
+            <tr><th class="text-muted ps-3" style="width:42%;">Date of Birth</th><td>{{ beneficiary.date_of_birth|date:"F d, Y" }}</td></tr>
+            <tr>
+              <th class="text-muted ps-3">Age</th>
+              <td>
+                {{ beneficiary.age }}
+                {% if beneficiary.is_senior_citizen %}
+                <span class="badge bg-qc-gold text-dark ms-1" style="font-size:0.65rem;">Senior Citizen</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr><th class="text-muted ps-3">Gender</th><td>{{ beneficiary.get_gender_display }}</td></tr>
+            <tr><th class="text-muted ps-3">Contact</th><td>{{ beneficiary.contact_number|default:"&mdash;" }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-geo-alt me-2"></i>Address
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-borderless mb-0">
+          <tbody>
+            <tr>
+              <th class="text-muted ps-3" style="width:42%;">Address</th>
+              <td>
+                {% if beneficiary.full_address %}
+                  {{ beneficiary.full_address }}
+                {% elif beneficiary.address %}
+                  {{ beneficiary.address }}{% if beneficiary.barangay %}, Barangay {{ beneficiary.barangay }}{% endif %}{% if beneficiary.municipality %}, {{ beneficiary.municipality }}{% endif %}
+                {% else %}
+                  &mdash;
+                {% endif %}
+              </td>
+            </tr>
+            <tr><th class="text-muted ps-3">Barangay</th><td>{{ beneficiary.barangay|default:"&mdash;" }}</td></tr>
+            <tr><th class="text-muted ps-3">Province</th><td>{{ beneficiary.province|default:"&mdash;" }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer bg-light small text-muted py-2 px-3">
+        {% if beneficiary.consent_given %}
+          <i class="bi bi-check-circle-fill text-success me-1"></i>Consent given &mdash; {{ beneficiary.consent_date|date:"M d, Y" }}
+        {% else %}
+          <i class="bi bi-x-circle-fill text-danger me-1"></i>Consent not given
+        {% endif %}
+        &middot; Registered by {{ beneficiary.registered_by|default:"&mdash;" }} on {{ beneficiary.created_at|date:"M d, Y H:i" }}
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-card-text me-2"></i>Government ID
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-borderless mb-0">
+          <tbody>
+            <tr>
+              <th class="text-muted ps-3" style="width:40%; white-space:nowrap;">Senior Citizen ID</th>
+              <td class="font-mono small" style="word-break:break-all; overflow-wrap:anywhere;">
+                {% if beneficiary.senior_citizen_id %}{{ beneficiary.senior_citizen_id }}
+                {% else %}<span class="text-danger fst-italic">Not provided &mdash; <a href="{% url 'beneficiaries:beneficiary_edit' beneficiary.pk %}">add it</a></span>{% endif %}
+              </td>
+            </tr>
+            {% if beneficiary.valid_id_type %}
+            <tr>
+              <th class="text-muted ps-3" style="white-space:nowrap;">Valid ID Type</th>
+              <td>{{ beneficiary.valid_id_type }}</td>
+            </tr>
+            {% endif %}
+            {% if beneficiary.valid_id_number %}
+            <tr>
+              <th class="text-muted ps-3" style="white-space:nowrap;">Valid ID Number</th>
+              <td class="font-mono small" style="word-break:break-all; overflow-wrap:anywhere;">{{ beneficiary.valid_id_number }}</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ── Representatives ─────────────────────────────────────────────── #}
+    <div class="card">
+      <div class="card-header bg-qc-blue text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-people me-2"></i>Authorized Representatives</span>
+        <span class="badge bg-light text-dark">{{ representatives|length }}</span>
+      </div>
+
+      {% for rep in representatives %}
+      <div class="p-3 {% if not forloop.last %}border-bottom{% endif %}">
+        <div class="d-flex justify-content-between align-items-start gap-2">
+          <div class="flex-grow-1">
+            <div class="fw-semibold">
+              {{ rep.full_name }}
+              {% if not rep.is_active %}
+              <span class="badge bg-secondary ms-1 small">Inactive</span>
+              {% endif %}
+            </div>
+            <div class="small text-muted mt-1">
+              <i class="bi bi-person-heart me-1"></i>{{ rep.relationship|default:"&mdash;" }}
+              &nbsp;&bull;&nbsp;
+              <i class="bi bi-telephone me-1"></i>{{ rep.contact_number }}
+            </div>
+            <div class="small text-muted">
+              <i class="bi bi-card-text me-1"></i>{{ rep.valid_id_type }} &mdash; {{ rep.valid_id_number }}
+            </div>
+            <div class="mt-2 d-flex flex-wrap gap-1 align-items-center">
+              {% if not rep.is_active %}
+              <span class="badge bg-secondary small">
+                <i class="bi bi-slash-circle me-1"></i>Representative Deactivated
+              </span>
+              {% elif rep.has_face_data %}
+              <span class="badge bg-success small">
+                <i class="bi bi-check-circle me-1"></i>Face Registered &mdash; Ready to Verify
+              </span>
+              {% else %}
+              <span class="badge bg-danger small">
+                <i class="bi bi-exclamation-triangle me-1"></i>No Face Data
+              </span>
+              <span class="small text-danger ms-1">
+                Cannot claim until face is registered
+              </span>
+              {% endif %}
+            </div>
+          </div>
+          <div class="d-flex flex-column gap-1 align-items-end flex-shrink-0">
+            {% if rep.is_active %}
+            {% if not rep.has_face_data %}
+            <a href="{% url 'verification:register_rep_face' beneficiary.pk rep.pk %}"
+               class="btn btn-sm btn-warning">
+              <i class="bi bi-camera me-1"></i>Register Face
+            </a>
+            {% else %}
+            <a href="{% url 'verification:register_rep_face' beneficiary.pk rep.pk %}"
+               class="btn btn-sm btn-outline-secondary">
+              <i class="bi bi-camera me-1"></i>Update Face
+            </a>
+            {% if beneficiary.status == 'active' %}
+            <a href="{% url 'verification:verify_start' beneficiary.pk %}?claimant=representative&rep_id={{ rep.pk }}"
+               class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-camera-video me-1"></i>Verify Rep
+            </a>
+            {% endif %}
+            {% endif %}
+            <form method="POST"
+                  action="{% url 'beneficiaries:deactivate_representative' beneficiary.pk rep.pk %}"
+                  onsubmit="return confirm('Deactivate {{ rep.full_name }} as representative?')">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-sm btn-outline-danger">Deactivate</button>
+            </form>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="p-3 text-center">
+        <i class="bi bi-people fs-2 d-block mb-1 opacity-25"></i>
+        <div class="text-muted small">No representatives registered.</div>
+        <div class="text-muted small mt-1">
+          Use the button below to add an authorized representative who can claim on behalf of the beneficiary.
+        </div>
+      </div>
+      {% endfor %}
+
+      {% if beneficiary.status == 'active' or beneficiary.status == 'pending' %}
+      <div class="card-footer bg-light p-2">
+        <button class="btn btn-sm btn-outline-primary w-100" data-bs-toggle="collapse" data-bs-target="#addRepForm">
+          <i class="bi bi-person-plus me-1"></i> Add Representative
+        </button>
+        <div class="collapse mt-2" id="addRepForm">
+          <div class="alert alert-info d-flex gap-2 align-items-start mb-2 p-2" style="font-size:0.82rem;">
+            <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+            <span>After saving, you will be taken directly to <strong>face capture</strong> for this representative. All fields marked <span class="text-danger">*</span> are required.</span>
+          </div>
+          <form method="POST" action="{% url 'beneficiaries:add_representative' beneficiary.pk %}" class="p-2">
+            {% csrf_token %}
+            <div class="row g-2">
+              <div class="col-6">
+                <label for="rep-first-name" class="form-label form-label-sm mb-1">First Name <span class="text-danger">*</span></label>
+                <input id="rep-first-name" name="rep_first_name" class="form-control form-control-sm" required>
+              </div>
+              <div class="col-6">
+                <label for="rep-last-name" class="form-label form-label-sm mb-1">Last Name <span class="text-danger">*</span></label>
+                <input id="rep-last-name" name="rep_last_name" class="form-control form-control-sm" required>
+              </div>
+              <div class="col-12">
+                <label for="rep-relationship" class="form-label form-label-sm mb-1">Relationship to Beneficiary</label>
+                <input id="rep-relationship" name="rep_relationship" class="form-control form-control-sm" placeholder="e.g. Son, Daughter, Spouse">
+              </div>
+              <div class="col-12">
+                <label for="rep-contact" class="form-label form-label-sm mb-1">Contact Number <span class="text-danger">*</span></label>
+                <input id="rep-contact" name="rep_contact" class="form-control form-control-sm" required>
+              </div>
+              <div class="col-6">
+                <label for="rep-id-type" class="form-label form-label-sm mb-1">ID Type <span class="text-danger">*</span></label>
+                <select id="rep-id-type" name="rep_id_type" class="form-select form-select-sm" required>
+                  <option value="">-- Select ID Type --</option>
+                  <option value="PhilSys">PhilSys ID</option>
+                  <option value="Passport">Passport</option>
+                  <option value="Drivers License">Driver's License</option>
+                  <option value="UMID">UMID</option>
+                  <option value="Voters ID">Voter's ID</option>
+                  <option value="Senior Citizen ID">Senior Citizen ID</option>
+                  <option value="Other">Other</option>
+                </select>
+              </div>
+              <div class="col-6">
+                <label for="rep-id-number" class="form-label form-label-sm mb-1">ID Number <span class="text-danger">*</span></label>
+                <input id="rep-id-number" name="rep_id_number" class="form-control form-control-sm" required>
+              </div>
+              <div class="col-12 mt-1">
+                <button type="submit" class="btn btn-sm btn-primary w-100">
+                  <i class="bi bi-save me-1"></i> Save Representative &amp; Register Face
+                </button>
+              </div>
+            </div>
+          </form>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <div class="col-lg-7">
+
+    {# ── Claim History ─────────────────────────────────────────────────────── #}
+    <div class="card mb-4">
+      <div class="card-header bg-qc-blue text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-receipt me-2"></i>Claim History</span>
+        <span class="badge bg-light text-dark">{{ claims|length }} record{{ claims|length|pluralize }}</span>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Date</th>
+              <th>Event</th>
+              <th>Claimant</th>
+              <th>Status</th>
+              <th>Type</th>
+              <th>By</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for c in claims %}
+            <tr>
+              <td class="small text-muted" style="white-space:nowrap;">{{ c.claimed_at|date:"M d, Y" }}</td>
+              <td class="small">
+                {% if c.stipend_event %}{{ c.stipend_event.title|truncatechars:22 }}
+                {% else %}&mdash;{% endif %}
+              </td>
+              <td>
+                {% if c.claimant_type == 'representative' %}
+                  <span class="badge bg-primary small">Rep.</span>
+                  {% if c.representative %}
+                  <div class="text-muted" style="font-size:0.72rem;">{{ c.representative.full_name }}</div>
+                  {% endif %}
+                {% else %}
+                  <span class="badge bg-secondary small">Self</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge
+                  {% if c.status == 'claimed' %}bg-success
+                  {% elif c.status == 'pending_approval' %}bg-warning text-dark
+                  {% elif c.status == 'rejected' %}bg-danger
+                  {% else %}bg-secondary{% endif %}">
+                  {{ c.get_status_display }}
+                </span>
+              </td>
+              <td class="small text-muted">
+                {% if c.is_special_additional %}
+                  <span class="badge bg-info text-dark">Additional</span>
+                {% else %}
+                  Regular
+                {% endif %}
+              </td>
+              <td class="small">{{ c.claimed_by.username|default:"&mdash;" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-4">
+                <i class="bi bi-receipt fs-2 d-block mb-2 opacity-25"></i>
+                No claim records yet.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    {# ── Verification Attempts ─────────────────────────────────────────────── #}
+    <div class="card">
+      <div class="card-header bg-qc-blue text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-clock-history me-2"></i>Verification History</span>
+        <div class="d-flex gap-2">
+          {% if beneficiary.status == 'active' %}
+          <a href="{% url 'verification:update_face_data' beneficiary.pk %}"
+             class="btn btn-sm btn-warning"
+             style="font-size:0.75rem; padding:0.2rem 0.6rem;"
+             title="Update face embedding">
+            <i class="bi bi-camera-video me-1"></i>Update Face
+          </a>
+          {% endif %}
+          <a href="{% url 'logs:verification_logs' %}" class="btn btn-sm btn-outline-light"
+             style="font-size:0.75rem; padding:0.2rem 0.6rem;">View All Logs</a>
+        </div>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-hover table-sm mb-0">
+          <thead>
+            <tr>
+              <th>Date / Time</th>
+              <th>Claimant</th>
+              <th>Decision</th>
+              <th>Score</th>
+              <th>Liveness</th>
+              <th>Payout Period</th>
+              <th>By</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for a in attempts %}
+            <tr>
+              <td class="small text-muted" style="white-space:nowrap;">{{ a.timestamp|date:"M d, H:i" }}</td>
+              <td>
+                {% if a.claimant_type == 'representative' %}
+                  <span class="badge bg-primary small">Rep.</span>
+                  {% if a.representative %}
+                  <div class="text-muted" style="font-size:0.72rem;">{{ a.representative.full_name }}</div>
+                  {% endif %}
+                {% else %}
+                  <span class="badge bg-secondary small">Self</span>
+                {% endif %}
+              </td>
+              <td>
+                <span class="badge
+                  {% if a.decision == 'verified' %}bg-success
+                  {% elif a.decision == 'denied' or a.decision == 'not_verified' %}bg-danger
+                  {% elif a.decision == 'manual_review' %}bg-warning text-dark
+                  {% else %}bg-secondary{% endif %}">
+                  {{ a.get_decision_display|default:"&mdash;" }}
+                </span>
+                {% if a.overridden %}
+                  <span class="badge bg-info ms-1">Override</span>
+                {% endif %}
+              </td>
+              <td class="small font-mono">
+                {% if a.similarity_score is not None %}{{ a.similarity_score|floatformat:3 }}
+                {% else %}&mdash;{% endif %}
+              </td>
+              <td class="text-center">
+                {% if a.liveness_passed %}
+                  <i class="bi bi-check-circle-fill text-success"></i>
+                {% elif a.liveness_passed is not None %}
+                  <i class="bi bi-x-circle-fill text-danger"></i>
+                {% else %}&mdash;{% endif %}
+              </td>
+              <td class="small text-muted">
+                {% if a.stipend_event %}{{ a.stipend_event.title|truncatechars:18 }}
+                {% else %}&mdash;{% endif %}
+              </td>
+              <td class="small">{{ a.performed_by.username|default:"&mdash;" }}</td>
+            </tr>
+            {% empty %}
+            <tr>
+              <td colspan="7" class="text-center text-muted py-5">
+                <i class="bi bi-clock-history fs-2 d-block mb-2 opacity-25"></i>
+                No verification attempts yet.
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

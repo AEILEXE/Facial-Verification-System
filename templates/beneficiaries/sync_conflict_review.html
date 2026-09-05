@@ -1,0 +1,137 @@
+{% extends "base.html" %}
+{% block title %}Review Sync Conflict{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-7">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'beneficiaries:sync_conflict_list' %}">Sync Conflict Queue</a> /
+    Review
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-1">
+    <i class="bi bi-arrow-repeat me-2"></i>Review Sync
+    {% if beneficiary.sync_status == 'sync_conflict' %}Conflict{% else %}Rejection{% endif %}
+  </h4>
+  <p class="text-muted mb-4">
+    This record was created offline on <strong>{{ beneficiary.offline_device|default:"an unknown device" }}</strong>
+    and could not be automatically synced. Review the details below and choose an action.
+  </p>
+
+  <!-- Sync state banner -->
+  {% if beneficiary.sync_status == 'sync_conflict' %}
+  <div class="alert d-flex gap-2 align-items-start mb-3"
+       style="background:#fef3c7; border:1px solid #fcd34d; font-size:0.85rem;">
+    <i class="bi bi-exclamation-triangle text-warning flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Sync Conflict (HTTP 409)</strong><br>
+      The central server already has a record with conflicting data for this beneficiary ID.
+      <br><span class="text-muted">Server response: {{ beneficiary.sync_error|default:"No detail provided." }}</span>
+    </div>
+  </div>
+  {% else %}
+  <div class="alert d-flex gap-2 align-items-start mb-3"
+       style="background:#fee2e2; border:1px solid #fca5a5; font-size:0.85rem;">
+    <i class="bi bi-x-circle text-danger flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Sync Rejected (HTTP 400/422)</strong><br>
+      The central server refused the payload — the data may be invalid or incomplete.
+      <br><span class="text-muted">Server response: {{ beneficiary.sync_error|default:"No detail provided." }}</span>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Beneficiary details -->
+  <div class="card mb-3">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-person me-2"></i>Beneficiary Details
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">FULL NAME</div>
+          <div class="fw-bold">{{ beneficiary.full_name }}</div>
+          <div class="font-mono text-muted small">{{ beneficiary.beneficiary_id }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">DATE OF BIRTH</div>
+          <div>{{ beneficiary.date_of_birth|date:"F d, Y" }}</div>
+          <div class="text-muted small">Gender: {{ beneficiary.get_gender_display }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">ADDRESS</div>
+          <div class="small">{{ beneficiary.address }}</div>
+          <div class="small text-muted">{{ beneficiary.barangay }}, {{ beneficiary.municipality }}, {{ beneficiary.province }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">CONTACT</div>
+          <div class="small">{{ beneficiary.contact_number|default:"&mdash;" }}</div>
+        </div>
+        {% if beneficiary.senior_citizen_id %}
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">SENIOR CITIZEN ID</div>
+          <div class="font-mono small">{{ beneficiary.senior_citizen_id }}</div>
+        </div>
+        {% endif %}
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">REGISTERED BY</div>
+          <div class="small">{% if beneficiary.registered_by %}{{ beneficiary.registered_by.get_full_name|default:beneficiary.registered_by.username }}{% else %}&mdash;{% endif %}</div>
+          <div class="text-muted small">{{ beneficiary.created_at|date:"M d, Y H:i" }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">OFFLINE DEVICE</div>
+          <div class="font-mono small">{{ beneficiary.offline_device|default:"&mdash;" }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">SYNC ATTEMPTED</div>
+          <div class="small">{{ beneficiary.sync_attempted_at|date:"M d, Y H:i"|default:"&mdash;" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Admin decision -->
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-pencil me-2"></i>Admin Decision
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="review-notes" class="form-label fw-semibold">
+            Review Notes <span class="text-danger">*</span>
+          </label>
+          <textarea id="review-notes" name="review_notes" class="form-control" rows="3" required
+                    placeholder="Explain your decision. This is permanently recorded in the audit log."></textarea>
+          <div class="form-text">Required. Appears in the audit log alongside your name and timestamp.</div>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+          <button type="submit" name="action" value="retry"
+                  class="btn btn-primary fw-semibold"
+                  onclick="return confirm('Reset to pending_sync? The record will be re-sent on the next sync run.')">
+            <i class="bi bi-arrow-clockwise me-1"></i>Retry Sync
+          </button>
+          <button type="submit" name="action" value="accept"
+                  class="btn btn-success fw-semibold"
+                  onclick="return confirm('Accept as synced? The local record will be treated as authoritative.')">
+            <i class="bi bi-check-circle me-1"></i>Accept Local Record
+          </button>
+          <button type="submit" name="action" value="reject"
+                  class="btn btn-danger fw-semibold"
+                  onclick="return confirm('Mark as permanently rejected? The record will not be synced.')">
+            <i class="bi bi-x-circle me-1"></i>Reject Permanently
+          </button>
+          <a href="{% url 'beneficiaries:sync_conflict_list' %}" class="btn btn-outline-secondary ms-auto">
+            <i class="bi bi-arrow-left me-1"></i>Back to Queue
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

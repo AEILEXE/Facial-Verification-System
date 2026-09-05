@@ -1,0 +1,172 @@
+{% extends "base.html" %}
+{% block title %}Run Controlled Trial{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+      <a href="{% url 'verification:evaluation_dataset_list' %}">System Evaluation &amp; Research</a> /
+      <a href="{% url 'verification:evaluation_dataset_detail' trial.dataset.pk %}">{{ trial.dataset.name }}</a> / Run Trial
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0"><i class="bi bi-camera me-2"></i>Controlled Trial Capture</h4>
+  </div>
+  <span class="badge fs-6 {% if stage == 'liveness' %}bg-warning text-dark{% else %}bg-info text-dark{% endif %}">
+    {% if stage == 'liveness' %}Stage 1 — Liveness{% else %}Stage 2 — Final Frame{% endif %}
+  </span>
+</div>
+
+<div class="alert alert-danger">
+  <strong><i class="bi bi-flask me-1"></i> CONTROLLED EVALUATION — NOT LIVE STIPEND DISTRIBUTION.</strong><br>
+  NO CLAIM OR PAYOUT WILL BE CREATED. This capture uses the same server-side matching
+  algorithms as production but is a simplified two-stage research capture
+  (no interactive automated head-turn overlay — the researcher attests the challenge).
+</div>
+
+{% if not trial.target_beneficiary and not trial.target_representative %}
+<div class="alert alert-danger">
+  This trial has no resolved target identity — it cannot be run. Go back and edit trial setup.
+</div>
+{% elif stage == 'liveness' %}
+
+<div class="card">
+  <div class="card-body">
+    <p class="small text-muted">
+      Participant: <strong>{{ trial.participant_code }}</strong> &middot;
+      Target: <strong>{{ trial.target_identity_code }}</strong>
+      {% if trial.target_representative %}<span class="badge bg-secondary ms-1">Representative</span>{% else %}<span class="badge bg-secondary ms-1">Beneficiary</span>{% endif %}
+      &middot; Identity Ground Truth: <strong>{{ trial.get_identity_ground_truth_display }}</strong>
+    </p>
+
+    <div class="alert alert-info py-2">
+      <strong>Challenge direction (if attempting active challenge):</strong> {{ challenge_direction|upper }}
+    </div>
+
+    <video id="live-video" autoplay playsinline class="w-100 border rounded mb-2" style="max-height:360px; background:#000;"></video>
+    <canvas id="live-canvas" class="d-none"></canvas>
+
+    <form method="post" action="{% url 'verification:evaluation_trial_liveness' trial.pk %}" id="liveness-form">
+      {% csrf_token %}
+      <input type="hidden" name="session_token" value="{{ trial.evaluation_session_token }}">
+      <input type="hidden" name="neutral_image" id="neutral-image-field">
+      <input type="hidden" name="challenge_direction" value="{{ challenge_direction }}">
+      <div id="live-sequence-fields"></div>
+
+      <div class="form-check mb-2">
+        <input class="form-check-input" type="checkbox" name="head_movement_completed" value="1" id="challenge-completed-check">
+        <label class="form-check-label" for="challenge-completed-check">
+          I performed the head-turn challenge shown above (attests an ACTIVE CHALLENGE pathway; leave unchecked for PASSIVE ONLY).
+        </label>
+      </div>
+
+      <div class="d-flex gap-2 mt-2">
+        <button type="button" id="live-capture-btn" class="btn btn-primary">
+          <i class="bi bi-camera-fill me-1"></i>Capture Frame
+        </button>
+        <button type="submit" id="live-submit-btn" class="btn btn-warning" disabled>
+          <i class="bi bi-shield-check me-1"></i>Check Liveness
+        </button>
+      </div>
+      <div id="live-status" class="small text-muted mt-2"></div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const video = document.getElementById('live-video');
+  const canvas = document.getElementById('live-canvas');
+  const captureBtn = document.getElementById('live-capture-btn');
+  const submitBtn = document.getElementById('live-submit-btn');
+  const imageField = document.getElementById('neutral-image-field');
+  const seqContainer = document.getElementById('live-sequence-fields');
+  const status = document.getElementById('live-status');
+  let seqCount = 0;
+
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(function (stream) { video.srcObject = stream; })
+    .catch(function () { status.textContent = 'Camera unavailable — check browser permissions.'; });
+
+  captureBtn.addEventListener('click', function () {
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const dataUri = canvas.toDataURL('image/jpeg', 0.9);
+
+    if (!imageField.value) {
+      imageField.value = dataUri;
+      status.textContent = 'Neutral frame captured. Optionally capture up to 2 burst frames, or check liveness now.';
+    } else if (seqCount < 2) {
+      const hidden = document.createElement('input');
+      hidden.type = 'hidden';
+      hidden.name = 'sequence_frames';
+      hidden.value = dataUri;
+      seqContainer.appendChild(hidden);
+      seqCount += 1;
+      status.textContent = seqCount + ' burst frame(s) captured.';
+    }
+    submitBtn.disabled = false;
+  });
+})();
+</script>
+
+{% else %}
+
+<div class="card">
+  <div class="card-body">
+    <p class="small text-success"><i class="bi bi-check-circle-fill me-1"></i>Liveness passed — capture the final frame to complete the trial.</p>
+    <p class="small text-muted">
+      Participant: <strong>{{ trial.participant_code }}</strong> &middot;
+      Target: <strong>{{ trial.target_identity_code }}</strong> &middot;
+      Identity Ground Truth: <strong>{{ trial.get_identity_ground_truth_display }}</strong>
+    </p>
+
+    <video id="final-video" autoplay playsinline class="w-100 border rounded mb-2" style="max-height:360px; background:#000;"></video>
+    <canvas id="final-canvas" class="d-none"></canvas>
+
+    <form method="post" action="{% url 'verification:evaluation_trial_run' trial.pk %}" id="final-form">
+      {% csrf_token %}
+      <input type="hidden" name="session_token" value="{{ trial.evaluation_session_token }}">
+      <input type="hidden" name="image" id="final-image-field">
+
+      <div class="d-flex gap-2 mt-2">
+        <button type="button" id="final-capture-btn" class="btn btn-primary">
+          <i class="bi bi-camera-fill me-1"></i>Capture Final Frame
+        </button>
+        <button type="submit" id="final-submit-btn" class="btn btn-success" disabled>
+          <i class="bi bi-send-check me-1"></i>Submit Trial
+        </button>
+      </div>
+      <div id="final-status" class="small text-muted mt-2"></div>
+    </form>
+  </div>
+</div>
+
+<script>
+(function () {
+  const video = document.getElementById('final-video');
+  const canvas = document.getElementById('final-canvas');
+  const captureBtn = document.getElementById('final-capture-btn');
+  const submitBtn = document.getElementById('final-submit-btn');
+  const imageField = document.getElementById('final-image-field');
+  const status = document.getElementById('final-status');
+
+  navigator.mediaDevices.getUserMedia({ video: true })
+    .then(function (stream) { video.srcObject = stream; })
+    .catch(function () { status.textContent = 'Camera unavailable — check browser permissions.'; });
+
+  captureBtn.addEventListener('click', function () {
+    canvas.width = video.videoWidth || 640;
+    canvas.height = video.videoHeight || 480;
+    const ctx = canvas.getContext('2d');
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    imageField.value = canvas.toDataURL('image/jpeg', 0.9);
+    status.textContent = 'Final frame captured. Submit to complete the trial.';
+    submitBtn.disabled = false;
+  });
+})();
+</script>
+
+{% endif %}
+{% endblock %}

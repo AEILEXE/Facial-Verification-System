@@ -1,0 +1,282 @@
+{% extends "base.html" %}
+{% block title %}Payout Schedule{% endblock %}
+{% block nav_distribution %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Payout Schedule
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-calendar3 me-2"></i>Payout Schedule
+    </h4>
+    <p class="text-muted small mb-0">Manage payout events. Claims are linked to these events for audit purposes.</p>
+  </div>
+  {% if user.is_admin %}
+  <a href="{% url 'verification:stipend_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-circle me-1"></i> Add Event
+  </a>
+  {% endif %}
+</div>
+
+{% if messages %}
+  {% for msg in messages %}
+  <div class="alert alert-{% if msg.tags == 'error' %}danger{% else %}{{ msg.tags }}{% endif %} mb-3">
+    {{ msg }}
+  </div>
+  {% endfor %}
+{% endif %}
+
+{% if user.is_admin and pending_approval %}
+<div class="card border-warning mb-4">
+  <div class="card-header bg-warning text-dark d-flex justify-content-between align-items-center">
+    <span>
+      <i class="bi bi-hourglass-split me-2"></i>
+      Schedules Pending President Approval
+    </span>
+    <span class="badge bg-dark">{{ pending_approval.count }}</span>
+  </div>
+  <div class="list-group list-group-flush">
+    {% for event in pending_approval %}
+    <div class="list-group-item p-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div class="flex-grow-1">
+          <div class="fw-semibold">
+            {{ event.title }}
+            <span class="badge bg-warning text-dark ms-1">Pending Approval</span>
+          </div>
+          <div class="small text-muted">
+            <i class="bi bi-calendar3 me-1"></i>{{ event.date|date:"F d, Y" }}
+            {% if event.payout_start_date or event.payout_end_date %}
+              &middot; window
+              {% if event.payout_start_date %}{{ event.payout_start_date|date:"M d" }}{% else %}—{% endif %}
+              &ndash;
+              {% if event.payout_end_date %}{{ event.payout_end_date|date:"M d, Y" }}{% else %}open{% endif %}
+            {% endif %}
+          </div>
+          <div class="small text-muted">
+            Created by {{ event.created_by.username|default:"—" }} &middot;
+            Amount: ₱ {{ event.amount|floatformat:2 }}
+          </div>
+        </div>
+        <div class="d-flex gap-1 ms-3 flex-shrink-0">
+          <a href="{% url 'verification:stipend_edit' event.pk %}" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-pencil"></i>
+          </a>
+          {% if user.is_president %}
+          <form method="POST" action="{% url 'verification:stipend_approve' event.pk %}" class="d-inline"
+                onsubmit="
+                  {% if event.get_claim_end < today %}
+                  var r = prompt('This schedule\'s payout window ended on {{ event.get_claim_end }}. A late-approval reason (required, min 10 chars) will be recorded in the audit log:');
+                  if (!r || r.length < 10) { alert('A late-approval reason of at least 10 characters is required.'); return false; }
+                  this.late_approval_reason.value = r;
+                  return confirm('Approve this schedule after its scheduled date? This will be recorded as a LATE approval.');
+                  {% else %}
+                  return confirm('Approve and publish this payout schedule? Staff will be able to release stipends against it. This action will be recorded in the audit log.');
+                  {% endif %}
+                ">
+            {% csrf_token %}
+            <input type="hidden" name="late_approval_reason" value="">
+            <button type="submit" class="btn btn-sm btn-success">
+              <i class="bi bi-check-circle me-1"></i>Approve
+              {% if event.get_claim_end < today %}<span class="badge bg-dark ms-1">Late</span>{% endif %}
+            </button>
+          </form>
+          <form method="POST" action="{% url 'verification:stipend_reject' event.pk %}" class="d-inline"
+                onsubmit="var r = prompt('Rejection reason (required, min 5 chars):'); if (!r || r.length < 5) { alert('A rejection reason is required.'); return false; } this.reason.value = r; return true;">
+            {% csrf_token %}
+            <input type="hidden" name="reason" value="">
+            <button type="submit" class="btn btn-sm btn-danger">
+              <i class="bi bi-x-circle me-1"></i>Reject
+            </button>
+          </form>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if not user.is_president %}
+  <div class="card-footer bg-light small text-muted">
+    Only the President may approve or reject pending schedules.
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="row g-4">
+  <div class="col-lg-7">
+    <div class="card mb-4">
+      <div class="card-header bg-qc-blue text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-calendar-check me-2"></i>Upcoming Events</span>
+        <span class="badge bg-white text-qc-blue">{{ upcoming.count }}</span>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for event in upcoming %}
+        <div class="list-group-item p-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+              <div class="fw-semibold">
+                {{ event.title }}
+                {% if event.event_type == 'birthday_bonus' %}
+                  <span class="badge bg-warning text-dark ms-1"><i class="bi bi-gift me-1"></i>Birthday Bonus</span>
+                {% elif event.event_type == 'custom' %}
+                  <span class="badge bg-info text-dark ms-1"><i class="bi bi-star me-1"></i>{{ event.custom_event_type|default:"Custom" }}</span>
+                {% endif %}
+              </div>
+              <div class="small text-muted">
+                <i class="bi bi-calendar3 me-1"></i>{{ event.date|date:"F d, Y" }}
+                {% if event.date == today %}
+                  <span class="badge bg-success ms-1">Today</span>
+                {% endif %}
+              </div>
+              {% if event.payout_start_date or event.payout_end_date %}
+              <div class="small mt-1">
+                <i class="bi bi-calendar-range me-1 text-success"></i>
+                <span class="fw-semibold text-success">Distribution window:</span>
+                {% if event.payout_start_date %}{{ event.payout_start_date|date:"M d" }}{% else %}—{% endif %}
+                &ndash;
+                {% if event.payout_end_date %}{{ event.payout_end_date|date:"M d, Y" }}{% else %}open{% endif %}
+              </div>
+              {% endif %}
+              {% if event.description %}
+              <div class="small text-muted mt-1">{{ event.description }}</div>
+              {% endif %}
+              <div class="small text-muted mt-1">
+                <i class="bi bi-check2-square me-1"></i>
+                {{ event.claims.count }} claim{{ event.claims.count|pluralize }} linked
+                {% if event.event_type == 'birthday_bonus' %}
+                  &bull; <i class="bi bi-people me-1"></i>{{ event.get_eligible_beneficiaries.count }} eligible
+                {% endif %}
+              </div>
+            </div>
+            {% if user.is_admin %}
+            <div class="d-flex gap-1 ms-3 flex-shrink-0">
+              <a href="{% url 'verification:stipend_edit' event.pk %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-pencil"></i>
+              </a>
+              <form method="POST" action="{% url 'verification:stipend_delete' event.pk %}" style="display:inline;"
+                    onsubmit="return confirm('Delete or deactivate this payout event? This action will be recorded in the audit log.')">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger">
+                  <i class="bi bi-trash"></i>
+                </button>
+              </form>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+        {% empty %}
+        <div class="list-group-item text-center text-muted py-5">
+          <i class="bi bi-calendar-x fs-2 d-block mb-2 opacity-25"></i>
+          No upcoming events scheduled.
+          {% if user.is_admin %}
+          <div class="mt-2">
+            <a href="{% url 'verification:stipend_create' %}" class="btn btn-sm btn-primary">
+              <i class="bi bi-plus me-1"></i> Create First Event
+            </a>
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-5">
+    {% if user.is_admin and inactive %}
+    <div class="card mb-4">
+      <div class="card-header bg-secondary text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-slash-circle me-2"></i>Inactive Events</span>
+        <span class="badge bg-white text-secondary">{{ inactive.count }}</span>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for event in inactive %}
+        <div class="list-group-item p-3">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+              <div class="fw-semibold small text-muted">
+                {{ event.title }}
+                <span class="badge bg-secondary ms-1">Inactive</span>
+                {% if event.event_type == 'birthday_bonus' %}
+                  <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;"><i class="bi bi-gift"></i></span>
+                {% elif event.event_type == 'custom' %}
+                  <span class="badge bg-info text-dark ms-1" style="font-size:0.65rem;"><i class="bi bi-star"></i></span>
+                {% endif %}
+              </div>
+              <div class="text-muted" style="font-size:0.8rem;">
+                <i class="bi bi-calendar3 me-1"></i>{{ event.date|date:"M d, Y" }}
+              </div>
+              {% if event.payout_start_date or event.payout_end_date %}
+              <div style="font-size:0.75rem; color:#6c757d;">
+                <i class="bi bi-calendar-range me-1"></i>
+                {% if event.payout_start_date %}{{ event.payout_start_date|date:"M d" }}{% else %}—{% endif %}
+                &ndash;
+                {% if event.payout_end_date %}{{ event.payout_end_date|date:"M d, Y" }}{% else %}open{% endif %}
+              </div>
+              {% endif %}
+              <div class="text-muted" style="font-size:0.75rem;">
+                {{ event.claims.count }} claim{{ event.claims.count|pluralize }} linked
+              </div>
+            </div>
+            <div class="d-flex gap-1 ms-3 flex-shrink-0">
+              <a href="{% url 'verification:stipend_edit' event.pk %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-pencil"></i>
+              </a>
+            </div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-clock-history me-2"></i>Past Events
+      </div>
+      <div class="list-group list-group-flush">
+        {% for event in past %}
+        <div class="list-group-item p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-semibold small {% if not event.is_active %}text-muted{% endif %}">
+                {{ event.title }}
+                {% if event.event_type == 'birthday_bonus' %}
+                  <span class="badge bg-warning text-dark ms-1" style="font-size:0.65rem;"><i class="bi bi-gift"></i></span>
+                {% elif event.event_type == 'custom' %}
+                  <span class="badge bg-info text-dark ms-1" style="font-size:0.65rem;"><i class="bi bi-star"></i></span>
+                {% endif %}
+                {% if not event.is_active %}<span class="badge bg-secondary ms-1">Inactive</span>{% endif %}
+                {% if event.approval_status == 'rejected' %}
+                  <span class="badge bg-danger ms-1">Rejected</span>
+                {% elif event.approval_status == 'pending_approval' %}
+                  <span class="badge bg-warning text-dark ms-1">Never Approved</span>
+                {% else %}
+                  <span class="badge bg-success ms-1">Completed / Past Event</span>
+                {% endif %}
+              </div>
+              <div class="text-muted" style="font-size:0.8rem;">{{ event.date|date:"M d, Y" }}</div>
+              {% if event.payout_start_date or event.payout_end_date %}
+              <div style="font-size:0.75rem; color:#059669;">
+                <i class="bi bi-calendar-range me-1"></i>
+                {% if event.payout_start_date %}{{ event.payout_start_date|date:"M d" }}{% else %}—{% endif %}
+                &ndash;
+                {% if event.payout_end_date %}{{ event.payout_end_date|date:"M d, Y" }}{% else %}open{% endif %}
+              </div>
+              {% endif %}
+            </div>
+            <div class="text-muted small">
+              {{ event.claims.count }} claim{{ event.claims.count|pluralize }}
+            </div>
+          </div>
+        </div>
+        {% empty %}
+        <div class="list-group-item text-center text-muted py-4 small">No past events.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

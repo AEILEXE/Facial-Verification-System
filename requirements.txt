@@ -1,0 +1,89 @@
+# ============================================================
+# FANS-C Requirements — pinned for reproducible installs
+# ============================================================
+#
+# PYTHON VERSION: Python 3.11 ONLY.
+# Python 3.12 and 3.13 are NOT supported by tensorflow-cpu 2.13.x.
+# You will see a DLL load error at import time on 3.12/3.13.
+# Download Python 3.11: https://www.python.org/downloads/release/python-3119/
+#
+# WINDOWS LONG PATH WARNING:
+# If pip fails with OSError or "file not found" on TensorFlow,
+# your project path is too long. Move to a short path such as C:\FANSC
+# or D:\FANS and re-run. You can also enable long-path support:
+#   (Admin PowerShell) New-ItemProperty -Path
+#   "HKLM:\SYSTEM\CurrentControlSet\Control\FileSystem"
+#   -Name "LongPathsEnabled" -Value 1 -PropertyType DWORD -Force
+#
+# INSTALL ORDER (handled automatically by setup.ps1):
+#   1. pip install numpy==1.24.3           <- MUST come first
+#   2. pip install tensorflow-cpu==2.13.1  <- second
+#   3. pip install -r requirements.txt     <- everything else
+# ============================================================
+
+# ── Web Framework ──────────────────────────────────────────
+Django==4.2.21
+python-dotenv==1.0.1
+whitenoise==6.9.0
+
+# ── Image & Crypto ─────────────────────────────────────────
+Pillow==10.4.0
+cryptography==43.0.3
+
+# ── Numerical ──────────────────────────────────────────────
+# numpy 1.24.3 is required:
+#   - tensorflow 2.13 requires numpy < 2.0
+#   - scipy 1.11.x requires numpy >= 1.21
+# Do NOT allow pip to upgrade numpy to 2.x — it breaks TensorFlow.
+numpy==1.24.3
+
+# scipy is used by keras-facenet (scipy.spatial.distance).
+# Pin to a version compatible with numpy 1.24.3 and Python 3.11.
+scipy==1.11.4
+
+# ── Computer Vision ────────────────────────────────────────
+opencv-python==4.10.0.84
+
+# ── Face Recognition ───────────────────────────────────────
+# tensorflow-cpu 2.13.1: CPU-only build, no GPU/CUDA required.
+# REQUIRES Python 3.10 or 3.11 only.
+tensorflow-cpu==2.13.1
+
+# keras-facenet: wrapper that downloads ~90 MB FaceNet weights on first use.
+# Requires tensorflow and scipy.
+keras-facenet==0.3.2
+
+# mtcnn: face detector used by keras-facenet internally.
+mtcnn==1.0.0
+
+# ── Optional: RetinaFace face detector ─────────────────────
+# Falls back to OpenCV Haar cascade if absent.
+# Uncomment if retinaface installs cleanly on your system.
+# retinaface>=0.0.13
+
+# ── PostgreSQL driver ──────────────────────────────────────
+# Required for centralized server deployment (USE_SQLITE=False in .env).
+# psycopg2-binary bundles its own libpq so no system PostgreSQL install is
+# needed on the server running Django.  Safe to install even when using SQLite
+# locally -- Django simply won't load the PostgreSQL backend unless selected.
+psycopg2-binary==2.9.12
+
+# ── Export / Reporting ─────────────────────────────────────────────────────
+# openpyxl: Excel (.xlsx) export for claim/verification reports.
+# Compatible with Python 3.11 and all Django versions used here.
+openpyxl==3.1.5
+
+# reportlab: PDF generation for Beneficiary History export.
+# Pure-Python, no system dependencies, PyInstaller-friendly.
+reportlab==4.5.1
+
+# ── HTTP client (offline sync) ─────────────────────────────────────────────
+# requests is used by beneficiaries/sync.py (_push_beneficiary) when
+# SYNC_API_URL is set and offline sync is enabled.  Safe to install even for
+# standalone SQLite deployments -- sync is a no-op when SYNC_API_URL is empty.
+requests==2.34.2
+
+# ── Production WSGI server ──────────────────────────────────────────────────
+# Waitress is the production server invoked by start-fans*.bat / Task Scheduler.
+# It must be present in .venv or auto-start fails with `waitress-serve.exe` not found.
+waitress==3.0.2

@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Register Representative Face{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-8 col-xl-7">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'beneficiaries:beneficiary_list' %}">Beneficiaries</a> /
+    <a href="{% url 'beneficiaries:beneficiary_detail' beneficiary.pk %}">{{ beneficiary.full_name }}</a> /
+    Register Representative Face
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-1">
+    <i class="bi bi-camera-video me-2"></i>Register Representative Face
+  </h4>
+  <p class="text-muted mb-4">
+    Capture <strong>{{ representative.full_name }}</strong>'s face
+    (representative for <strong>{{ beneficiary.full_name }}</strong>, {{ beneficiary.beneficiary_id }}).
+    This biometric data is required before they can verify and claim on behalf of the beneficiary.
+  </p>
+
+  {% if using_mock %}
+  <div class="alert alert-danger d-flex gap-2 align-items-start mb-3">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Face recognition model not loaded.</strong> The stored embedding will not be usable for real verification.
+      {% if model_load_error %}<div class="mt-1 font-mono small text-danger-emphasis">{{ model_load_error }}</div>{% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="alert d-flex gap-2 align-items-start mb-4"
+       style="background:#f0f4ff; border:1px solid #c7d7fa; font-size:0.85rem;">
+    <i class="bi bi-shield-check text-qc-blue flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Representative:</strong> {{ representative.full_name }}<br>
+      <strong>Relationship:</strong> {{ representative.relationship|default:"&mdash;" }}<br>
+      <strong>Contact:</strong> {{ representative.contact_number }}<br>
+      <strong>Valid ID:</strong> {{ representative.valid_id_type }} &mdash; {{ representative.valid_id_number }}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-camera me-2"></i>Face Capture
+    </div>
+    <div class="card-body p-4">
+
+      <div class="alert alert-info d-flex gap-2 align-items-start mb-4">
+        <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+        <span>
+          Position the representative's face within the oval guide.
+          Ensure even lighting, have them look directly at the camera,
+          and remove glasses or hat if possible.
+        </span>
+      </div>
+
+      <div class="text-center">
+        <div class="position-relative d-inline-block mb-3">
+          <video id="video" width="480" height="360" autoplay muted
+                 class="rounded-3"
+                 style="border:2px solid var(--qc-blue); transform:scaleX(-1); display:block;"></video>
+          <canvas id="overlay" width="480" height="360"
+                  class="position-absolute top-0 start-0"
+                  style="transform:scaleX(-1); pointer-events:none;"></canvas>
+          <div id="faceBorder" class="position-absolute top-50 start-50 translate-middle"
+               style="width:200px; height:260px; border:3px dashed rgba(255,255,255,0.75);
+                      border-radius:50%; pointer-events:none; transition:border-color 0.3s;"></div>
+        </div>
+        <canvas id="captureCanvas" width="480" height="360" style="display:none;"></canvas>
+
+        <div id="statusMsg" class="alert alert-info d-flex gap-2 align-items-center justify-content-center mb-3">
+          <i class="bi bi-hourglass-split"></i>
+          <span>Starting camera&hellip;</span>
+        </div>
+
+        <!-- Liveness challenge box -->
+        <div id="regChallengeBox" class="alert alert-warning text-center fw-bold mb-3" style="display:none;">
+          <i class="bi bi-person-bounding-box me-2"></i>
+          <span id="regChallengeText"></span>
+          <div class="progress mt-2" style="height:6px;">
+            <div id="regChallengeTimer" class="progress-bar bg-warning" style="width:100%;"></div>
+          </div>
+          <div id="regChallengeProgress" class="small font-monospace mt-1" style="color:#0c4a6e;"></div>
+        </div>
+
+        <!-- Liveness result badge -->
+        <div id="regLivenessStatus" class="small mb-2" style="display:none;"></div>
+
+        <div class="d-flex justify-content-center gap-3 mb-3">
+          <button id="captureBtn" class="btn btn-primary px-4" disabled>
+            <i class="bi bi-camera me-1"></i> Capture Face
+          </button>
+          <button id="retakeBtn" class="btn btn-outline-secondary px-4" style="display:none;">
+            <i class="bi bi-arrow-counterclockwise me-1"></i> Retake
+          </button>
+          <button id="submitBtn" class="btn btn-success px-5" style="display:none;">
+            <i class="bi bi-check-circle me-1"></i> Save Face Data
+          </button>
+        </div>
+
+        <div id="capturedPreview" class="mt-3" style="display:none;">
+          <p class="text-muted small mb-2">Preview &mdash; verify the face is clear before saving:</p>
+          <img id="previewImg" class="rounded-3" width="240" height="180"
+               style="object-fit:cover; border:2px solid var(--qc-blue);" alt="Captured face">
+        </div>
+
+        <div id="processingSpinner" class="mt-3" style="display:none;">
+          <div class="spinner-border text-qc-blue me-2" role="status"></div>
+          <span class="fw-semibold">Processing face embedding&hellip; Please wait.</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="mt-3 text-center">
+    <a href="{% url 'beneficiaries:beneficiary_detail' beneficiary.pk %}"
+       class="btn btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i> Back to Beneficiary Profile
+    </a>
+  </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script>
+const SUBMIT_URL = "{% url 'verification:register_rep_face_submit' beneficiary.pk representative.pk %}";
+const CHECK_LIVENESS_URL = "{% url 'verification:verify_check_liveness' %}";
+const CSRF_TOKEN = "{{ csrf_token }}";
+const REG_CHALLENGE = "{{ challenge }}";
+const REG_CHALLENGE_DISPLAY = "{{ challenge_display }}";
+window.MEDIAPIPE_BASE_URL = "{% static 'vendor/mediapipe/face_mesh/' %}";
+</script>
+<script src="{% static 'vendor/mediapipe/face_mesh/face_mesh.js' %}"></script>
+<script src="{% static 'vendor/mediapipe/camera_utils/camera_utils.js' %}"></script>
+<script src="{% static 'js/liveness.js' %}"></script>
+<script src="{% static 'js/webcam.js' %}"></script>
+<script src="{% static 'js/register.js' %}"></script>
+{% endblock %}

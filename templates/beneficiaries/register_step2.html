@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Register &mdash; Step 2{% endblock %}
+{% block nav_reg %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-8 col-xl-7">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Register Beneficiary
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-4"><i class="bi bi-person-plus me-2"></i>Register New Beneficiary</h4>
+
+  <div class="reg-stepper mb-4">
+    <div class="reg-step done">
+      <div class="step-dot"><i class="bi bi-check-lg"></i></div>
+      <div class="step-label">Personal Info</div>
+    </div>
+    <div class="reg-step active">
+      <div class="step-dot">2</div>
+      <div class="step-label">Representative</div>
+    </div>
+    <div class="reg-step">
+      <div class="step-dot">3</div>
+      <div class="step-label">Consent</div>
+    </div>
+    <div class="reg-step">
+      <div class="step-dot">4</div>
+      <div class="step-label">Face Capture</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-people me-2"></i>Step 2 of 4 &mdash; Representative Information
+      <span class="ms-2 opacity-75" style="font-size:0.8rem; font-weight:400;">(skip if no representative)</span>
+    </div>
+    <div class="card-body p-4">
+
+      <div class="alert alert-info d-flex gap-2 align-items-start mb-4">
+        <i class="bi bi-info-circle-fill flex-shrink-0 mt-1"></i>
+        <span>Fill this section only if someone else is authorized to claim the stipend on behalf of the beneficiary.</span>
+      </div>
+
+      <form method="POST" novalidate autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false">
+        {% csrf_token %}
+
+        <div class="mb-4">
+          <div class="form-check form-switch">
+            {{ form.has_representative }}
+            <label class="form-check-label fw-semibold" for="{{ form.has_representative.id_for_label }}">
+              This beneficiary has an authorized representative
+            </label>
+          </div>
+        </div>
+
+        <div id="repFields" style="display:none;">
+          <div class="row g-3">
+            <div class="col-md-6">
+              <label class="form-label" for="{{ form.rep_first_name.id_for_label }}">Representative First Name <span class="text-danger">*</span></label>
+              {{ form.rep_first_name }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="{{ form.rep_last_name.id_for_label }}">Representative Last Name <span class="text-danger">*</span></label>
+              {{ form.rep_last_name }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="{{ form.rep_relationship.id_for_label }}">Relationship to Beneficiary</label>
+              {{ form.rep_relationship }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="{{ form.rep_contact.id_for_label }}">Contact Number <span class="text-danger">*</span></label>
+              {{ form.rep_contact }}
+              {% if form.rep_contact.errors %}
+                <div class="text-danger small mt-1">{{ form.rep_contact.errors|join:", " }}</div>
+              {% endif %}
+              <div class="form-text">Format: 09XXXXXXXXX</div>
+            </div>
+            <div class="col-md-4">
+              <label class="form-label" for="{{ form.rep_id_type.id_for_label }}">ID Type <span class="text-danger">*</span></label>
+              {{ form.rep_id_type }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label" for="{{ form.rep_id_number.id_for_label }}">ID Number <span class="text-danger">*</span></label>
+              {{ form.rep_id_number }}
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex justify-content-between mt-4">
+          <a href="{% url 'beneficiaries:register_step1' %}" class="btn btn-outline-secondary px-4">
+            <i class="bi bi-arrow-left me-1"></i> Back
+          </a>
+          <button type="submit" class="btn btn-primary px-5">
+            Next <i class="bi bi-arrow-right ms-1"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const hasRepCheckbox = document.getElementById('{{ form.has_representative.id_for_label }}');
+const repFields = document.getElementById('repFields');
+const requiredRepInputs = ['{{ form.rep_first_name.html_name }}', '{{ form.rep_last_name.html_name }}',
+                           '{{ form.rep_contact.html_name }}', '{{ form.rep_id_type.html_name }}',
+                           '{{ form.rep_id_number.html_name }}'];
+const allRepInputs = [
+  '{{ form.rep_first_name.html_name }}', '{{ form.rep_last_name.html_name }}',
+  '{{ form.rep_relationship.html_name }}', '{{ form.rep_contact.html_name }}',
+  '{{ form.rep_id_type.html_name }}', '{{ form.rep_id_number.html_name }}',
+];
+function toggleRepFields() {
+  const checked = hasRepCheckbox.checked;
+  repFields.style.display = checked ? '' : 'none';
+  requiredRepInputs.forEach(name => {
+    const el = document.querySelector(`[name="${name}"]`);
+    if (el) el.required = checked;
+  });
+  // Clear fields when representative is disabled so browser does not
+  // restore or submit stale values from a previous attempt.
+  if (!checked) {
+    allRepInputs.forEach(name => {
+      const el = document.querySelector(`[name="${name}"]`);
+      if (el) {
+        if (el.tagName === 'SELECT') {
+          el.selectedIndex = 0;
+        } else {
+          el.value = '';
+        }
+      }
+    });
+  }
+}
+hasRepCheckbox.addEventListener('change', toggleRepFields);
+toggleRepFields();
+</script>
+{% endblock %}

@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Analytics — Security{% endblock %}
+{% block nav_analytics %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Analytics
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">Analytics — Security</h4>
+    <div class="text-muted small mt-1">
+      Rule-based security risk indicators, failed-login activity, and review-case workload.
+      View/flag-only — no score here automatically blocks or denies an account, and HIGH does not mean
+      fraud has been confirmed, only that a rule's configured threshold was exceeded by a wide margin.
+    </div>
+  </div>
+  <div>
+    <a href="{% url 'verification:report_suspicious_attempts' %}" class="btn btn-sm btn-outline-danger">
+      <i class="bi bi-exclamation-octagon me-1"></i>Full Security Alerts Report
+    </a>
+    <a href="{% url 'verification:fraud_signals_report' %}" class="btn btn-sm btn-outline-warning">
+      <i class="bi bi-flag me-1"></i>Security Review
+    </a>
+  </div>
+</div>
+
+{% include "verification/_analytics_nav.html" with active_tab="security" %}
+
+{# ── Security Status — one-glance read, derived from the same rule-based ── #}
+{# HIGH/MEDIUM counts already computed below; no new score is introduced.  #}
+<div class="card mb-3">
+  <div class="card-body d-flex flex-wrap align-items-center gap-3 p-3">
+    {% if fraud_risk_counts.HIGH %}
+    <div class="d-flex align-items-center gap-2">
+      <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#dc3545;"></span>
+      <span class="fw-bold" style="color:#dc3545;">Attention Needed</span>
+    </div>
+    <div class="text-muted small">{{ fraud_risk_counts.HIGH }} HIGH indicator{{ fraud_risk_counts.HIGH|pluralize }} flagged — review recommended.</div>
+    {% elif fraud_risk_counts.MEDIUM %}
+    <div class="d-flex align-items-center gap-2">
+      <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#ffc107;"></span>
+      <span class="fw-bold" style="color:#997404;">Attention Needed</span>
+    </div>
+    <div class="text-muted small">{{ fraud_risk_counts.MEDIUM }} MEDIUM indicator{{ fraud_risk_counts.MEDIUM|pluralize }} flagged — review recommended.</div>
+    {% else %}
+    <div class="d-flex align-items-center gap-2">
+      <span style="display:inline-block; width:10px; height:10px; border-radius:50%; background:#22c55e;"></span>
+      <span class="fw-bold" style="color:#15803d;">System Secure</span>
+    </div>
+    <div class="text-muted small">No HIGH or MEDIUM rule-based indicators are currently flagged.</div>
+    {% endif %}
+    <a href="{% url 'verification:fraud_signals_report' %}" class="btn btn-sm btn-outline-warning ms-auto">
+      <i class="bi bi-flag me-1"></i>Open Security Review
+    </a>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Active Alerts (Rule-Based)</div>
+  <div class="card-body">
+    <div class="d-flex gap-4 flex-wrap">
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-danger fs-6">HIGH</span>
+        <span class="fs-5 fw-bold js-countup" data-countup="{{ fraud_risk_counts.HIGH }}">{{ fraud_risk_counts.HIGH }}</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-warning text-dark fs-6">MEDIUM</span>
+        <span class="fs-5 fw-bold js-countup" data-countup="{{ fraud_risk_counts.MEDIUM }}">{{ fraud_risk_counts.MEDIUM }}</span>
+      </div>
+      <div class="d-flex align-items-center gap-2">
+        <span class="badge bg-secondary fs-6">LOW</span>
+        <span class="fs-5 fw-bold js-countup" data-countup="{{ fraud_risk_counts.LOW }}">{{ fraud_risk_counts.LOW }}</span>
+      </div>
+    </div>
+    <div class="small text-muted mt-2">
+      Each band is a rule crossing its configured threshold (e.g. N+ failed attempts in a trailing
+      window) — a count of how far past the line an actor is, not an evidence-based probability of
+      fraud. Computed from a fixed lookback window per rule, independent of the date filter below.
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Security Events</div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Event</th>
+            <th class="text-end">Count</th>
+            <th>Scope</th>
+            <th class="text-end">Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><i class="bi bi-shield-lock-fill me-2" style="color:#a16207;"></i>Failed Login</td>
+            <td class="text-end fw-semibold"><span class="js-countup" data-countup="{{ failed_logins }}">{{ failed_logins }}</span></td>
+            <td><span class="text-muted small">Selected range</span></td>
+            <td class="text-end"><a href="{% url 'logs:audit_logs' %}?action=login_failed" class="small">View <i class="bi bi-arrow-right"></i></a></td>
+          </tr>
+          <tr>
+            <td><i class="bi bi-x-octagon-fill me-2" style="color:#a16207;"></i>Failed Verification</td>
+            <td class="text-end fw-semibold"><span class="js-countup" data-countup="{{ failed_verifications }}">{{ failed_verifications }}</span></td>
+            <td><span class="text-muted small">Selected range</span></td>
+            <td class="text-end"><a href="{% url 'verification:report_suspicious_attempts' %}" class="small">View <i class="bi bi-arrow-right"></i></a></td>
+          </tr>
+          <tr>
+            <td><i class="bi bi-person-bounding-box me-2" style="color:#7c3aed;"></i>Duplicate Face</td>
+            <td class="text-end fw-semibold"><span class="js-countup" data-countup="{{ duplicate_faces }}">{{ duplicate_faces }}</span></td>
+            <td><span class="text-muted small">Selected range</span></td>
+            <td class="text-end text-muted small">&mdash;</td>
+          </tr>
+          <tr>
+            <td><i class="bi bi-cash-stack me-2" style="color:#a16207;"></i>Blocked Duplicate Payout Attempt</td>
+            <td class="text-end fw-semibold"><span class="js-countup" data-countup="{{ duplicate_payout_attempts }}">{{ duplicate_payout_attempts }}</span></td>
+            <td><span class="text-muted small">Selected range</span></td>
+            <td class="text-end text-muted small">&mdash;</td>
+          </tr>
+          <tr>
+            <td><i class="bi bi-eye-fill me-2" style="color:#7c3aed;"></i>Manual Review</td>
+            <td class="text-end fw-semibold"><span class="js-countup" data-countup="{{ manual_review_pending }}">{{ manual_review_pending }}</span></td>
+            <td><span class="text-muted small">Current queue</span></td>
+            <td class="text-end"><a href="{% url 'verification:manual_review' %}" class="small">Review <i class="bi bi-arrow-right"></i></a></td>
+          </tr>
+          <tr>
+            <td><i class="bi bi-exclamation-triangle-fill me-2" style="color:#a16207;"></i>Beneficiary with 3+ Attempts</td>
+            <td class="text-end fw-semibold"><span class="js-countup" data-countup="{{ high_attempt_beneficiaries }}">{{ high_attempt_beneficiaries }}</span></td>
+            <td><span class="text-muted small">Selected range</span></td>
+            <td class="text-end text-muted small">&mdash;</td>
+          </tr>
+          <tr>
+            <td><i class="bi bi-pencil-square me-2 text-qc-blue"></i>Payout Override</td>
+            <td class="text-end fw-semibold"><span class="js-countup" data-countup="{{ payout_overrides }}">{{ payout_overrides }}</span></td>
+            <td><span class="text-muted small">Selected range</span></td>
+            <td class="text-end text-muted small">&mdash;</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Review &amp; Security Cases — Currently Open</div>
+  <div class="card-body">
+    <div class="chart-canvas-wrap" style="position:relative; height:280px;">
+      <canvas id="reviewCasesChart"></canvas>
+    </div>
+    <div class="small text-muted mt-2">
+      Duplicate face, manual review, and representative-review are current open-queue counts
+      (point-in-time, not range-limited). Risk-indicator alerts (MEDIUM/HIGH indicators only — see
+      Security Risk Indicators above) use each rule's own fixed lookback window, also independent of
+      the date filter above.
+    </div>
+  </div>
+</div>
+
+{{ chart_data|json_script:"analytics-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/chartjs-4.4.4/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/analytics.js' %}"></script>
+{% endblock %}

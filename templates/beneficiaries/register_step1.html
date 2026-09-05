@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% block title %}Register &mdash; Step 1{% endblock %}
+{% block nav_reg %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-9 col-xl-8">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Register Beneficiary
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-4"><i class="bi bi-person-plus me-2"></i>Register New Beneficiary</h4>
+
+  <div class="reg-stepper mb-4">
+    <div class="reg-step active">
+      <div class="step-dot">1</div>
+      <div class="step-label">Personal Info</div>
+    </div>
+    <div class="reg-step">
+      <div class="step-dot">2</div>
+      <div class="step-label">Representative</div>
+    </div>
+    <div class="reg-step">
+      <div class="step-dot">3</div>
+      <div class="step-label">Consent</div>
+    </div>
+    <div class="reg-step">
+      <div class="step-dot">4</div>
+      <div class="step-label">Face Capture</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-person me-2"></i>Step 1 of 4 &mdash; Personal Information
+    </div>
+    <div class="card-body p-4">
+      <form method="POST" novalidate autocomplete="off">
+        {% csrf_token %}
+        <div class="row g-3">
+
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.first_name.id_for_label }}">First Name <span class="text-danger">*</span></label>
+            {{ form.first_name }}
+            {% if form.first_name.errors %}
+              <div class="text-danger small mt-1">{{ form.first_name.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.middle_name.id_for_label }}">Middle Name</label>
+            {{ form.middle_name }}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.last_name.id_for_label }}">Last Name <span class="text-danger">*</span></label>
+            {{ form.last_name }}
+            {% if form.last_name.errors %}
+              <div class="text-danger small mt-1">{{ form.last_name.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.date_of_birth.id_for_label }}">Date of Birth <span class="text-danger">*</span></label>
+            {{ form.date_of_birth }}
+            {% if form.date_of_birth.errors %}
+              <div class="text-danger small mt-1">{{ form.date_of_birth.errors|join:", " }}</div>
+            {% endif %}
+            <div class="form-text">Must be at least 60 years old.</div>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.gender.id_for_label }}">Gender <span class="text-danger">*</span></label>
+            {{ form.gender }}
+            {% if form.gender.errors %}
+              <div class="text-danger small mt-1">{{ form.gender.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.contact_number.id_for_label }}">Contact Number</label>
+            {{ form.contact_number }}
+            {% if form.contact_number.errors %}
+              <div class="text-danger small mt-1">{{ form.contact_number.errors|join:", " }}</div>
+            {% endif %}
+            <div class="form-text">Format: 09XXXXXXXXX or +639XXXXXXXXX</div>
+          </div>
+
+        </div>
+
+        <!-- Address Section -->
+        <hr class="my-4">
+        <h6 class="fw-bold text-qc-blue mb-3">
+          <i class="bi bi-geo-alt me-1"></i> Address
+        </h6>
+        <div class="row g-3">
+
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.municipality.id_for_label }}">City <span class="text-danger">*</span></label>
+            {{ form.municipality }}
+            {% if form.municipality.errors %}
+              <div class="text-danger small mt-1">{{ form.municipality.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.house_no.id_for_label }}">House No. <span class="text-muted small">(Optional)</span></label>
+            {{ form.house_no }}
+            {% if form.house_no.errors %}
+              <div class="text-danger small mt-1">{{ form.house_no.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.street.id_for_label }}">Street <span class="text-danger">*</span></label>
+            {{ form.street }}
+            {% if form.street.errors %}
+              <div class="text-danger small mt-1">{{ form.street.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label" for="{{ form.barangay.id_for_label }}">Barangay <span class="text-danger">*</span></label>
+            <div id="barangay_wrap">{{ form.barangay }}</div>
+            <div id="barangay_others_hint" class="form-text" style="display:none;">
+              For non-Quezon City addresses, type the barangay manually.
+            </div>
+            {% if form.barangay.errors %}
+              <div class="text-danger small mt-1">{{ form.barangay.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+
+          <div class="col-md-6">
+            <label class="form-label" for="{{ form.province.id_for_label }}">Province <span class="text-danger">*</span></label>
+            {{ form.province }}
+            {% if form.province.errors %}
+              <div class="text-danger small mt-1">{{ form.province.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+
+        </div>
+
+        <!-- ID Section -->
+        <hr class="my-4">
+        <h6 class="fw-bold text-qc-blue mb-3">
+          <i class="bi bi-card-text me-1"></i> Government ID Information
+        </h6>
+        <div class="row g-3">
+
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.senior_citizen_id.id_for_label }}">Senior Citizen ID Number <span class="text-danger">*</span></label>
+            {{ form.senior_citizen_id }}
+            {% if form.senior_citizen_id.errors %}
+              <div class="text-danger small mt-1">{{ form.senior_citizen_id.errors|join:", " }}</div>
+            {% endif %}
+            <div class="form-text">Required. OSCA-issued ID number (e.g. SC-2024-00123).</div>
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.valid_id_type.id_for_label }}">Valid ID Type</label>
+            {{ form.valid_id_type }}
+          </div>
+
+          <div class="col-md-4">
+            <label class="form-label" for="{{ form.valid_id_number.id_for_label }}">Valid ID Number</label>
+            {{ form.valid_id_number }}
+          </div>
+
+        </div>
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger mt-3 d-flex gap-2 align-items-center">
+          <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+          {{ form.non_field_errors|join:", " }}
+        </div>
+        {% endif %}
+
+        <div class="d-flex justify-content-end mt-4">
+          <button type="submit" class="btn btn-primary px-5">
+            Next <i class="bi bi-arrow-right ms-1"></i>
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/qc_address.js' %}"></script>
+{% endblock %}

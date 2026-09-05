@@ -1,0 +1,239 @@
+{% extends "base.html" %}
+{% block title %}Verification Threshold Settings{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-6">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Verification Threshold Settings
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-4">
+    <i class="bi bi-sliders me-2"></i>Verification Threshold Settings
+  </h4>
+
+  <div class="alert d-flex gap-3 align-items-start mb-4"
+       style="background:#f0f4ff; border:1px solid #c7d7fa;">
+    <i class="bi bi-info-circle-fill text-qc-blue flex-shrink-0 mt-1" style="font-size:1.2rem;"></i>
+    <div>
+      <div class="fw-bold text-qc-blue mb-1">About the Similarity Thresholds</div>
+      <p class="small mb-1">
+        FANS-C uses <strong>two</strong> similarity thresholds, not one — see the Decision Reference
+        Guide below for the full policy. In general terms only:
+      </p>
+      <ul class="small mb-1">
+        <li><strong>Higher</strong> thresholds: stricter &mdash; conceptually fewer false accepts, more false rejects</li>
+        <li><strong>Lower</strong> thresholds: more lenient &mdash; conceptually fewer false rejects, more false accepts</li>
+      </ul>
+      <p class="small mb-0 text-muted">
+        These are project-configured defaults, not a validated recommendation for any specific
+        population. FANS-C has not yet run a controlled accuracy/false-accept/false-reject evaluation
+        for this deployment, so no specific FAR/FRR percentages can be quoted here. Final calibration
+        should be based on such an evaluation, not a general rule of thumb.
+      </p>
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-sliders me-2"></i>Current Operating Thresholds
+    </div>
+    <div class="card-body p-4">
+      <div class="row g-3 mb-4 text-center">
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">AUTOMATIC VERIFICATION THRESHOLD</div>
+          <div class="display-6 fw-bold text-success font-mono">{{ auto_verify_threshold }}</div>
+          <div class="text-muted" style="font-size:0.7rem;">Score at/above this releases the stipend automatically. No in-app editor exists for this value (see note below).</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">MANUAL REVIEW THRESHOLD</div>
+          <div class="display-6 fw-bold text-qc-blue font-mono">{{ manual_review_threshold }}</div>
+          <div class="text-muted" style="font-size:0.7rem;">Score at/above this (but below the automatic threshold) is routed to Manual Review, not auto-verified.</div>
+        </div>
+      </div>
+
+      <form method="POST" novalidate>
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="config-threshold" class="form-label fw-semibold">
+            New Manual Review Threshold
+            <span class="text-muted fw-normal">(0.10 &ndash; 1.00)</span>
+          </label>
+          <input type="number" id="config-threshold" name="threshold" class="form-control form-control-lg text-center font-mono"
+                 value="{{ manual_review_threshold }}" min="0.10" max="1.00" step="0.01" required>
+          <div class="d-flex justify-content-between mt-1">
+            <span class="text-muted small">0.10 &mdash; Lenient</span>
+            <span class="text-muted small">1.00 &mdash; Strict</span>
+          </div>
+        </div>
+        <div class="mb-2 small text-muted">
+          <i class="bi bi-shield-exclamation me-1 text-warning"></i>
+          This changes the Manual Review threshold only — it does not raise or lower the Automatic
+          Verification threshold shown above. This action will be recorded in the audit log.
+        </div>
+        <button type="submit" class="btn btn-primary w-100 py-2"
+                onclick="return confirm('Save the new Manual Review threshold? This change will be recorded in the audit log.');">
+          <i class="bi bi-save me-1"></i> Save Changes
+        </button>
+      </form>
+
+      {% if user.is_admin_it %}
+      <div class="alert alert-secondary small mt-3 mb-0">
+        <i class="bi bi-info-circle me-1"></i>
+        The Automatic Verification Threshold has no dedicated form on this page, and it is also
+        deliberately locked from Django Admin edits (a controlled configuration key). The only way to
+        change it is the <code>AUTO_VERIFY_THRESHOLD</code> / <code>DEMO_AUTO_VERIFY_THRESHOLD</code>
+        <code>.env</code> settings and a server restart — the same as the anti-spoof and liveness
+        settings below. This is a known administrative-clarity gap, not an oversight of this page.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header {% if using_mock %}bg-danger{% else %}bg-success{% endif %} text-white">
+      <i class="bi bi-cpu me-2"></i>Face Recognition Model Status
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm table-borderless mb-0">
+        <tbody>
+          <tr>
+            <th class="text-muted ps-3" style="width:40%;">Model</th>
+            <td>
+              {% if using_mock %}
+                <span class="badge bg-danger">MOCK &mdash; not loaded</span>
+              {% else %}
+                <span class="badge bg-success">FaceNet (keras-facenet)</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <th class="text-muted ps-3">Verification Status</th>
+            <td>
+              {% if using_mock %}
+                <span class="text-danger fw-semibold small">Real verification is DISABLED. All scores are random.</span>
+              {% else %}
+                <span class="text-success fw-semibold small">Real face matching is active.</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% if model_load_error %}
+          <tr>
+            <th class="text-muted ps-3">Load Error</th>
+            <td class="font-mono small text-danger">{{ model_load_error }}</td>
+          </tr>
+          {% endif %}
+          <tr>
+            <th class="text-muted ps-3">Assisted Rollout Mode</th>
+            <td>
+              {% if demo_mode %}
+                <span class="badge bg-warning text-dark">On &mdash; Assisted Rollout</span>
+                <div class="text-muted mt-1" style="font-size:0.72rem;">
+                  Uses the Automatic Verification / Manual Review thresholds shown above, same as Full
+                  Enforcement. Assisted Rollout's own configured defaults are
+                  {{ demo_auto_verify_threshold }} (auto) / {{ demo_threshold }} (manual review), but
+                  <strong>once a Manual Review threshold has been explicitly saved via the form above,
+                  that saved value applies in both modes</strong> — it does not automatically revert to
+                  the Assisted Rollout default. Only the Automatic Verification threshold (which has no
+                  save form) still follows its Assisted Rollout default in this mode.
+                </div>
+              {% else %}
+                <span class="badge bg-success">Off &mdash; Full Enforcement</span>
+                <div class="text-muted mt-1" style="font-size:0.72rem;">
+                  Using the Automatic Verification / Manual Review thresholds shown above.
+                </div>
+              {% endif %}
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      {% if using_mock %}
+      <div class="px-3 pb-3">
+        <div class="alert alert-warning mb-0 mt-2 small">
+          <strong>To enable real verification:</strong>
+          Install <code>tensorflow-cpu</code> and <code>keras-facenet</code>, then restart the server.
+          See the README Troubleshooting section for Windows-specific instructions.
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card mb-4">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-shield-check me-2"></i>Liveness &amp; Anti-Spoofing Settings
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm table-borderless mb-0">
+        <tbody>
+          <tr>
+            <th class="text-muted ps-3" style="width:55%;">Liveness Mode</th>
+            <td>
+              {% if liveness_required %}
+                <span class="badge bg-danger">Strict &mdash; blocks verification on failure</span>
+              {% else %}
+                <span class="badge bg-warning text-dark">Assisted Rollout &mdash; non-blocking (logged only)</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <th class="text-muted ps-3">Anti-Spoof Threshold</th>
+            <td class="font-mono">{{ anti_spoof_threshold }}</td>
+          </tr>
+        </tbody>
+      </table>
+      {% if user.is_admin_it %}
+      <div class="px-3 pb-3">
+        <div class="small text-muted mt-1">
+          To change these values, set <code>LIVENESS_REQUIRED</code> and <code>ANTI_SPOOF_THRESHOLD</code>
+          in your <code>.env</code> file and restart the server.
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-table me-2"></i>Decision Reference Guide
+    </div>
+    <div class="card-body p-0">
+      <table class="table table-sm mb-0">
+        <thead>
+          <tr>
+            <th class="ps-3">Score Range</th>
+            <th>Decision</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="ps-3 font-mono">&ge; {{ auto_verify_threshold }}</td>
+            <td><span class="badge bg-success">Verified</span></td>
+            <td class="small text-muted">Released automatically</td>
+          </tr>
+          <tr>
+            <td class="ps-3 font-mono">{{ threshold_review_min }} &ndash; {{ threshold_review_max }}</td>
+            <td><span class="badge bg-warning text-dark">Manual Review</span></td>
+            <td class="small text-muted">Release BLOCKED pending administrator review</td>
+          </tr>
+          <tr>
+            <td class="ps-3 font-mono">&lt; {{ threshold_review_min }}</td>
+            <td><span class="badge bg-danger">Not Verified</span></td>
+            <td class="small text-muted">Deny / fallback ID check</td>
+          </tr>
+        </tbody>
+      </table>
+      <div class="px-3 py-2 small text-muted border-top">
+        The Manual Review range shown above spans both the Manual Review Threshold
+        ({{ manual_review_threshold }}) and the Automatic Verification Threshold
+        ({{ auto_verify_threshold }}) — a score anywhere in this range is routed to a human reviewer,
+        never auto-verified, regardless of how close it is to {{ auto_verify_threshold }}.
+      </div>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

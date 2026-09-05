@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Review Special Claim Request{% endblock %}
+{% block nav_distribution %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-7">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'verification:manual_review' %}">Manual Review Queue</a> /
+    Special Claim Request
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-1">
+    <i class="bi bi-plus-circle me-2"></i>Review Special Claim Request
+  </h4>
+  <p class="text-muted mb-4">
+    Approve to create an additional claim record for this beneficiary and event.
+    Reject to deny the second claim. Your decision is permanently recorded.
+  </p>
+
+  <div class="card mb-3">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-info-circle me-2"></i>Request Details
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">BENEFICIARY</div>
+          <div class="fw-bold">{{ scr.beneficiary.full_name }}</div>
+          <div class="font-mono text-muted small">{{ scr.beneficiary.beneficiary_id }}</div>
+          <a href="{% url 'beneficiaries:beneficiary_detail' scr.beneficiary.pk %}"
+             class="small text-qc-blue">View profile &rarr;</a>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">STIPEND EVENT</div>
+          <div class="fw-bold">{{ scr.stipend_event.title|default:"&mdash;" }}</div>
+          {% if scr.stipend_event %}
+          <div class="text-muted small">{{ scr.stipend_event.date|date:"F d, Y" }}</div>
+          {% endif %}
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">SUBMITTED BY</div>
+          <div>{% if scr.requested_by %}{{ scr.requested_by.get_full_name|default:scr.requested_by.username }}{% else %}&mdash;{% endif %}</div>
+          <div class="text-muted small">{{ scr.created_at|date:"M d, Y H:i" }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">ORIGINAL CLAIM</div>
+          {% if scr.original_claim %}
+          <div class="small">
+            Claimed on {{ scr.original_claim.claimed_at|date:"M d, Y H:i" }}<br>
+            by {{ scr.original_claim.claimed_by.username|default:"&mdash;" }}
+          </div>
+          {% else %}
+          <span class="text-muted small">&mdash;</span>
+          {% endif %}
+        </div>
+        <div class="col-12">
+          <div class="text-muted small fw-semibold mb-1">REASON FOR ADDITIONAL CLAIM</div>
+          <div class="p-2 rounded" style="background:#f8fafc; border:1px solid #e2e8f0;">
+            {{ scr.reason }}
+          </div>
+        </div>
+        {% if scr.notes %}
+        <div class="col-12">
+          <div class="text-muted small fw-semibold mb-1">NOTES</div>
+          <div class="p-2 rounded text-muted small" style="background:#f8fafc; border:1px solid #e2e8f0;">
+            {{ scr.notes }}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="alert d-flex gap-2 align-items-start mb-3"
+       style="background:#f0f4ff; border:1px solid #c7d7fa; font-size:0.85rem;">
+    <i class="bi bi-info-circle-fill text-qc-blue flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Approval effect:</strong> A second <code>ClaimRecord</code> will be created for
+      <strong>{{ scr.beneficiary.full_name }}</strong> under <strong>{{ scr.stipend_event.title|default:"this event" }}</strong>,
+      flagged as a special additional claim. The original claim record is not modified.
+    </div>
+  </div>
+
+  <div class="alert d-flex gap-2 align-items-start mb-4"
+       style="background:#fef3c7; border:1px solid #fcd34d; font-size:0.85rem;">
+    <i class="bi bi-shield-exclamation text-warning flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Accountability Notice</strong><br>
+      Creating an additional stipend claim is a high-value action.
+      Your name, timestamp, and review notes will be permanently recorded in the audit log.
+      Only approve if you have independently verified that a legitimate reason exists for this second claim.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-pencil me-2"></i>Admin Decision
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="review-notes" class="form-label fw-semibold">
+            Review Notes <span class="text-danger">*</span>
+          </label>
+          <textarea id="review-notes" name="review_notes" class="form-control" rows="3" required
+                    placeholder="State how you verified this request is legitimate, or the reason for rejection…"></textarea>
+          <div class="form-text">Required. Will appear in the audit log.</div>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" name="action" value="approve"
+                  class="btn btn-success fw-semibold"
+                  onclick="return confirm('Approve this special claim? A second claim record will be created for {{ scr.beneficiary.full_name }}. This action will be recorded in the audit log.')">
+            <i class="bi bi-check-circle me-1"></i> Approve Special Claim
+          </button>
+          <button type="submit" name="action" value="reject"
+                  class="btn btn-danger fw-semibold"
+                  onclick="return confirm('Reject this special claim request? This action will be recorded in the audit log.')">
+            <i class="bi bi-x-circle me-1"></i> Reject Request
+          </button>
+          <a href="{% url 'verification:manual_review' %}" class="btn btn-outline-secondary ms-auto">
+            <i class="bi bi-arrow-left me-1"></i> Back to Queue
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

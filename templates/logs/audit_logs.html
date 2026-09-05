@@ -1,0 +1,358 @@
+{% extends "base.html" %}
+{% load fans_filters %}
+{% block title %}Audit Logs{% endblock %}
+{% block nav_logs %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Audit Logs
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0"><i class="bi bi-journal-text me-2"></i>Audit Logs</h4>
+    <p class="text-muted small mb-0">
+      Searchable record of system events. Click <em>View Details</em> on any row to see structured fields.
+    </p>
+  </div>
+  <div>
+    <a class="btn btn-outline-secondary btn-sm"
+       href="?{% if action_filter %}action={{ action_filter }}&{% endif %}{% if user_filter %}user={{ user_filter }}&{% endif %}{% if role_filter %}role={{ role_filter }}&{% endif %}{% if date_from %}date_from={{ date_from }}&{% endif %}{% if date_to %}date_to={{ date_to }}&{% endif %}{% if decision_filter %}decision={{ decision_filter }}&{% endif %}{% if beneficiary_filter %}beneficiary_id={{ beneficiary_filter }}&{% endif %}{% if target_type_filter %}target_type={{ target_type_filter }}&{% endif %}{% if ip_filter %}ip={{ ip_filter }}&{% endif %}{% if search_filter %}q={{ search_filter }}&{% endif %}export=csv">
+      <i class="bi bi-download me-1"></i> Export CSV
+    </a>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-3">
+        <label for="filter-action" class="form-label small fw-semibold mb-1">Action Type</label>
+        <select id="filter-action" name="action" class="form-select form-select-sm">
+          <option value="">All Actions</option>
+          {% for val, label in action_choices %}
+          <option value="{{ val }}" {% if action_filter == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label for="filter-user" class="form-label small fw-semibold mb-1">Username</label>
+        <input type="text" id="filter-user" name="user" value="{{ user_filter }}"
+               class="form-control form-control-sm" placeholder="username…">
+      </div>
+      <div class="col-md-2">
+        <label for="filter-role" class="form-label small fw-semibold mb-1">Role</label>
+        <select id="filter-role" name="role" class="form-select form-select-sm">
+          <option value="">All Roles</option>
+          {% for val, label in role_choices %}
+          <option value="{{ val }}" {% if role_filter == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label for="filter-date-from" class="form-label small fw-semibold mb-1">Date From</label>
+        <input type="date" id="filter-date-from" name="date_from" value="{{ date_from }}" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-2">
+        <label for="filter-date-to" class="form-label small fw-semibold mb-1">Date To</label>
+        <input type="date" id="filter-date-to" name="date_to" value="{{ date_to }}" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-2">
+        <label for="filter-decision" class="form-label small fw-semibold mb-1">Decision</label>
+        <select id="filter-decision" name="decision" class="form-select form-select-sm">
+          <option value="">Any</option>
+          <option value="verified" {% if decision_filter == 'verified' %}selected{% endif %}>Verified</option>
+          <option value="denied" {% if decision_filter == 'denied' %}selected{% endif %}>Denied</option>
+          <option value="retry" {% if decision_filter == 'retry' %}selected{% endif %}>Retry</option>
+          <option value="manual_review" {% if decision_filter == 'manual_review' %}selected{% endif %}>Manual Review</option>
+          <option value="cancelled" {% if decision_filter == 'cancelled' %}selected{% endif %}>Cancelled</option>
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label for="filter-beneficiary-id" class="form-label small fw-semibold mb-1">Beneficiary ID</label>
+        <input type="text" id="filter-beneficiary-id" name="beneficiary_id" value="{{ beneficiary_filter }}"
+               class="form-control form-control-sm" placeholder="BEN-2026-…">
+      </div>
+      <div class="col-md-2">
+        <label for="filter-target-type" class="form-label small fw-semibold mb-1">Target Object</label>
+        <select id="filter-target-type" name="target_type" class="form-select form-select-sm">
+          <option value="">All Objects</option>
+          {% for tt in target_type_choices %}
+          <option value="{{ tt }}" {% if target_type_filter == tt %}selected{% endif %}>{{ tt }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-2">
+        <label for="filter-ip" class="form-label small fw-semibold mb-1">IP Address</label>
+        <input type="text" id="filter-ip" name="ip" value="{{ ip_filter }}"
+               class="form-control form-control-sm" placeholder="e.g. 192.168.">
+      </div>
+      <div class="col-md-3">
+        <label for="filter-search" class="form-label small fw-semibold mb-1">Search</label>
+        <input type="text" id="filter-search" name="q" value="{{ search_filter }}"
+               class="form-control form-control-sm" placeholder="reason / target / id keyword…">
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-funnel me-1"></i> Filter
+        </button>
+        <a href="{% url 'logs:audit_logs' %}" class="btn btn-outline-secondary btn-sm">Reset</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if load_error %}
+<div class="alert alert-danger d-flex gap-2 align-items-start mb-3" role="alert">
+  <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+  <div>
+    <strong>Audit log could not be loaded.</strong>
+    <div class="mt-1 small font-mono">{{ load_error }}</div>
+    <div class="mt-1 small text-muted">Check <code>logs/django-errors.log</code> for the full traceback.</div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0 align-middle">
+      <thead>
+        <tr>
+          <th style="width:130px;">Timestamp</th>
+          <th style="width:110px;">User</th>
+          <th style="width:170px;">Action</th>
+          <th>Target / Summary</th>
+          <th style="width:120px;">IP Address</th>
+          <th style="width:90px;">Status</th>
+          <th style="width:90px;">Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        {% with d=log.details %}
+        <tr>
+          <td class="small text-muted" style="white-space:nowrap;">{{ log.timestamp|date:"M d Y" }}<br>{{ log.timestamp|date:"H:i:s" }}</td>
+          <td class="small font-mono">{{ log.user.username|default:"&mdash;" }}</td>
+          <td>
+            <span class="badge small
+              {% if log.action == 'login' %}bg-success
+              {% elif log.action == 'logout' %}bg-secondary
+              {% elif log.action == 'login_failed' %}bg-danger
+              {% elif log.action == 'verify' %}bg-info
+              {% elif log.action == 'register' %}bg-primary
+              {% elif log.action == 'override' or log.action == 'payout_override' %}bg-warning text-dark
+              {% elif log.action == 'fallback' %}bg-warning text-dark
+              {% elif log.action == 'face_update_request' %}bg-primary
+              {% elif log.action == 'face_update_approved' %}bg-success
+              {% elif log.action == 'face_update_rejected' %}bg-danger
+              {% elif log.action == 'manual_verify_request' %}bg-primary
+              {% elif log.action == 'manual_verify_approved' %}bg-success
+              {% elif log.action == 'manual_verify_rejected' %}bg-danger
+              {% elif log.action == 'claim' %}bg-success
+              {% elif log.action == 'special_claim_request' %}bg-primary
+              {% elif log.action == 'special_claim_approved' %}bg-success
+              {% elif log.action == 'special_claim_rejected' %}bg-danger
+              {% elif log.action == 'register_approved' %}bg-success
+              {% elif log.action == 'register_rejected' %}bg-danger
+              {% elif log.action == 'duplicate_face' %}bg-danger
+              {% elif log.action == 'payout_cancelled' %}bg-secondary
+              {% elif log.action == 'auto_approved' %}bg-info text-dark
+              {% else %}bg-light text-dark{% endif %}">
+              {{ log.get_action_display }}
+            </span>
+          </td>
+          <td class="small">
+            {% if log.target_type or log.target_id %}
+              <div class="text-muted small">{{ log.target_type }}</div>
+              <div class="font-mono small">{{ log.target_id|truncatechars:36 }}</div>
+            {% endif %}
+            {% if d.beneficiary_id %}
+              <div class="small">
+                <span class="text-muted">Beneficiary:</span>
+                <span class="font-mono">{{ d.beneficiary_id }}</span>
+              </div>
+            {% endif %}
+            {% if d.reason %}<div class="small text-muted">{{ d.reason|truncatechars:90 }}</div>
+            {% elif d.block_reason %}<div class="small text-muted">{{ d.block_reason|truncatechars:90 }}</div>
+            {% elif d.outcome %}<div class="small text-muted">{{ d.outcome|truncatechars:90 }}</div>
+            {% endif %}
+          </td>
+          <td class="small font-mono text-muted">{{ log.ip_address|default:"&mdash;" }}</td>
+          <td>
+            {% if d.decision == 'verified' %}
+              <span class="badge bg-success">Verified</span>
+            {% elif d.decision == 'denied' %}
+              <span class="badge bg-danger">Denied</span>
+            {% elif d.decision == 'retry' %}
+              <span class="badge bg-warning text-dark">Retry</span>
+            {% elif d.decision == 'manual_review' %}
+              <span class="badge bg-info text-dark">Manual Review</span>
+            {% elif d.fallback_triggered %}
+              <span class="badge bg-warning text-dark">Manual Verification</span>
+            {% elif d.event == 'schedule_approved' %}
+              <span class="badge bg-success">Approved</span>
+            {% elif d.event == 'schedule_rejected' %}
+              <span class="badge bg-danger">Rejected</span>
+            {% else %}
+              <span class="text-muted small">&mdash;</span>
+            {% endif %}
+          </td>
+          <td>
+            <button class="btn btn-sm btn-outline-secondary" type="button"
+                    data-bs-toggle="modal" data-bs-target="#auditModal-{{ log.id }}">
+              <i class="bi bi-eye me-1"></i>View
+            </button>
+          </td>
+        </tr>
+        {% endwith %}
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-5">
+            <i class="bi bi-journal-x fs-1 d-block mb-2 opacity-25"></i>
+            No audit logs found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if logs.has_other_pages %}
+  <div class="card-footer bg-transparent">
+    <nav>
+      <ul class="pagination pagination-sm mb-0 justify-content-center">
+        {% if logs.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ logs.previous_page_number }}&action={{ action_filter }}&user={{ user_filter }}&role={{ role_filter }}&date_from={{ date_from }}&date_to={{ date_to }}&decision={{ decision_filter }}&beneficiary_id={{ beneficiary_filter }}&target_type={{ target_type_filter }}&ip={{ ip_filter }}&q={{ search_filter }}">
+            <i class="bi bi-chevron-left"></i> Prev
+          </a>
+        </li>
+        {% endif %}
+        <li class="page-item disabled">
+          <span class="page-link">Page {{ logs.number }} of {{ logs.paginator.num_pages }}</span>
+        </li>
+        {% if logs.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ logs.next_page_number }}&action={{ action_filter }}&user={{ user_filter }}&role={{ role_filter }}&date_from={{ date_from }}&date_to={{ date_to }}&decision={{ decision_filter }}&beneficiary_id={{ beneficiary_filter }}&target_type={{ target_type_filter }}&ip={{ ip_filter }}&q={{ search_filter }}">
+            Next <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+
+{# ── Detail modals (one per row) ─────────────────────────────────────────────── #}
+{% for log in logs %}
+{% with d=log.details %}
+<div class="modal fade" id="auditModal-{{ log.id }}" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="bi bi-journal-text me-2"></i>Audit Log Detail
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+
+        <h6 class="fw-bold text-qc-blue mt-0 mb-2">1. Basic Information</h6>
+        <dl class="row small mb-3">
+          <dt class="col-sm-4">Timestamp</dt>
+          <dd class="col-sm-8 font-mono">{{ log.timestamp|date:"Y-m-d H:i:s" }}</dd>
+          <dt class="col-sm-4">User</dt>
+          <dd class="col-sm-8">{{ log.user.username|default:"—" }} ({{ log.user.get_role_display|default:"—" }})</dd>
+          <dt class="col-sm-4">IP Address</dt>
+          <dd class="col-sm-8 font-mono">{{ log.ip_address|default:"—" }}</dd>
+          <dt class="col-sm-4">Action Type</dt>
+          <dd class="col-sm-8">{{ log.get_action_display }}</dd>
+          <dt class="col-sm-4">Target Type</dt>
+          <dd class="col-sm-8">{{ log.target_type|default:"—" }}</dd>
+          <dt class="col-sm-4">Target ID</dt>
+          <dd class="col-sm-8 font-mono">{{ log.target_id|default:"—" }}</dd>
+          {% if d.beneficiary_id %}
+          <dt class="col-sm-4">Beneficiary ID</dt>
+          <dd class="col-sm-8 font-mono">{{ d.beneficiary_id }}</dd>
+          {% endif %}
+          {% if d.claimant_type %}
+          <dt class="col-sm-4">Claimant Type</dt>
+          <dd class="col-sm-8">{{ d.claimant_type }}</dd>
+          {% endif %}
+        </dl>
+
+        {% if d.decision or d.score or d.threshold or d.liveness_passed is not None or d.anti_spoof_score %}
+        <h6 class="fw-bold text-qc-blue mb-2">2. Verification Result</h6>
+        <dl class="row small mb-3">
+          {% if d.decision %}
+          <dt class="col-sm-4">Final Decision</dt>
+          <dd class="col-sm-8">
+            {% if d.decision == 'verified' %}<span class="badge bg-success">Verified</span>
+            {% elif d.decision == 'denied' %}<span class="badge bg-danger">Denied</span>
+            {% elif d.decision == 'retry' %}<span class="badge bg-warning text-dark">Retry</span>
+            {% elif d.decision == 'manual_review' %}<span class="badge bg-info text-dark">Manual Review</span>
+            {% else %}{{ d.decision }}{% endif %}
+          </dd>
+          {% endif %}
+          {% if d.score is not None %}
+          <dt class="col-sm-4">FaceNet Score</dt>
+          <dd class="col-sm-8 font-mono">{{ d.score|stringformat:".3f" }}</dd>
+          {% endif %}
+          {% if d.threshold is not None %}
+          <dt class="col-sm-4">Threshold</dt>
+          <dd class="col-sm-8 font-mono">{{ d.threshold }}</dd>
+          {% endif %}
+          {% if d.liveness_passed is not None %}
+          <dt class="col-sm-4">Liveness Result</dt>
+          <dd class="col-sm-8">{{ d.liveness_passed|yesno:"Passed,Failed,—" }}</dd>
+          {% endif %}
+          {% if d.anti_spoof_score is not None %}
+          <dt class="col-sm-4">Anti-Spoof Score</dt>
+          <dd class="col-sm-8 font-mono">{{ d.anti_spoof_score }}</dd>
+          {% endif %}
+          {% if d.fallback_triggered %}
+          <dt class="col-sm-4">Manual Verification Triggered</dt>
+          <dd class="col-sm-8"><span class="badge bg-warning text-dark">Yes</span></dd>
+          {% endif %}
+        </dl>
+        {% endif %}
+
+        {% if d.reason or d.block_reason or d.fallback_reason or d.outcome %}
+        <h6 class="fw-bold text-qc-blue mb-2">3. Reason / Explanation</h6>
+        <ul class="small mb-3">
+          {% if d.reason %}<li><strong>Main reason:</strong> {{ d.reason }}</li>{% endif %}
+          {% if d.block_reason %}<li><strong>Block reason:</strong> {{ d.block_reason }}</li>{% endif %}
+          {% if d.fallback_reason %}<li><strong>Manual verification reason:</strong> {{ d.fallback_reason }}</li>{% endif %}
+          {% if d.outcome %}<li><strong>Outcome:</strong> {{ d.outcome }}</li>{% endif %}
+          {% if d.review_notes %}<li><strong>Review notes:</strong> {{ d.review_notes }}</li>{% endif %}
+        </ul>
+        {% endif %}
+
+        {% if d.stipend_event or d.attempt_id or d.claim_id %}
+        <h6 class="fw-bold text-qc-blue mb-2">4. Related IDs</h6>
+        <dl class="row small mb-3">
+          {% if d.stipend_event %}<dt class="col-sm-4">Stipend Event</dt><dd class="col-sm-8">{{ d.stipend_event }}</dd>{% endif %}
+          {% if d.attempt_id %}<dt class="col-sm-4">Attempt ID</dt><dd class="col-sm-8 font-mono">{{ d.attempt_id }}</dd>{% endif %}
+          {% if d.claim_id %}<dt class="col-sm-4">Claim Record</dt><dd class="col-sm-8 font-mono">{{ d.claim_id }}</dd>{% endif %}
+          {% if d.reference_number %}<dt class="col-sm-4">Reference Number</dt><dd class="col-sm-8 font-mono">{{ d.reference_number }}</dd>{% endif %}
+        </dl>
+        {% endif %}
+
+        {% if user.is_admin_it or user.is_president %}
+        <details class="mb-0">
+          <summary class="fw-bold text-qc-blue small">5. Raw Technical Details (Technical Administrator/President only)</summary>
+          <pre class="bg-light p-2 rounded small mt-2 mb-0"
+               style="max-height:300px; overflow:auto;">{{ d|pprint }}</pre>
+        </details>
+        {% endif %}
+
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endwith %}
+{% endfor %}
+{% endblock %}

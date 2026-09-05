@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Organization Chart{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<style>
+  .org-tier { display: flex; justify-content: center; flex-wrap: wrap; gap: 1.25rem; position: relative; padding-top: 22px; }
+  .org-tier:first-child { padding-top: 0; }
+  .org-connector { display: flex; justify-content: center; }
+  .org-connector .stem { width: 2px; height: 22px; background: #cbd5e1; }
+  /* v2.2.0 Post-UAT Phase 12: a horizontal bar above a tier that has more
+     than one card, with a stem dropping to each card, reads as a real
+     hierarchy tree — visually showing that same-level positions are
+     siblings under the tier above, instead of unconnected rows just
+     stacked vertically. */
+  .org-tier.multi:not(:first-child)::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 15%;
+    right: 15%;
+    height: 2px;
+    background: #cbd5e1;
+  }
+  .org-tier.multi:not(:first-child) .org-card-slot {
+    position: relative;
+    padding-top: 22px;
+  }
+  .org-tier.multi:not(:first-child) .org-card-slot::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 50%;
+    width: 2px;
+    height: 22px;
+    background: #cbd5e1;
+  }
+  .org-card {
+    width: 220px;
+    border-radius: 0.6rem;
+    border: 1px solid #e2e8f0;
+    background: #fff;
+    box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+    transition: box-shadow 0.15s ease, transform 0.15s ease;
+    overflow: hidden;
+  }
+  .org-card.filled { border-color: #93c5fd; }
+  .org-card:hover { box-shadow: 0 6px 16px rgba(15,23,42,0.10); transform: translateY(-2px); }
+  .org-card-header {
+    padding: 0.55rem 0.8rem;
+    font-weight: 600;
+    font-size: 0.85rem;
+    display: flex; align-items: center; gap: 0.4rem;
+  }
+  .org-card.filled .org-card-header { background: linear-gradient(135deg, #1d4ed8, #2563eb); color: #fff; }
+  .org-card.vacant .org-card-header { background: #f1f5f9; color: #64748b; }
+  .org-card-body { padding: 0.6rem 0.8rem; }
+  .org-holder-link { text-decoration: none; color: inherit; display: block; }
+  .org-holder-link:hover .org-holder-name { color: #1d4ed8; text-decoration: underline; }
+</style>
+
+<div class="d-flex align-items-center justify-content-between mb-4">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+      <a href="{% url 'accounts:user_list' %}">Users</a> / Org Chart
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-diagram-3 me-2"></i>Organization Chart
+    </h4>
+    <p class="text-muted small mb-0">Current officer hierarchy — top to bottom, by rank.</p>
+  </div>
+  {% if user.is_admin %}
+  <div class="d-flex gap-2">
+    <a href="{% url 'accounts:officer_assignment_create' %}" class="btn btn-primary btn-sm">
+      <i class="bi bi-person-plus me-1"></i>Assign Officer
+    </a>
+    <a href="{% url 'accounts:officer_assignment_list' %}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-list-ul me-1"></i>All Assignments
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+{% if messages %}
+  {% for msg in messages %}
+  <div class="alert alert-{% if msg.tags == 'error' %}danger{% else %}{{ msg.tags }}{% endif %} mb-3">
+    {{ msg }}
+  </div>
+  {% endfor %}
+{% endif %}
+
+{% if not chart_tiers %}
+<div class="alert alert-info">
+  <i class="bi bi-info-circle me-2"></i>No active officer positions found.
+  <a href="{% url 'accounts:officer_position_list' %}">Manage positions</a>
+</div>
+{% else %}
+<div class="card">
+  <div class="card-body py-4">
+    {% for tier in chart_tiers %}
+      {% if not forloop.first %}
+      <div class="org-connector"><div class="stem"></div></div>
+      {% endif %}
+      <div class="org-tier mb-2 {% if tier|length > 1 %}multi{% endif %}">
+        {% for entry in tier %}
+        <div class="org-card-slot">
+        <div class="org-card {% if entry.holders %}filled{% else %}vacant{% endif %}">
+          <div class="org-card-header">
+            <i class="bi bi-person-badge"></i>
+            <span class="flex-grow-1">{{ entry.position.name }}</span>
+            {% if entry.position.is_unique %}
+            <span class="badge {% if entry.holders %}bg-white text-primary{% else %}bg-secondary{% endif %}" style="font-size:0.6rem;">1x</span>
+            {% endif %}
+          </div>
+          <div class="org-card-body">
+            {% if entry.holders %}
+              {% for a in entry.holders %}
+              {% if user.is_admin %}
+              <a href="{% url 'accounts:user_edit' pk=a.user.pk %}" class="org-holder-link {% if not forloop.last %}pb-2 mb-2 border-bottom d-block{% endif %}">
+              {% else %}
+              <div class="{% if not forloop.last %}pb-2 mb-2 border-bottom{% endif %}">
+              {% endif %}
+                <div class="d-flex align-items-center gap-2">
+                  <i class="bi bi-person-circle text-secondary" style="font-size:1.3rem;"></i>
+                  <div>
+                    <div class="fw-semibold org-holder-name small">{{ a.user.get_full_name|default:a.user.username }}</div>
+                    <div class="text-muted" style="font-size:0.72rem;">Since {{ a.start_date }}</div>
+                  </div>
+                </div>
+              {% if user.is_admin %}</a>{% else %}</div>{% endif %}
+              {% endfor %}
+            {% else %}
+            <div class="text-muted small fst-italic">
+              <i class="bi bi-dash-circle me-1"></i>Vacant
+            </div>
+            {% endif %}
+          </div>
+          {% if user.is_admin %}
+          <div class="border-top py-1 px-2 text-center" style="background:#f8fafc;">
+            <a href="{% url 'accounts:officer_assignment_create' %}?position={{ entry.position.pk }}"
+               class="btn btn-sm btn-link p-0 {% if entry.holders %}text-muted{% else %}text-primary{% endif %}" style="font-size:0.72rem;">
+              {% if entry.holders %}<i class="bi bi-arrow-repeat me-1"></i>Reassign{% else %}<i class="bi bi-person-plus me-1"></i>Assign{% endif %}
+            </a>
+          </div>
+          {% endif %}
+        </div>
+        </div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+<div class="mt-4 text-muted small">
+  <i class="bi bi-info-circle me-1"></i>
+  Showing {{ chart_data|length }} active position{{ chart_data|length|pluralize }}.
+  <a href="{% url 'accounts:officer_position_list' %}">Manage positions</a>
+</div>
+{% endblock %}

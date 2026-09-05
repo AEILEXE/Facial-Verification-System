@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} Officer Position{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-7 col-lg-6">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'accounts:officer_position_list' %}">Officer Positions</a> /
+    {{ action }}
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-4">
+    <i class="bi bi-list-check me-2"></i>{{ action }} Officer Position
+  </h4>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{% if msg.tags == 'error' %}danger{% else %}{{ msg.tags }}{% endif %} mb-3">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white fw-semibold">
+      {% if position %}{{ position.name }}{% else %}New Position{% endif %}
+    </div>
+    <div class="card-body p-4">
+      <form method="POST" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger py-2">
+          {% for error in form.non_field_errors %}{{ error }}<br>{% endfor %}
+        </div>
+        {% endif %}
+
+        {% for field in form %}
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="{{ field.id_for_label }}">
+            {{ field.label }}
+            {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+          </label>
+          {% if field.field.widget.input_type == 'checkbox' %}
+          <div class="form-check">
+            {{ field }}
+            <label class="form-check-label" for="{{ field.id_for_label }}">{{ field.label }}</label>
+          </div>
+          {% else %}
+          {{ field }}
+          {% endif %}
+          {% if field.help_text %}
+          <div class="form-text">{{ field.help_text }}</div>
+          {% endif %}
+          {% for error in field.errors %}
+          <div class="text-danger small mt-1">
+            <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+          </div>
+          {% endfor %}
+        </div>
+        {% endfor %}
+
+        <div class="d-flex gap-2 mt-2">
+          <button type="submit" class="btn btn-primary fw-semibold px-4">
+            <i class="bi bi-check-lg me-1"></i>{{ action }}
+          </button>
+          <a href="{% url 'accounts:officer_position_list' %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

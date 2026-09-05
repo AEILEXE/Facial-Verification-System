@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% block title %}Different-Person Override Review{% endblock %}
+{% block nav_reg %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+      Different-Person Override Review
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-people-fill me-2"></i>Different-Person Override Review
+    </h4>
+    <p class="text-muted small mb-0">
+      Pending name+date-of-birth duplicate overrides submitted by staff.
+      Approve to activate the new beneficiary, or reject to deactivate it.
+    </p>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Submitted</th>
+          <th>New Beneficiary</th>
+          <th>Matches Existing</th>
+          <th>Submitted By</th>
+          <th>Reason (excerpt)</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in pending %}
+        <tr>
+          <td class="small text-muted" style="white-space:nowrap;">
+            {{ r.created_at|date:"M d Y, H:i" }}
+          </td>
+          <td>
+            <strong>{{ r.new_beneficiary.full_name }}</strong><br>
+            <span class="small font-mono text-muted">{{ r.new_beneficiary.beneficiary_id }}</span><br>
+            <span class="small text-muted">DOB: {{ r.new_beneficiary.date_of_birth|date:"Y-m-d" }}</span>
+          </td>
+          <td>
+            {% if r.existing_beneficiary %}
+            <a href="{% url 'beneficiaries:beneficiary_detail' r.existing_beneficiary.pk %}" target="_blank">
+              {{ r.existing_beneficiary.full_name }}
+            </a><br>
+            <span class="small font-mono text-muted">{{ r.existing_beneficiary.beneficiary_id }}</span>
+            {% else %}
+            <span class="text-muted">&mdash;</span>
+            {% endif %}
+          </td>
+          <td class="small">{{ r.requested_by.username|default:"&mdash;" }}</td>
+          <td class="small text-muted">{{ r.reason|truncatechars:100 }}</td>
+          <td>
+            <a href="{% url 'beneficiaries:namedob_review_detail' r.pk %}" class="btn btn-sm btn-primary">
+              <i class="bi bi-eye me-1"></i> Review
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="6" class="text-center text-muted py-5">
+            <i class="bi bi-check2-circle fs-1 d-block mb-2 opacity-25"></i>
+            No pending override requests.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

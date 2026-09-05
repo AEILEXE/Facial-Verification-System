@@ -1,0 +1,215 @@
+{% extends "base.html" %}
+{% block title %}Edit &mdash; {{ beneficiary.full_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-8">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'beneficiaries:beneficiary_list' %}">Beneficiaries</a> /
+    <a href="{% url 'beneficiaries:beneficiary_detail' beneficiary.pk %}">{{ beneficiary.full_name }}</a> /
+    Edit
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-4">
+    <i class="bi bi-pencil me-2"></i>Edit Beneficiary Record
+  </h4>
+
+  <div class="alert d-flex gap-2 align-items-center mb-4" style="background:#fff7ed; border:1px solid #fdba74; font-size:0.875rem;">
+    <i class="bi bi-info-circle-fill text-warning flex-shrink-0"></i>
+    <span>
+      All edits are recorded in the audit log. Face embeddings are not affected by this form &mdash;
+      re-registration is required to update the face template.
+    </span>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{% if msg.tags == 'error' %}danger{% else %}{{ msg.tags }}{% endif %} mb-3">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <form method="POST" enctype="multipart/form-data" novalidate autocomplete="off">
+    {% csrf_token %}
+
+    <div class="card mb-4">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-person me-2"></i>Personal Information
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small" for="{{ form.first_name.id_for_label }}">First Name <span class="text-danger">*</span></label>
+            {{ form.first_name }}
+            {% if form.first_name.errors %}<div class="text-danger small mt-1">{{ form.first_name.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small" for="{{ form.middle_name.id_for_label }}">Middle Name</label>
+            {{ form.middle_name }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small" for="{{ form.last_name.id_for_label }}">Last Name <span class="text-danger">*</span></label>
+            {{ form.last_name }}
+            {% if form.last_name.errors %}<div class="text-danger small mt-1">{{ form.last_name.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small" for="{{ form.date_of_birth.id_for_label }}">Date of Birth</label>
+            {{ form.date_of_birth }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small" for="{{ form.gender.id_for_label }}">Gender</label>
+            {{ form.gender }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small" for="{{ form.contact_number.id_for_label }}">Contact Number</label>
+            {{ form.contact_number }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-geo-alt me-2"></i>Address
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small" for="{{ form.municipality.id_for_label }}">City <span class="text-danger">*</span></label>
+            {{ form.municipality }}
+            {% if form.municipality.errors %}<div class="text-danger small mt-1">{{ form.municipality.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small" for="{{ form.house_no.id_for_label }}">House No. <span class="text-muted small">(Optional)</span></label>
+            {{ form.house_no }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small" for="{{ form.street.id_for_label }}">Street</label>
+            {{ form.street }}
+            {% if form.street.errors %}<div class="text-danger small mt-1">{{ form.street.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small" for="{{ form.barangay.id_for_label }}">Barangay <span class="text-danger">*</span></label>
+            <div id="barangay_wrap">{{ form.barangay }}</div>
+            <div id="barangay_others_hint" class="form-text" style="display:none;">
+              For non-Quezon City addresses, type the barangay manually.
+            </div>
+            {% if form.barangay.errors %}<div class="text-danger small mt-1">{{ form.barangay.errors.0 }}</div>{% endif %}
+          </div>
+          <div class="col-md-6">
+            <label class="form-label fw-semibold small" for="{{ form.province.id_for_label }}">Province</label>
+            {{ form.province }}
+            {% if form.province.errors %}<div class="text-danger small mt-1">{{ form.province.errors.0 }}</div>{% endif %}
+          </div>
+          {% if beneficiary.address %}
+          <div class="col-12">
+            <label class="form-label fw-semibold small text-muted">Legacy Address (read-only)</label>
+            <div class="form-control-plaintext small text-muted ps-1">{{ beneficiary.address }}</div>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-card-text me-2"></i>Government ID
+      </div>
+      <div class="card-body p-4">
+        <div class="row g-3">
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small" for="{{ form.senior_citizen_id.id_for_label }}">Senior Citizen ID <span class="text-danger">*</span></label>
+            {{ form.senior_citizen_id }}
+            {% if form.senior_citizen_id.errors %}
+            <div class="text-danger small mt-1">{{ form.senior_citizen_id.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small" for="{{ form.valid_id_type.id_for_label }}">Valid ID Type</label>
+            {{ form.valid_id_type }}
+          </div>
+          <div class="col-md-4">
+            <label class="form-label fw-semibold small" for="{{ form.valid_id_number.id_for_label }}">Valid ID Number</label>
+            {{ form.valid_id_number }}
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-4">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-people me-2"></i>Authorized Representative
+      </div>
+      <div class="card-body p-4">
+        <div class="form-check mb-3">
+          {{ form.has_representative }}
+          <label class="form-check-label fw-semibold" for="hasRep">
+            This beneficiary has an authorized representative
+          </label>
+        </div>
+        <div id="repFields">
+          <div class="row g-3">
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small" for="{{ form.rep_first_name.id_for_label }}">Rep. First Name</label>
+              {{ form.rep_first_name }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small" for="{{ form.rep_last_name.id_for_label }}">Rep. Last Name</label>
+              {{ form.rep_last_name }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small" for="{{ form.rep_relationship.id_for_label }}">Relationship</label>
+              {{ form.rep_relationship }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small" for="{{ form.rep_contact.id_for_label }}">Contact</label>
+              {{ form.rep_contact }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small" for="{{ form.rep_id_type.id_for_label }}">ID Type</label>
+              {{ form.rep_id_type }}
+            </div>
+            <div class="col-md-4">
+              <label class="form-label fw-semibold small" for="{{ form.rep_id_number.id_for_label }}">ID Number</label>
+              {{ form.rep_id_number }}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="d-flex gap-2">
+      <button type="submit" class="btn btn-primary fw-semibold px-4">
+        <i class="bi bi-save me-1"></i> Save Changes
+      </button>
+      <a href="{% url 'beneficiaries:beneficiary_detail' beneficiary.pk %}" class="btn btn-outline-secondary">
+        Cancel
+      </a>
+    </div>
+  </form>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'js/qc_address.js' %}"></script>
+<script>
+const hasRepCb = document.getElementById('hasRep');
+const repFields = document.getElementById('repFields');
+const requiredRepNames = ['rep_first_name', 'rep_last_name', 'rep_contact', 'rep_id_type', 'rep_id_number'];
+function toggleRep() {
+  const checked = hasRepCb.checked;
+  repFields.style.display = checked ? '' : 'none';
+  requiredRepNames.forEach(name => {
+    const el = document.querySelector(`[name="${name}"]`);
+    if (el) el.required = checked;
+  });
+}
+hasRepCb.addEventListener('change', toggleRep);
+toggleRep();
+</script>
+{% endblock %}

@@ -1,0 +1,895 @@
+/* =========================================================
+   FANS-C — Secure FaceNet-Based Facial Verification System
+   Quezon City Government Portal Theme
+   ========================================================= */
+
+:root {
+  --qc-blue:       #003d99;
+  --qc-blue-dark:  #002b6e;
+  --qc-blue-mid:   #1a56db;
+  --qc-blue-light: #dbeafe;
+  --qc-red:        #c62828;
+  --qc-red-light:  #fdecea;
+  --qc-gold:       #d4a017;
+  --qc-gold-light: #fef9c3;
+  --qc-white:      #ffffff;
+  --bg-page:       #eef2f7;
+  --bg-sidebar:    #002b6e;
+  --text-dark:     #1a202c;
+  --text-muted:    #64748b;
+  --border-color:  #dde3ed;
+  --shadow-sm:     0 1px 4px rgba(0,0,0,0.08);
+  --shadow-md:     0 4px 16px rgba(0,0,0,0.10);
+  --radius:        10px;
+  --radius-lg:     14px;
+}
+
+/* ── Base ──────────────────────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; }
+
+html, body {
+  overflow-x: hidden;
+}
+
+body {
+  font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+  background: var(--bg-page);
+  color: var(--text-dark);
+  font-size: 0.95rem;
+  min-height: 100vh;
+}
+
+a { color: var(--qc-blue); }
+a:hover { color: var(--qc-blue-dark); }
+
+/* ── Top Accent Bar ────────────────────────────────────── */
+.top-accent-bar {
+  height: 4px;
+  background: linear-gradient(90deg, var(--qc-blue) 0%, var(--qc-blue-mid) 50%, var(--qc-gold) 100%);
+}
+
+/* ── Navbar ────────────────────────────────────────────── */
+.navbar-fans {
+  background: var(--qc-blue-dark);
+  border-bottom: 3px solid var(--qc-gold);
+  padding: 0;
+  min-height: 50px;
+}
+
+.navbar-fans .navbar-brand {
+  color: var(--qc-white) !important;
+  font-weight: 700;
+  font-size: 1.05rem;
+  letter-spacing: 0.5px;
+  padding: 0.55rem 1.1rem;
+  border-right: 1px solid rgba(255,255,255,0.1);
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.navbar-fans .navbar-brand .brand-sub {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.25;
+}
+
+.navbar-fans .navbar-brand .brand-sub-line {
+  font-size: 0.65rem;
+  font-weight: 400;
+  opacity: 0.7;
+}
+
+/* System-identity line: shown alongside the city line at every desktop
+   width except the narrow 992-1149.98px sliver where the full nav row
+   (brand + 6 nav items + bell + user badge) doesn't have room for it
+   (measured; see that band's own comment further down), and on
+   collapsed/mobile navbars where the row isn't competing for space. */
+.navbar-fans .navbar-brand .brand-sub-system {
+  font-size: 0.6rem;
+  opacity: 0.6;
+}
+
+.navbar-fans .nav-link {
+  color: rgba(255,255,255,0.85) !important;
+  font-size: 0.875rem;
+  font-weight: 500;
+  padding: 0.85rem 0.85rem !important;
+  border-bottom: 2px solid transparent;
+  transition: all 0.15s;
+}
+
+.navbar-fans .nav-link:hover {
+  color: var(--qc-white) !important;
+  background: rgba(255,255,255,0.07);
+}
+
+.navbar-fans .nav-link.active {
+  color: var(--qc-white) !important;
+  border-bottom-color: var(--qc-gold);
+  font-weight: 600;
+}
+
+.navbar-fans .dropdown-menu {
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  border-top: 3px solid var(--qc-blue);
+  font-size: 0.875rem;
+}
+
+.navbar-fans .dropdown-item:hover {
+  background: var(--qc-blue-light);
+  color: var(--qc-blue-dark);
+}
+
+/* Submenu icons: kept visually secondary to the label (muted, single tone,
+   consistent width) so they aid scanning without competing with the text
+   or reintroducing the old per-item bright-color noise. */
+.navbar-fans .dropdown-item i.bi {
+  width: 1.1rem;
+  display: inline-block;
+  text-align: center;
+  margin-right: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+  vertical-align: -1px;
+}
+
+.navbar-fans .dropdown-item:hover i.bi {
+  color: var(--qc-blue);
+}
+
+/* Reserves the icon gutter for the rare item left intentionally icon-less
+   within an otherwise-iconed menu, so its label still lines up with its
+   siblings instead of sitting flush against the menu edge. */
+.navbar-fans .dropdown-item .bi-spacer {
+  width: 1.1rem;
+  display: inline-block;
+  margin-right: 0.6rem;
+}
+
+/* Notification bell dropdown: fixed 340-380px caused overflow on narrow
+   viewports and title/message text had no wrap protection against long
+   dynamic strings (Notification.title/.message are unbounded CharFields). */
+.notification-dropdown-menu {
+  width: min(92vw, 380px);
+  min-width: 280px;
+  max-width: 380px;
+  padding: 0;
+}
+
+.notification-item {
+  display: flex !important;
+  align-items: flex-start;
+  gap: 0.65rem;
+  white-space: normal;
+}
+
+.notification-item-icon {
+  flex: 0 0 auto;
+  width: 1.3rem;
+  display: flex;
+  justify-content: center;
+  margin-top: 0.2rem;
+}
+
+.notification-item-body {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.notification-item-title {
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: var(--text-dark);
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.notification-item-message {
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  margin-top: 0.15rem;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+.notification-item-time {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  margin-top: 0.3rem;
+}
+
+.navbar-fans .user-badge {
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 20px;
+  padding: 0.3rem 0.85rem;
+  color: white;
+  font-size: 0.83rem;
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+
+.navbar-fans .user-badge:hover { background: rgba(255,255,255,0.2); }
+
+/* v2.2.0 Post-UAT Phase 10: the displayed name can now include middle name
+   and suffix (Phase 9), so cap it and ellipsize instead of letting a long
+   name push the role pill / chevron out of the navbar or wrap awkwardly. */
+.navbar-fans .user-badge .user-badge-name {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.role-pill {
+  background: var(--qc-gold);
+  color: #1a1a00;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 0.15rem 0.4rem;
+  border-radius: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* ── Page Layout ───────────────────────────────────────── */
+.page-wrapper {
+  padding: 1.25rem 1.75rem;
+  max-width: 1500px;
+  width: 100%;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 1.1rem;
+  gap: 1rem;
+}
+
+.page-header h2, .page-header h4 {
+  color: var(--qc-blue-dark);
+  font-weight: 700;
+  margin-bottom: 0.1rem;
+}
+
+.page-header p { color: var(--text-muted); margin: 0; font-size: 0.85rem; }
+
+.breadcrumb-fans {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.breadcrumb-fans a { color: var(--qc-blue); text-decoration: none; }
+.breadcrumb-fans a:hover { text-decoration: underline; }
+
+/* ── Cards ─────────────────────────────────────────────── */
+.card {
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  background: var(--qc-white);
+}
+
+.card-header {
+  background: transparent;
+  border-bottom: 1px solid var(--border-color);
+  padding: 0.75rem 1.1rem;
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0 !important;
+  font-weight: 600;
+  font-size: 0.92rem;
+  color: var(--text-dark);
+}
+
+.card-header.bg-qc-blue {
+  background: var(--qc-blue-dark) !important;
+  color: white;
+  border-bottom: none;
+}
+
+.card-header.bg-qc-blue .text-muted { color: rgba(255,255,255,0.65) !important; }
+
+/* ── Stat Cards ────────────────────────────────────────── */
+.stat-card {
+  border-radius: var(--radius-lg);
+  border: none;
+  box-shadow: var(--shadow-sm);
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+
+.stat-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-md); }
+.stat-card-link { cursor: pointer; }
+.stat-card-link:hover { transform: translateY(-3px) !important; box-shadow: var(--shadow-md) !important; outline: 2px solid rgba(26,76,140,0.18); }
+
+.stat-icon {
+  width: 42px;
+  height: 42px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  flex-shrink: 0;
+}
+
+.stat-icon.blue   { background: var(--qc-blue-light); color: var(--qc-blue); }
+.stat-icon.green  { background: #dcfce7; color: #15803d; }
+.stat-icon.amber  { background: #fef9c3; color: #a16207; }
+.stat-icon.red    { background: var(--qc-red-light); color: var(--qc-red); }
+.stat-icon.purple { background: #f3e8ff; color: #7e22ce; }
+
+.stat-value { font-size: 1.55rem; font-weight: 800; line-height: 1.1; }
+.stat-label { font-size: 0.78rem; color: var(--text-muted); font-weight: 600; margin-top: 0.15rem; }
+
+/* ── Subtle entrance motion (dashboard/analytics KPI tiles + charts) ──
+   Scoped to .stat-card and .chart-entrance only — never applied to forms,
+   tables, or other pages — so it stays a quiet dashboard/analytics polish,
+   not a site-wide effect. Respects prefers-reduced-motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .stat-card, .chart-entrance {
+    animation: fansc-fade-in-up 0.3s ease-out both;
+  }
+}
+@keyframes fansc-fade-in-up {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Chart skeleton — a shimmer placeholder shown over a chart's <canvas> from
+   first paint until Chart.js has actually drawn on it (analytics.js adds
+   .chart-ready once the chart is constructed). Covers the real gap between
+   the page rendering and the (locally-vendored, no CDN) chart scripts
+   loading/running — not a fabricated delay. */
+.chart-canvas-wrap { position: relative; }
+.chart-canvas-wrap:not(.chart-ready)::before {
+  content: ''; position: absolute; inset: 0; border-radius: 6px;
+  background: linear-gradient(90deg, #f1f5f9 25%, #e9eef3 37%, #f1f5f9 63%);
+  background-size: 400% 100%;
+  animation: fansc-shimmer 1.4s ease infinite;
+}
+@media (prefers-reduced-motion: reduce) {
+  .chart-canvas-wrap:not(.chart-ready)::before { animation: none; }
+  .stat-card, .chart-entrance { animation: none; }
+}
+@keyframes fansc-shimmer {
+  0%   { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
+}
+
+/* KPI count-up target — no visual change besides the JS-driven number tween;
+   this class only exists so analytics.js can find candidates safely. */
+.js-countup { font-variant-numeric: tabular-nums; }
+
+/* ── Buttons ───────────────────────────────────────────── */
+.btn { border-radius: 8px; font-weight: 500; font-size: 0.875rem; }
+
+.btn-qc-primary {
+  background: var(--qc-blue);
+  border-color: var(--qc-blue);
+  color: white;
+}
+.btn-qc-primary:hover {
+  background: var(--qc-blue-dark);
+  border-color: var(--qc-blue-dark);
+  color: white;
+}
+
+.btn-qc-gold {
+  background: var(--qc-gold);
+  border-color: var(--qc-gold);
+  color: #1a1200;
+  font-weight: 600;
+}
+.btn-qc-gold:hover {
+  background: #b8890f;
+  border-color: #b8890f;
+  color: #1a1200;
+}
+
+/* Override Bootstrap primary to use QC blue */
+.btn-primary { background: var(--qc-blue); border-color: var(--qc-blue); }
+.btn-primary:hover { background: var(--qc-blue-dark); border-color: var(--qc-blue-dark); }
+.btn-primary:focus { background: var(--qc-blue-dark); border-color: var(--qc-blue-dark); box-shadow: 0 0 0 0.2rem rgba(0,61,153,0.3); }
+
+.btn-outline-primary { color: var(--qc-blue); border-color: var(--qc-blue); }
+.btn-outline-primary:hover { background: var(--qc-blue); border-color: var(--qc-blue); color: white; }
+
+/* ── Forms ─────────────────────────────────────────────── */
+.form-label {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #374151;
+  margin-bottom: 0.35rem;
+}
+
+.form-control, .form-select {
+  border-radius: 8px;
+  border: 1px solid #c9d3e0;
+  font-size: 0.9rem;
+  padding: 0.5rem 0.75rem;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.form-control:focus, .form-select:focus {
+  border-color: var(--qc-blue);
+  box-shadow: 0 0 0 3px rgba(0,61,153,0.12);
+}
+
+.form-text { font-size: 0.78rem; color: var(--text-muted); }
+.form-control.is-invalid { border-color: var(--qc-red); }
+.invalid-feedback, .text-danger.small { font-size: 0.78rem; color: var(--qc-red); margin-top: 0.2rem; }
+
+/* ── Progress Stepper ──────────────────────────────────── */
+.reg-stepper {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  margin-bottom: 1.75rem;
+}
+
+.reg-step {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  flex: 1;
+  position: relative;
+}
+
+.reg-step + .reg-step::before {
+  content: '';
+  position: absolute;
+  left: -50%;
+  top: 15px;
+  width: 100%;
+  height: 2px;
+  background: var(--border-color);
+  z-index: 0;
+}
+
+.reg-step.done + .reg-step::before  { background: #22c55e; }
+.reg-step.active + .reg-step::before { background: var(--border-color); }
+
+.step-dot {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.8rem;
+  font-weight: 700;
+  border: 2px solid var(--border-color);
+  background: white;
+  color: var(--text-muted);
+  position: relative;
+  z-index: 1;
+  transition: all 0.2s;
+}
+
+.reg-step.done .step-dot {
+  background: #22c55e;
+  border-color: #22c55e;
+  color: white;
+}
+
+.reg-step.active .step-dot {
+  background: var(--qc-blue);
+  border-color: var(--qc-blue);
+  color: white;
+  box-shadow: 0 0 0 4px rgba(0,61,153,0.15);
+}
+
+.step-label {
+  font-size: 0.72rem;
+  margin-top: 0.4rem;
+  color: var(--text-muted);
+  font-weight: 500;
+  text-align: center;
+}
+
+.reg-step.active .step-label { color: var(--qc-blue); font-weight: 700; }
+.reg-step.done .step-label   { color: #15803d; }
+
+/* ── Alerts ────────────────────────────────────────────── */
+.alert { border-radius: var(--radius); font-size: 0.85rem; border: none; padding: 0.65rem 1rem; }
+.alert-danger  { background: var(--qc-red-light); color: #7f1d1d; }
+.alert-success { background: #dcfce7; color: #14532d; }
+.alert-warning { background: var(--qc-gold-light); color: #713f12; }
+.alert-info    { background: var(--qc-blue-light); color: #1e3a8a; }
+
+/* ── Badges ────────────────────────────────────────────── */
+.badge { font-size: 0.72rem; font-weight: 600; border-radius: 6px; padding: 0.3em 0.6em; }
+
+/* ── Tables ────────────────────────────────────────────── */
+.table th {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+  font-weight: 600;
+  background: #f8fafc;
+  border-bottom: 2px solid var(--border-color);
+  padding: 0.5rem 0.85rem;
+}
+
+.table td { padding: 0.5rem 0.85rem; vertical-align: middle; border-color: #f1f5f9; }
+.table-hover tbody tr:hover { background: #f8fafc; }
+.table { font-size: 0.875rem; }
+
+/* ── Webcam / Camera ───────────────────────────────────── */
+#video {
+  border-radius: var(--radius-lg);
+  background: #111827;
+  display: block;
+  max-width: 100%;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4/3;
+  object-fit: cover;
+  /*
+   * Mirror the preview so users see a natural selfie view.
+   * The face-ring guide aligns correctly and head-turn instructions
+   * feel intuitive (turn left = see image turn left).
+   *
+   * IMPORTANT: captureFrame() / captureFrameHighQuality() in webcam.js
+   * draw WITHOUT this mirror (ctx.drawImage has no transform), so the
+   * image sent to the server and to FaceNet is always the un-mirrored,
+   * correct orientation. This transform is display-only.
+   */
+  transform: scaleX(-1);
+}
+
+.video-container {
+  position: relative;
+  width: 100%;
+  max-width: 480px;
+  margin: 0 auto;
+}
+
+.face-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 42%;
+  height: 55%;
+  border: 3px dashed rgba(255,255,255,0.65);
+  border-radius: 50%;
+  pointer-events: none;
+  transition: border-color 0.3s, border-style 0.3s;
+}
+
+.face-ring.detected  { border-color: #22c55e; border-style: solid; }
+.face-ring.not-found { border-color: #ef4444; }
+.face-ring.warning   { border-color: #f59e0b; }
+
+.liveness-checking { animation: pulse 1.2s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.35} }
+
+/* ── Quality Indicator ─────────────────────────────────── */
+.quality-dot {
+  width: 10px; height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+.quality-dot.good    { background: #22c55e; }
+.quality-dot.warning { background: #f59e0b; }
+.quality-dot.bad     { background: #ef4444; }
+
+/* ── Result Cards / Banners ────────────────────────────── */
+.result-banner {
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 2rem 2.5rem;
+  text-align: center;
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.25rem;
+}
+
+.result-banner i {
+  font-size: 3rem;
+  flex-shrink: 0;
+}
+
+.result-banner .result-label {
+  font-size: 1.8rem;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  line-height: 1.1;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.2);
+}
+
+.result-banner .result-sub {
+  font-size: 0.9rem;
+  opacity: 0.9;
+  margin-top: 0.25rem;
+  font-weight: 400;
+}
+
+.result-banner .result-text {
+  text-align: left;
+}
+
+.result-banner.verified { background: linear-gradient(135deg, #15803d, #22c55e); }
+.result-banner.denied   { background: linear-gradient(135deg, #991b1b, var(--qc-red)); }
+.result-banner.review   { background: linear-gradient(135deg, #92400e, var(--qc-gold)); }
+.result-banner.fallback { background: linear-gradient(135deg, #374151, #6b7280); }
+
+/* ── Score Meter ───────────────────────────────────────── */
+.score-meter {
+  height: 10px;
+  border-radius: 5px;
+  overflow: hidden;
+  background: #e2e8f0;
+  position: relative;
+}
+.score-fill {
+  height: 100%;
+  border-radius: 5px;
+  transition: width 0.7s ease;
+}
+.score-fill.high   { background: linear-gradient(90deg, #16a34a, #22c55e); }
+.score-fill.medium { background: linear-gradient(90deg, #b45309, var(--qc-gold)); }
+.score-fill.low    { background: linear-gradient(90deg, #991b1b, var(--qc-red)); }
+
+.score-threshold-marker {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: rgba(0,0,0,0.4);
+  border-radius: 1px;
+}
+
+/* ── Login Page ────────────────────────────────────────── */
+.login-bg {
+  min-height: 100vh;
+  background: linear-gradient(135deg, var(--qc-blue-dark) 0%, var(--qc-blue) 60%, #1a56db 100%);
+  display: flex;
+  /* flex-start + padding lets tall content scroll rather than overflow the viewport */
+  align-items: flex-start;
+  justify-content: center;
+  padding: 2rem 1rem;
+}
+
+/* Restore vertical centering only when there is enough viewport height */
+@media (min-height: 700px) {
+  .login-bg {
+    align-items: center;
+    padding: 1.5rem 1rem;
+  }
+}
+
+.login-card {
+  width: 100%;
+  max-width: 440px;
+  border-radius: 16px;
+  box-shadow: 0 24px 64px rgba(0,0,0,0.3);
+  /* overflow:visible so content (buttons, alerts) is never clipped by the card */
+  overflow: visible;
+  border: none;
+}
+
+.login-header {
+  background: var(--qc-blue-dark);
+  border-bottom: 4px solid var(--qc-gold);
+  padding: 2.25rem 2rem 1.75rem;
+  text-align: center;
+  color: white;
+}
+
+.login-logo-ring {
+  width: 72px; height: 72px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  border: 2px solid var(--qc-gold);
+  display: flex; align-items: center; justify-content: center;
+  margin: 0 auto 1rem;
+  font-size: 2rem;
+  color: var(--qc-gold);
+}
+
+/* ── Pilot Mode Badge ──────────────────────────────────── */
+.demo-mode-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  background: #fef9c3;
+  border: 1px solid #fde047;
+  color: #713f12;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.25rem 0.65rem;
+  border-radius: 20px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ── Stipend Event Badge ───────────────────────────────── */
+.event-active-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  background: #dcfce7;
+  border: 1px solid #86efac;
+  color: #14532d;
+  font-size: 0.8rem;
+  font-weight: 600;
+  padding: 0.3rem 0.75rem;
+  border-radius: 20px;
+}
+
+.event-active-badge.birthday {
+  background: #fef9c3;
+  border-color: #fde047;
+  color: #713f12;
+}
+
+/* ── Utility ───────────────────────────────────────────── */
+.text-qc-blue  { color: var(--qc-blue) !important; }
+.text-qc-gold  { color: var(--qc-gold) !important; }
+.text-qc-red   { color: var(--qc-red)  !important; }
+.bg-qc-blue    { background: var(--qc-blue) !important; }
+.bg-qc-blue-dark { background: var(--qc-blue-dark) !important; }
+.bg-qc-gold    { background: var(--qc-gold) !important; }
+.border-qc-gold { border-color: var(--qc-gold) !important; }
+
+code, .font-mono {
+  font-family: 'Consolas', 'Cascadia Code', monospace;
+  font-size: 0.85em;
+}
+
+.section-title {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 0.65rem;
+}
+
+/* ── Quick Action Buttons ──────────────────────────────── */
+.action-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  padding: 0.5rem 0.75rem;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: white;
+  color: var(--text-dark);
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 0.85rem;
+  transition: all 0.15s;
+  width: 100%;
+}
+
+.action-btn:hover {
+  border-color: var(--qc-blue);
+  background: var(--qc-blue-light);
+  color: var(--qc-blue-dark);
+  transform: translateX(2px);
+}
+
+.action-btn .action-icon {
+  width: 26px; height: 26px;
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.85rem;
+  flex-shrink: 0;
+}
+
+/* ── Verify Tips Panel ─────────────────────────────────── */
+.verify-tips {
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius);
+  padding: 0.75rem 1rem;
+  font-size: 0.8rem;
+}
+
+.verify-tips .tip {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding: 0.25rem 0;
+  color: var(--text-muted);
+}
+
+.verify-tips .tip i { color: var(--qc-blue); flex-shrink: 0; margin-top: 1px; }
+
+/* ── Responsive ────────────────────────────────────────── */
+/* v2.2.0 Post-UAT Phase 10 (revised): at laptop/small-desktop widths — where
+   navbar-expand-lg keeps the full nav bar visible instead of collapsing to
+   the hamburger menu — the brand + 6 top-level nav items + notification bell
+   + user badge did not fit in one row at 100% zoom (measured overflow of the
+   navbar content up to ~190px at 1200-1440px), forcing users to zoom out to
+   see the trailing items (bell, profile, role badge). Tighten spacing across
+   the whole "no room to spare" band; only genuinely wide desktop monitors
+   get the roomier spacing below. */
+@media (min-width: 992px) and (max-width: 1679.98px) {
+  .navbar-fans .navbar-brand {
+    padding: 0.55rem 0.65rem;
+  }
+  .navbar-fans .nav-link {
+    padding: 0.85rem 0.45rem !important;
+    font-size: 0.79rem;
+  }
+  .navbar-fans .nav-link i {
+    margin-right: 0.25rem !important;
+  }
+  .navbar-fans .user-badge {
+    padding: 0.3rem 0.5rem;
+    gap: 0.3rem;
+  }
+  .navbar-fans .user-badge .user-badge-name {
+    max-width: 80px;
+  }
+  .role-pill {
+    font-size: 0.58rem;
+    padding: 0.1rem 0.3rem;
+  }
+}
+
+/* Narrower part of that band needs every remaining pixel: drop the role
+   pill (name + avatar still identify the signed-in user without it).
+   Upper bound extended from 1279.98 to 1399.98: Technical Administrator/
+   President accounts render one extra top-level nav item (Technical
+   Administration) plus a longer role-pill string ("Technical
+   Administrator"/"President" vs "Staff"/"Admin"), which measurably
+   overflowed the navbar at 1366px — a common laptop width — even though
+   the original 6-item/shorter-label band was fine up to 1280px. */
+@media (min-width: 992px) and (max-width: 1399.98px) {
+  .navbar-fans .role-pill {
+    display: none;
+  }
+}
+
+/* Narrowest part of the band (992-1149.98px): measured via a headless-
+   Chromium harness that the full navbar (brand + 6 nav items + bell +
+   user badge) needs 1126px of content width with the system-identity
+   line shown — so it only overflows below ~1126px, not across the whole
+   992-1679.98px band. Hiding the system-identity line here (leaving
+   FANSC + Quezon City) is the one remaining gap; everything from
+   1150px up shows all three tiers. */
+@media (min-width: 992px) and (max-width: 1149.98px) {
+  .navbar-fans .navbar-brand .brand-sub-system {
+    display: none;
+  }
+}
+
+@media (max-width: 768px) {
+  .page-wrapper { padding: 1rem; }
+  .page-header  { flex-direction: column; }
+  .navbar-fans .nav-link { padding: 0.6rem 0.75rem !important; }
+  .result-banner { flex-direction: column; text-align: center; padding: 1.5rem 1rem; }
+  .result-banner .result-text { text-align: center; }
+  .result-banner i { font-size: 2.5rem; }
+  .result-banner .result-label { font-size: 1.4rem; }
+
+  /* Verification capture page: limit camera height so action buttons stay visible */
+  .video-container { max-width: 100%; }
+  #video { max-height: 52vw; aspect-ratio: auto; }
+}
+
+@media (max-width: 576px) {
+  .stat-value { font-size: 1.5rem; }
+  .navbar-fans .navbar-brand .brand-sub { display: none; }
+
+  /* On very small screens make login card fully visible without clipping */
+  .login-bg { padding: 1rem 0.5rem; }
+  .login-card { border-radius: 10px; }
+}

@@ -1,0 +1,357 @@
+{% extends "base.html" %}
+{% block title %}Verify &mdash; {{ beneficiary.full_name }}{% endblock %}
+{% block nav_verify %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-10 col-xl-9">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'verification:verify_select' %}">Verify</a> /
+    {{ beneficiary.full_name }}
+  </div>
+  <div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+      <h4 class="fw-bold text-qc-blue mb-0">
+        <i class="bi bi-camera-video me-2"></i>
+        {% if claimant_type == 'representative' %}
+          Verify Representative Face
+        {% else %}
+          {{ beneficiary.full_name }}
+        {% endif %}
+      </h4>
+      <span class="font-mono text-muted small">{{ beneficiary.beneficiary_id }}</span>
+      &nbsp;&bull;&nbsp;
+      <span class="badge {% if claimant_type == 'beneficiary' %}bg-success{% else %}bg-primary{% endif %} ms-1">
+        {% if claimant_type == 'beneficiary' %}
+          <i class="bi bi-person me-1"></i>Beneficiary claiming
+        {% else %}
+          <i class="bi bi-people me-1"></i>Representative claiming
+        {% endif %}
+      </span>
+      {% if claimant_type == 'representative' and representative %}
+      <div class="mt-1 small">
+        <span class="text-muted">For beneficiary:</span> <strong>{{ beneficiary.full_name }}</strong>
+        <br>
+        <span class="text-muted">Verifying representative:</span>
+        <strong>{{ representative.full_name }}</strong>
+        ({{ representative.relationship|default:"Representative" }})
+      </div>
+      <div class="alert alert-warning d-flex gap-2 align-items-start mt-2 mb-0 py-2 px-3" style="font-size:0.82rem;">
+        <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+        <div>
+          <strong>The registered representative must face the camera.</strong>
+          Do not use the senior/beneficiary&rsquo;s face for representative claims &mdash;
+          it will be denied and audit-logged.
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    <span class="badge bg-secondary font-mono" style="font-size:0.7rem; max-width:130px; overflow:hidden; text-overflow:ellipsis;">
+      {{ session_id|truncatechars:10 }}&hellip;
+    </span>
+  </div>
+
+  {# ── Phase-gate 1: HTTPS required for camera ──────────────────────────────── #}
+  {% if http_camera_blocked %}
+  <div class="card border-danger mb-4">
+    <div class="card-header bg-danger text-white d-flex gap-2 align-items-center">
+      <i class="bi bi-shield-lock-fill"></i>
+      <strong>Camera Verification Unavailable in HTTP Mode</strong>
+    </div>
+    <div class="card-body">
+      <p class="mb-3">
+        Camera-based facial verification requires a <strong>secure HTTPS connection</strong>.
+        Browsers restrict webcam access to HTTPS-only pages for security reasons,
+        and the server enforces this requirement to protect biometric data in transit.
+      </p>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        <a href="{{ server_domain_url }}{% url 'verification:verify_start' beneficiary.pk %}?claimant={{ claimant_type }}" class="btn btn-primary">
+          <i class="bi bi-shield-check me-1"></i> Open Secure HTTPS
+        </a>
+        <a href="{% url 'verification:verify_select' %}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left me-1"></i> Back to Beneficiary Search
+        </a>
+      </div>
+      <div class="mt-3 small text-muted">
+        <i class="bi bi-info-circle me-1"></i>
+        If https://fans-barangay.local does not open, ask your Technical Administrator to set up HTTPS access.
+      </div>
+    </div>
+  </div>
+  {% elif no_event_block %}
+  {# ── Phase-gate 2: No active payout event ─────────────────────────────────── #}
+  <div class="card border-warning mb-4">
+    <div class="card-header bg-warning text-dark d-flex gap-2 align-items-center">
+      <i class="bi bi-calendar-x-fill"></i>
+      <strong>No Active Payout Event</strong>
+    </div>
+    <div class="card-body">
+      <p class="mb-3">
+        Stipend claim verification cannot proceed because <strong>no active payout event</strong>
+        is currently scheduled or within its payout window. A payout event must be created
+        and active before beneficiaries can claim.
+      </p>
+      <div class="d-flex flex-wrap gap-2 align-items-center">
+        {% if user.is_admin %}
+        <a href="{% url 'verification:stipend_create' %}" class="btn btn-warning">
+          <i class="bi bi-plus-circle me-1"></i> Create Payout Event
+        </a>
+        <a href="{% url 'verification:stipend_list' %}" class="btn btn-outline-secondary">
+          <i class="bi bi-calendar3 me-1"></i> View Distribution Schedule
+        </a>
+        {% endif %}
+        <a href="{% url 'verification:verify_select' %}" class="btn btn-outline-secondary">
+          <i class="bi bi-arrow-left me-1"></i> Back to Search
+        </a>
+      </div>
+      {% if not user.is_admin %}
+      <div class="mt-3 small text-muted">
+        <i class="bi bi-info-circle me-1"></i>
+        Contact your administrator to schedule a payout event.
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% else %}
+
+  {# ── Normal flow: active event confirmed, camera allowed ─────────────────── #}
+
+  {% if active_event %}
+  <div class="alert d-flex gap-2 align-items-center mb-3" style="background:#f0fdf4; border:1px solid #86efac; font-size:0.85rem;">
+    {% if is_birthday_event %}
+    <i class="bi bi-gift-fill text-success flex-shrink-0"></i>
+    <span>
+      <span class="badge bg-warning text-dark me-1"><i class="bi bi-gift me-1"></i>Birthday Bonus</span>
+      <strong>{{ active_event.title }}</strong> &mdash; {{ active_event.date|date:"F d, Y" }}
+    </span>
+    {% else %}
+    <i class="bi bi-calendar-check-fill text-success flex-shrink-0"></i>
+    <span>Payout period: <strong>{{ active_event.title }}</strong> &mdash; {{ active_event.date|date:"F d, Y" }}</span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if using_mock %}
+  <div class="alert alert-danger d-flex gap-2 align-items-start mb-3">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Face recognition model not loaded &mdash; verification will fail.</strong>
+      {% if model_load_error %}
+      <div class="mt-1 font-mono small text-danger-emphasis">{{ model_load_error }}</div>
+      {% else %}
+      <div class="mt-1 small">Install <code>keras-facenet</code> and <code>tensorflow</code>, then restart the server.</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if liveness_required %}
+  <div class="alert d-flex gap-2 align-items-start mb-3" style="background:#fff8e1; border:1px solid #ffe082; font-size:0.85rem;">
+    <i class="bi bi-shield-lock-fill text-warning flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Strict Liveness Mode</strong><br>
+      Liveness and head-movement challenge are required. Verification will be denied if liveness fails.
+    </div>
+  </div>
+  {% else %}
+  {% if user.is_admin_it %}
+  <div class="alert d-flex gap-2 align-items-start mb-3" style="background:#f0f4ff; border:1px solid #c7d7fa; font-size:0.85rem;">
+    <i class="bi bi-info-circle-fill text-qc-blue flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Assisted Rollout Mode</strong><br>
+      Liveness check runs and results are recorded. A low liveness score will <em>not</em> block face matching in this configuration.
+      Set <code>LIVENESS_REQUIRED=True</code> to enable strict liveness enforcement for full production deployment.
+    </div>
+  </div>
+  {% else %}
+  <div class="alert d-flex gap-2 align-items-center mb-3" style="background:#f0f4ff; border:1px solid #c7d7fa; font-size:0.85rem;">
+    <i class="bi bi-info-circle-fill text-qc-blue flex-shrink-0"></i>
+    <span>Follow the on-screen instructions and look at the camera. If verification does not proceed, contact the administrator.</span>
+  </div>
+  {% endif %}
+  {% endif %}
+
+  <div class="row g-4">
+
+    <!-- Camera Panel -->
+    <div class="col-lg-7">
+      <div class="card h-100">
+        <div class="card-header bg-qc-blue text-white d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-camera me-2"></i>Live Camera Feed</span>
+          <div id="qualityIndicator" class="quality-dot" style="display:none;" title="Camera quality"></div>
+        </div>
+        <div class="card-body text-center p-3">
+          <div class="video-container">
+            <video id="video" autoplay muted playsinline></video>
+            <div id="faceBorder" class="face-ring"></div>
+          </div>
+          <canvas id="captureCanvas" style="display:none;"></canvas>
+          <div id="statusPanel" class="mt-2"></div>
+          <div id="guidancePanel" style="display:none;" class="mt-2 text-start"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status Panel -->
+    <div class="col-lg-5">
+      <div class="card mb-3">
+        <div class="card-header bg-qc-blue text-white d-flex align-items-center">
+          <i class="bi bi-shield-check me-2"></i>Verification Flow
+        </div>
+        <div class="card-body p-3">
+
+          <!-- Phase progress indicator -->
+          <div class="d-flex align-items-center mb-3" style="gap:0;">
+            <div class="text-center" style="flex:1;">
+              <div id="step_dot_1" class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold"
+                   style="width:28px;height:28px;background:#1a4c8c;color:white;font-size:0.72rem;">1</div>
+              <div class="text-muted mt-1" style="font-size:0.68rem; line-height:1.2;">Align<br>Face</div>
+            </div>
+            <div style="flex:1;height:2px;background:#c7d7fa;margin-bottom:18px;"></div>
+            <div class="text-center" style="flex:1;">
+              <div id="step_dot_2" class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold"
+                   style="width:28px;height:28px;background:#c7d7fa;color:#1a4c8c;font-size:0.72rem;">2</div>
+              <div class="text-muted mt-1" style="font-size:0.68rem; line-height:1.2;">Capture</div>
+            </div>
+            <div style="flex:1;height:2px;background:#c7d7fa;margin-bottom:18px;"></div>
+            <div class="text-center" style="flex:1;">
+              <div id="step_dot_3" class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold"
+                   style="width:28px;height:28px;background:#c7d7fa;color:#1a4c8c;font-size:0.72rem;">3</div>
+              <div class="text-muted mt-1" style="font-size:0.68rem; line-height:1.2;">Processing</div>
+            </div>
+            <div style="flex:1;height:2px;background:#c7d7fa;margin-bottom:18px;"></div>
+            <div class="text-center" style="flex:1;">
+              <div id="step_dot_4" class="rounded-circle d-inline-flex align-items-center justify-content-center fw-bold"
+                   style="width:28px;height:28px;background:#c7d7fa;color:#1a4c8c;font-size:0.72rem;">4</div>
+              <div class="text-muted mt-1" style="font-size:0.68rem; line-height:1.2;">Result</div>
+            </div>
+          </div>
+
+          <!-- Step status rows -->
+          <div class="d-flex align-items-center mb-2 gap-3">
+            <div id="step1Icon" style="font-size:1.3rem; min-width:1.5rem; text-align:center;">
+              <i class="bi bi-hourglass-split text-muted"></i>
+            </div>
+            <div>
+              <div class="fw-semibold small">Anti-Spoof Check</div>
+              <div id="step1Msg" class="text-muted small">Waiting&hellip;</div>
+            </div>
+          </div>
+
+          <div class="d-flex align-items-center mb-3 gap-3">
+            <div id="step2Icon" style="font-size:1.3rem; min-width:1.5rem; text-align:center;">
+              <i class="bi bi-hourglass-split text-muted"></i>
+            </div>
+            <div>
+              <div class="fw-semibold small" id="step2Label">Liveness Check</div>
+              <div id="step2Msg" class="text-muted small">Waiting&hellip;</div>
+            </div>
+          </div>
+
+          <!-- Challenge prompt -->
+          <div id="challengeBox" class="p-3 rounded-3 text-center mb-3"
+               style="background:#f0f4ff; border:1px solid #c7d7fa; display:none;">
+            <div class="fw-bold small text-qc-blue mb-1">
+              <i class="bi bi-arrow-repeat me-1"></i>Head Movement Challenge
+            </div>
+            <div id="challengeText" class="fw-bold fs-5">{{ challenge_display }}</div>
+            <div class="text-muted mt-1 mb-2" style="font-size:0.78rem;">
+              Move your head <strong>slowly and naturally</strong>. Keep your face inside the frame &mdash;
+              do not move too far or leave the camera view.
+            </div>
+            <div class="progress" style="height:5px;">
+              <div id="challengeTimer" class="progress-bar bg-warning" style="width:100%;"></div>
+            </div>
+          </div>
+
+          <!-- Liveness score bar -->
+          <div id="livenessScoreBox" style="display:none;">
+            <div class="d-flex justify-content-between small mb-1">
+              <span class="fw-semibold">Liveness Score</span>
+              <span id="livenessScoreVal" class="font-mono">&mdash;</span>
+            </div>
+            <div class="progress" style="height:8px;">
+              <div id="livenessScoreBar" class="progress-bar" style="width:0%;"></div>
+            </div>
+          </div>
+
+          <div id="retryAlertContainer" class="mt-2"></div>
+        </div>
+      </div>
+
+      <div id="livenessResult" class="card mb-3" style="display:none;">
+        <div class="card-body p-3" id="livenessResultBody"></div>
+      </div>
+
+      <div class="verify-tips mb-3">
+        <div class="tip"><i class="bi bi-sun me-1 text-qc-gold"></i>Face a light source</div>
+        <div class="tip"><i class="bi bi-arrows-angle-contract me-1 text-qc-blue"></i>30&ndash;50 cm from camera</div>
+        <div class="tip"><i class="bi bi-eye me-1 text-success"></i>Remove glare &amp; glasses if possible</div>
+        <div class="tip"><i class="bi bi-stop-circle me-1 text-secondary"></i>Hold still during capture</div>
+        <div class="tip"><i class="bi bi-person-bounding-box me-1 text-danger"></i>Live face only &mdash; no printed photos or screens</div>
+      </div>
+
+      <div class="d-grid gap-2">
+        <button id="startBtn" class="btn btn-primary fw-semibold w-100" disabled>
+          <i class="bi bi-camera me-1"></i> Capture &amp; Verify
+        </button>
+        <div id="startBtnHint" class="text-muted small text-center mt-1">
+          <span class="spinner-border spinner-border-sm me-1" role="status"></span>Initializing camera&hellip;
+        </div>
+        <button id="verifyBtn" class="btn btn-success fw-semibold w-100" style="display:none;">
+          <i class="bi bi-shield-check me-1"></i> Process Verification
+        </button>
+        <a href="{% url 'verification:verify_select' %}" class="btn btn-outline-secondary btn-sm">
+          <i class="bi bi-x me-1"></i> Cancel
+        </a>
+      </div>
+    </div>
+
+  </div>
+
+  <div id="processingOverlay" class="text-center mt-4" style="display:none;">
+    <div class="spinner-border text-qc-blue me-2" role="status"></div>
+    <span class="fw-semibold">Processing facial verification&hellip; Please wait.</span>
+  </div>
+
+  {% endif %}{# end of normal flow block #}
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% if not http_camera_blocked and not no_event_block %}
+{% load static %}
+<script>
+const CHALLENGE = "{{ challenge }}";
+const CHALLENGE_DISPLAY = "{{ challenge_display }}";
+const CHECK_LIVENESS_URL = "{% url 'verification:verify_check_liveness' %}";
+const VERIFY_SUBMIT_URL = "{% url 'verification:verify_submit' %}";
+const CSRF_TOKEN = "{{ csrf_token }}";
+const BENEFICIARY_ID = "{{ beneficiary.pk }}";
+// v2.2.0 Follow-up Issue 32: unique per verify_start() call. The server's
+// verification_session is keyed on the login session cookie, which is
+// shared across every browser tab — starting verification for a second
+// beneficiary in another tab silently overwrites the session data a
+// still-open first tab is about to submit against. Echoing this value back
+// on every request lets the backend detect a stale tab and refuse instead
+// of silently evaluating (and possibly releasing a claim) against whichever
+// beneficiary is currently bound to the session.
+const SESSION_ID = "{{ session_id }}";
+const LIVENESS_REQUIRED = {{ liveness_required|yesno:"true,false" }};
+const DEMO_MODE = {{ demo_mode|yesno:"true,false" }};
+const REQUIRE_LIVENESS_CHALLENGE = {{ require_liveness_challenge|yesno:"true,false" }};
+// Base URL for MediaPipe binary assets (WASM, .data) served from local static.
+// Must be set before liveness.js is loaded.
+window.MEDIAPIPE_BASE_URL = "{% static 'vendor/mediapipe/face_mesh/' %}";
+</script>
+<script src="{% static 'vendor/mediapipe/camera_utils/camera_utils.js' %}"></script>
+<script src="{% static 'vendor/mediapipe/face_mesh/face_mesh.js' %}"></script>
+<script src="{% static 'js/webcam.js' %}"></script>
+<script src="{% static 'js/liveness.js' %}"></script>
+<script src="{% static 'js/verify.js' %}"></script>
+{% endif %}
+{% endblock %}

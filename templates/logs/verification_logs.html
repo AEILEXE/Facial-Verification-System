@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+{% block title %}Verification Logs{% endblock %}
+{% block nav_logs %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Verification Logs
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-camera-video me-2"></i>Verification Logs
+    </h4>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-4">
+        <label for="filter-decision" class="form-label small fw-semibold mb-1">Decision</label>
+        <select id="filter-decision" name="decision" class="form-select form-select-sm">
+          <option value="">All Decisions</option>
+          {% for val, label in decision_choices %}
+          <option value="{{ val }}" {% if decision_filter == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary btn-sm">
+          <i class="bi bi-funnel me-1"></i> Filter
+        </button>
+        <a href="{% url 'logs:verification_logs' %}" class="btn btn-outline-secondary btn-sm">Reset</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Timestamp</th>
+          <th>Beneficiary</th>
+          <th>Decision</th>
+          <th>Score</th>
+          <th>Liveness</th>
+          <th class="text-center">Attempt</th>
+          <th class="text-center">Manual Verif.</th>
+          <th class="text-center">Override</th>
+          <th>Performed By</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for a in attempts %}
+        <tr>
+          <td class="small text-muted" style="white-space:nowrap;">{{ a.timestamp|date:"M d, H:i:s" }}</td>
+          <td>
+            <a href="{% url 'beneficiaries:beneficiary_detail' a.beneficiary.pk %}"
+               class="fw-semibold text-decoration-none text-qc-blue">
+              {{ a.beneficiary.full_name }}
+            </a>
+            <div class="font-mono text-muted small">{{ a.beneficiary.beneficiary_id }}</div>
+          </td>
+          <td>
+            <span class="badge
+              {% if a.decision == 'verified' %}bg-success
+              {% elif a.decision == 'denied' %}bg-danger
+              {% elif a.decision == 'manual_review' %}bg-warning text-dark
+              {% else %}bg-secondary{% endif %}">
+              {{ a.get_decision_display|default:"&mdash;" }}
+            </span>
+          </td>
+          <td class="small font-mono">{{ a.similarity_score|floatformat:4|default:"&mdash;" }}</td>
+          <td class="text-center">
+            {% if a.liveness_passed %}
+              <i class="bi bi-check-circle-fill text-success"></i>
+            {% elif a.liveness_passed is not None %}
+              <i class="bi bi-x-circle-fill text-danger"></i>
+            {% else %}&mdash;{% endif %}
+          </td>
+          <td class="text-center small font-mono">{{ a.attempt_number }}</td>
+          <td class="text-center">
+            {% if a.fallback_triggered %}
+              <i class="bi bi-exclamation-triangle-fill text-warning" title="Manual verification used"></i>
+            {% else %}&mdash;{% endif %}
+          </td>
+          <td class="text-center">
+            {% if a.overridden %}
+              <i class="bi bi-shield-fill text-qc-blue" title="Overridden"></i>
+            {% else %}&mdash;{% endif %}
+          </td>
+          <td class="small">{{ a.performed_by.username|default:"&mdash;" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="9" class="text-center text-muted py-5">
+            <i class="bi bi-camera-video-off fs-1 d-block mb-2 opacity-25"></i>
+            No verification logs found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+
+  {% if attempts.has_other_pages %}
+  <div class="card-footer bg-transparent">
+    <nav>
+      <ul class="pagination pagination-sm mb-0 justify-content-center">
+        {% if attempts.has_previous %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ attempts.previous_page_number }}&decision={{ decision_filter }}">
+            <i class="bi bi-chevron-left"></i> Prev
+          </a>
+        </li>
+        {% endif %}
+        <li class="page-item disabled">
+          <span class="page-link">Page {{ attempts.number }} of {{ attempts.paginator.num_pages }}</span>
+        </li>
+        {% if attempts.has_next %}
+        <li class="page-item">
+          <a class="page-link" href="?page={{ attempts.next_page_number }}&decision={{ decision_filter }}">
+            Next <i class="bi bi-chevron-right"></i>
+          </a>
+        </li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

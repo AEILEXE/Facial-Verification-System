@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}{{ action }} Distribution Event{% endblock %}
+{% block nav_distribution %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-7">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'verification:stipend_list' %}">Distribution Schedule</a> /
+    {{ action }}
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-4">
+    <i class="bi bi-calendar-plus me-2"></i>{{ action }} Distribution Event
+  </h4>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{% if msg.tags == 'error' %}danger{% else %}{{ msg.tags }}{% endif %} mb-3">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-calendar3 me-2"></i>Event Details
+    </div>
+    <div class="card-body p-4">
+      <form method="POST" novalidate>
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="id_title">Title <span class="text-danger">*</span></label>
+          <input type="text" name="title" id="id_title" class="form-control"
+                 value="{{ event.title|default:'' }}"
+                 placeholder="e.g. March 2026 Monthly Stipend" required>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="id_event_type">Event Type <span class="text-danger">*</span></label>
+          <select name="event_type" class="form-select" id="id_event_type">
+            <option value="regular" {% if not event or event.event_type == 'regular' %}selected{% endif %}>
+              Regular Monthly Stipend
+            </option>
+            <option value="birthday_bonus" {% if event.event_type == 'birthday_bonus' %}selected{% endif %}>
+              Birthday Bonus
+            </option>
+            <option value="custom" {% if event.event_type == 'custom' %}selected{% endif %}>
+              Other / Custom
+            </option>
+          </select>
+          <div class="form-text">
+            Birthday Bonus events only allow beneficiaries born in the event month to claim.
+          </div>
+        </div>
+
+        <div id="custom_event_type_wrap" class="mb-3" {% if not event or event.event_type != 'custom' %}style="display:none"{% endif %}>
+          <label class="form-label fw-semibold small" for="id_custom_event_type">
+            Custom Distribution Name <span class="text-danger">*</span>
+          </label>
+          <input type="text" name="custom_event_type" id="id_custom_event_type"
+                 class="form-control" maxlength="100"
+                 value="{{ event.custom_event_type|default:'' }}"
+                 placeholder="e.g. Barangay Fiesta Bonus">
+          <div class="form-text">Required for Other / Custom events. Max 100 characters.</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="id_date">Reference / Announcement Date <span class="text-danger">*</span></label>
+          <input type="date" name="date" id="id_date" class="form-control"
+                 value="{{ event.date|date:'Y-m-d'|default:'' }}" required>
+          <div class="form-text">
+            The official proclamation date for this distribution. For birthday-bonus events this
+            determines which birth month is eligible.
+          </div>
+        </div>
+
+        {# ── Payout window (date range + optional daily time) ──────────── #}
+        <div class="card bg-light border mb-3">
+          <div class="card-body p-3">
+            <p class="fw-semibold mb-2">
+              <i class="bi bi-calendar-range me-1 text-primary"></i>Payout Window
+              <span class="text-muted fw-normal small">(optional but recommended)</span>
+            </p>
+            <div class="row g-2">
+              <div class="col-sm-6">
+                <label class="form-label small fw-semibold" for="id_payout_start_date">Payout Start Date</label>
+                <input type="date" name="payout_start_date" id="id_payout_start_date" class="form-control form-control-sm"
+                       value="{{ event.payout_start_date|date:'Y-m-d'|default:'' }}">
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label small fw-semibold" for="id_payout_end_date">Payout End Date</label>
+                <input type="date" name="payout_end_date" id="id_payout_end_date" class="form-control form-control-sm"
+                       value="{{ event.payout_end_date|date:'Y-m-d'|default:'' }}">
+              </div>
+            </div>
+            <div class="form-text mt-1">
+              Set both dates to allow claims over <strong>multiple days</strong>.
+              The system marks this event as <em>active</em> on any day within this window.
+              Leave blank to use the Reference Date as the single payout day.
+            </div>
+            <hr class="my-2">
+            <p class="fw-semibold mb-2 small">
+              <i class="bi bi-clock me-1 text-secondary"></i>Daily Time Window
+              <span class="text-muted fw-normal">(optional &mdash; Asia/Manila)</span>
+            </p>
+            <div class="row g-2">
+              <div class="col-sm-6">
+                <label class="form-label small fw-semibold" for="id_payout_start_time">Payout Start Time</label>
+                <input type="time" name="payout_start_time" id="id_payout_start_time" class="form-control form-control-sm"
+                       min="07:00" max="20:00"
+                       value="{{ event.payout_start_time|time:'H:i'|default:'' }}">
+              </div>
+              <div class="col-sm-6">
+                <label class="form-label small fw-semibold" for="id_payout_end_time">Payout End Time</label>
+                <input type="time" name="payout_end_time" id="id_payout_end_time" class="form-control form-control-sm"
+                       min="07:00" max="20:00"
+                       value="{{ event.payout_end_time|time:'H:i'|default:'' }}">
+              </div>
+            </div>
+            <div class="form-text mt-1">
+              Allowed claiming time is 7:00 AM to 8:00 PM only.
+              Leave both blank to allow claiming at any time within the date window.
+              If one time is set, <strong>both must be provided</strong>.
+            </div>
+          </div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-semibold" for="id_amount">Amount per Beneficiary (PHP)</label>
+          <div class="input-group">
+            <span class="input-group-text">₱</span>
+            <input type="number" name="amount" id="id_amount" min="0" step="0.01" class="form-control"
+                   value="{{ event.amount|default:'0' }}" placeholder="0.00">
+          </div>
+          <div class="form-text">
+            Standard payout per beneficiary for this event. Snapshotted onto each
+            payout record at release time, so changing this later does not retroactively
+            rewrite past payouts.
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold" for="id_description">Description <span class="text-muted fw-normal">(optional)</span></label>
+          <textarea name="description" id="id_description" class="form-control" rows="3"
+                    placeholder="Additional notes about this distribution event&hellip;">{{ event.description|default:'' }}</textarea>
+        </div>
+
+        {% if action == 'Edit' %}
+        <div class="mb-4">
+          <div class="form-check">
+            <input class="form-check-input" type="checkbox" name="is_active" id="isActive"
+                   {% if event.is_active %}checked{% endif %}>
+            <label class="form-check-label fw-semibold" for="isActive">Active</label>
+            <div class="form-text">Inactive events are hidden from the dashboard but claims remain linked.</div>
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary fw-semibold px-4">
+            <i class="bi bi-save me-1"></i>{{ action }} Event
+          </button>
+          <a href="{% url 'verification:stipend_list' %}" class="btn btn-outline-secondary">
+            Cancel
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  const sel = document.getElementById('id_event_type');
+  const wrap = document.getElementById('custom_event_type_wrap');
+  const inp = document.getElementById('id_custom_event_type');
+  function toggle() {
+    const isCustom = sel.value === 'custom';
+    wrap.style.display = isCustom ? '' : 'none';
+    inp.required = isCustom;
+  }
+  sel.addEventListener('change', toggle);
+  toggle();
+})();
+</script>
+{% endblock %}

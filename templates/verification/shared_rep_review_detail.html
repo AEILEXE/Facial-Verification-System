@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}Shared Representative Review{% endblock %}
+{% block nav_verify %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-8">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'verification:manual_review' %}">Manual Review Queue</a> /
+    <a href="{% url 'verification:shared_rep_review_list' %}">Representative Review Queue</a> /
+    Case
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-1">
+    <i class="bi bi-people-fill me-2"></i>Shared Representative Review
+  </h4>
+  <p class="text-muted mb-4">
+    A representative is considered &ldquo;shared&rdquo; when the same face is enrolled for
+    more than one beneficiary. This can be legitimate (caregiver, family member,
+    legal guardian) or a fraud attempt. Review the details and decide.
+  </p>
+
+  {# ── Current status ──────────────────────────────────────────────────── #}
+  <div class="alert d-flex gap-3 align-items-center mb-3"
+       style="background:#fff7ed; border:1px solid #fdba74;">
+    <i class="bi bi-shield-exclamation flex-shrink-0" style="font-size:1.4rem; color:#c2410c;"></i>
+    <div class="flex-grow-1">
+      <div class="fw-bold" style="color:#c2410c;">
+        Current status:
+        {% if review.status == 'pending_review' %}<span class="badge bg-warning text-dark">Pending Review</span>
+        {% elif review.status == 'approved' %}<span class="badge bg-success">Approved</span>
+        {% elif review.status == 'rejected' %}<span class="badge bg-danger">Rejected</span>
+        {% elif review.status == 'docs_required' %}<span class="badge bg-info text-dark">Docs Required</span>
+        {% elif review.status == 'suspicious_blocked' %}<span class="badge bg-dark">Suspicious Blocked</span>
+        {% else %}<span class="badge bg-secondary">{{ review.get_status_display }}</span>{% endif %}
+      </div>
+      <div class="small text-muted">Release for this representative is BLOCKED until status is &ldquo;Approved&rdquo;.</div>
+    </div>
+  </div>
+
+  {# ── Representative details ──────────────────────────────────────────── #}
+  <div class="card mb-3">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-person me-2"></i>Representative Details
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-6">
+          <div class="text-muted small fw-semibold mb-1">FULL NAME</div>
+          <div class="fw-bold">{{ rep.full_name }}</div>
+        </div>
+        <div class="col-md-6">
+          <div class="text-muted small fw-semibold mb-1">RELATIONSHIP TO BENEFICIARY</div>
+          <div>{{ rep.relationship|default:"&mdash;" }}</div>
+        </div>
+        <div class="col-md-6">
+          <div class="text-muted small fw-semibold mb-1">CONTACT NUMBER</div>
+          <div class="font-mono">{{ rep.contact_number|default:"&mdash;" }}</div>
+        </div>
+        <div class="col-md-6">
+          <div class="text-muted small fw-semibold mb-1">VALID ID</div>
+          <div>
+            {{ rep.valid_id_type|default:"&mdash;" }}
+            {% if rep.valid_id_number %} : <span class="font-mono">{{ rep.valid_id_number }}</span>{% endif %}
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="text-muted small fw-semibold mb-1">REGISTERED FOR (THIS BENEFICIARY)</div>
+          <div class="fw-bold">{{ beneficiary.full_name }}</div>
+          <div class="font-mono text-muted small">{{ beneficiary.beneficiary_id }}</div>
+        </div>
+        <div class="col-md-6">
+          <div class="text-muted small fw-semibold mb-1">ALSO LINKED TO (MATCH)</div>
+          {% if matched_beneficiary %}
+          <div class="fw-bold">{{ matched_beneficiary.full_name }}</div>
+          <div class="font-mono text-muted small">{{ matched_beneficiary.beneficiary_id }}</div>
+          {% else %}
+          <div class="text-muted small">{{ review.matched_beneficiary_id }} (record not located in current DB)</div>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Why flagged ─────────────────────────────────────────────────────── #}
+  <div class="card mb-3">
+    <div class="card-header">
+      <i class="bi bi-info-circle me-2"></i>Why This Case Was Flagged
+    </div>
+    <div class="card-body">
+      <p class="mb-2 small">{{ review.flag_reason }}</p>
+      <div class="row g-2 small">
+        <div class="col-sm-4">
+          <div class="text-muted">Match score</div>
+          <div class="font-mono fw-bold">{{ review.matched_score|floatformat:3 }}</div>
+        </div>
+        <div class="col-sm-4">
+          <div class="text-muted">Duplicate threshold</div>
+          <div class="font-mono">{{ review.matched_threshold|floatformat:2 }}</div>
+        </div>
+        <div class="col-sm-4">
+          <div class="text-muted">Flagged by</div>
+          <div>{{ review.flagged_by.username|default:"&mdash;" }} &mdash; {{ review.flagged_at|date:"M d, Y H:i" }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Claim history for this representative ──────────────────────────── #}
+  <div class="card mb-3">
+    <div class="card-header">
+      <i class="bi bi-clock-history me-2"></i>Claim History (this representative)
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Claimed At</th>
+            <th>Beneficiary</th>
+            <th>Event</th>
+            <th>Status</th>
+            <th class="text-end">Amount</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in rep_claims %}
+          <tr>
+            <td class="small text-nowrap">{{ c.claimed_at|date:"Y-m-d H:i" }}</td>
+            <td>
+              <div>{{ c.beneficiary.full_name }}</div>
+              <div class="font-mono text-muted small">{{ c.beneficiary.beneficiary_id }}</div>
+            </td>
+            <td>{{ c.stipend_event.title|default:"&mdash;" }}</td>
+            <td>{{ c.get_status_display }}</td>
+            <td class="text-end font-monospace">{{ c.amount|floatformat:2 }}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="5" class="text-center text-muted small py-3">No claims yet for this representative.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  {# ── Existing decision (if not pending) ─────────────────────────────── #}
+  {% if review.status != 'pending_review' %}
+  <div class="card mb-3">
+    <div class="card-header bg-secondary text-white">
+      <i class="bi bi-check2-square me-2"></i>Admin Decision
+    </div>
+    <div class="card-body">
+      <div class="row g-2 small mb-2">
+        <div class="col-sm-4 text-muted">Decided by</div>
+        <div class="col-sm-8">{% if review.decided_by %}{{ review.decided_by.get_full_name|default:review.decided_by.username }}{% else %}&mdash;{% endif %}</div>
+        <div class="col-sm-4 text-muted">Decided at</div>
+        <div class="col-sm-8">{{ review.decided_at|date:"Y-m-d H:i:s"|default:"&mdash;" }}</div>
+      </div>
+      <div class="text-muted small mb-1">DECISION NOTES</div>
+      <div class="p-2 rounded" style="background:#f8fafc; border:1px solid #e2e8f0; font-size:0.9rem;">
+        {{ review.decision_notes|linebreaksbr|default:"&mdash;" }}
+      </div>
+      {% if review.authorization_document %}
+      <div class="mt-2">
+        <a href="{{ review.authorization_document.url }}" target="_blank">
+          <i class="bi bi-file-earmark-text me-1"></i>Open Authorization Document
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Decision form (only when still pending) ────────────────────────── #}
+  {% if review.status == 'pending_review' %}
+  <div class="alert d-flex gap-2 align-items-start mb-3"
+       style="background:#fef3c7; border:1px solid #fcd34d; font-size:0.85rem;">
+    <i class="bi bi-shield-exclamation text-warning flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Accountability Notice</strong><br>
+      Your decision, name, timestamp, and notes will be permanently recorded in the audit log.
+      An approved shared representative may verify and claim for multiple beneficiaries under normal rules.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-pencil me-2"></i>Admin Decision
+    </div>
+    <div class="card-body">
+      <form method="POST" enctype="multipart/form-data">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="decision-notes" class="form-label fw-semibold">
+            Decision Notes <span class="text-danger">*</span>
+          </label>
+          <textarea id="decision-notes" name="decision_notes" rows="3" class="form-control" required minlength="5"
+                    placeholder="State the reason for approval / rejection / docs / block&hellip;"></textarea>
+          <div class="form-text">Required. Will appear in the audit log.</div>
+        </div>
+
+        <div class="mb-3">
+          <label for="authorization-document" class="form-label fw-semibold">
+            Authorization Document (optional)
+          </label>
+          <input type="file" id="authorization-document" name="authorization_document" class="form-control"
+                 accept=".pdf,.jpg,.jpeg,.png">
+          <div class="form-text">
+            Attach an authorization letter / guardianship document if the
+            representative is legitimately serving multiple beneficiaries.
+          </div>
+        </div>
+
+        <div class="d-flex flex-wrap gap-2">
+          <button type="submit" name="action" value="approve"
+                  class="btn btn-success fw-semibold"
+                  onclick="return confirm('Approve {{ rep.full_name }} as a shared representative? They will be allowed to verify and claim under normal rules. This action will be recorded in the audit log.')">
+            <i class="bi bi-check-circle me-1"></i>Approve Shared Representative
+          </button>
+          <button type="submit" name="action" value="reject"
+                  class="btn btn-danger fw-semibold"
+                  onclick="return confirm('Reject this shared representative? Release will remain blocked and the representative will be deactivated. This action will be recorded in the audit log.')">
+            <i class="bi bi-x-circle me-1"></i>Reject Shared Representative
+          </button>
+          <button type="submit" name="action" value="docs_required"
+                  class="btn btn-warning fw-semibold"
+                  onclick="return confirm('Mark this case as requiring an authorization document? Release stays blocked until the document is provided and the case is re-reviewed. This action will be recorded in the audit log.')">
+            <i class="bi bi-file-earmark-text me-1"></i>Request Authorization Document
+          </button>
+          <button type="submit" name="action" value="block"
+                  class="btn btn-dark fw-semibold"
+                  onclick="return confirm('Mark this representative as SUSPICIOUS and block them completely? This action will be recorded in the audit log.')">
+            <i class="bi bi-slash-circle me-1"></i>Mark Suspicious / Block
+          </button>
+          <a href="{% url 'verification:shared_rep_review_list' %}" class="btn btn-outline-secondary ms-auto">
+            <i class="bi bi-arrow-left me-1"></i>Back to Queue
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+
+</div>
+</div>
+{% endblock %}

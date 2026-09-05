@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+{% block title %}Verify Beneficiary{% endblock %}
+{% block nav_verify %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-7">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Verify Beneficiary
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-1"><i class="bi bi-camera-video me-2"></i>Verify Beneficiary</h4>
+  <p class="text-muted mb-3">Search for a beneficiary then select who is claiming the stipend.</p>
+
+  {% if open_events %}
+  {% if open_events|length > 1 %}
+  <div class="alert d-flex gap-2 align-items-start mb-2" style="background:#eff6ff; border:1px solid #93c5fd; font-size:0.85rem;">
+    <i class="bi bi-info-circle text-primary flex-shrink-0 mt-1"></i>
+    <span>{{ open_events|length }} stipend events are active right now. You will be asked to choose one when starting verification.</span>
+  </div>
+  {% endif %}
+  {% for active_event in open_events %}
+  <div class="alert d-flex gap-3 align-items-center mb-2"
+       style="background:#f0fdf4; border:1px solid #86efac;">
+    {% if active_event.event_type == 'birthday' %}
+    <i class="bi bi-gift-fill text-success flex-shrink-0" style="font-size:1.3rem;"></i>
+    <div class="flex-grow-1">
+      <div class="fw-bold"><span class="badge bg-warning text-dark me-1"><i class="bi bi-gift me-1"></i>Birthday Bonus</span>{{ active_event.title }}</div>
+      <div class="small text-muted">{{ active_event.date|date:"l, F d, Y" }}{% if active_event.payout_start_date %} &mdash; Payout window: {{ active_event.payout_start_date|date:"M d" }} &ndash; {{ active_event.payout_end_date|date:"M d, Y" }}{% endif %}</div>
+    </div>
+    {% else %}
+    <i class="bi bi-calendar-check-fill text-success flex-shrink-0" style="font-size:1.3rem;"></i>
+    <div class="flex-grow-1">
+      <div class="fw-bold">Active Payout: {{ active_event.title }}</div>
+      <div class="small text-muted">{{ active_event.date|date:"l, F d, Y" }}{% if active_event.payout_start_date %} &mdash; Payout window: {{ active_event.payout_start_date|date:"M d" }} &ndash; {{ active_event.payout_end_date|date:"M d, Y" }}{% endif %}</div>
+    </div>
+    {% endif %}
+    <span class="event-active-badge flex-shrink-0{% if active_event.event_type == 'birthday' %} birthday{% endif %}">ACTIVE</span>
+  </div>
+  {% endfor %}
+  {% else %}
+  <div class="alert d-flex gap-2 align-items-center mb-4"
+       style="background:#fff7ed; border:1px solid #fdba74; font-size:0.85rem;">
+    <i class="bi bi-calendar-x text-warning flex-shrink-0"></i>
+    <span>No active payout event is scheduled. Stipend claim verification is disabled until an active payout event is created or scheduled.
+    {% if user.is_admin %}&nbsp;<a href="{% url 'verification:stipend_list' %}" class="alert-link fw-semibold">Create Payout Event</a>{% endif %}</span>
+  </div>
+  {% endif %}
+
+  <div class="card mb-4">
+    <div class="card-body p-4">
+      <form method="GET">
+        <div class="input-group input-group-lg">
+          <span class="input-group-text bg-white">
+            <i class="bi bi-search text-muted"></i>
+          </span>
+          <input type="text" name="q" value="{{ query }}" class="form-control border-start-0"
+                 placeholder="Name, Beneficiary ID, or Senior Citizen ID&hellip;" autofocus>
+          <button type="submit" class="btn btn-primary px-4">Search</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if query %}
+  <div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+      <span class="fw-semibold"><i class="bi bi-list-ul me-2 text-qc-blue"></i>Results</span>
+      <span class="badge bg-secondary">{{ beneficiaries.count }} found</span>
+    </div>
+    <div class="list-group list-group-flush">
+      {% for b in beneficiaries %}
+      <div class="list-group-item p-3">
+        <div class="d-flex justify-content-between align-items-start">
+          <div class="flex-grow-1">
+            <div class="fw-semibold">
+              {{ b.full_name }}
+              {% if b.is_senior_citizen %}
+              <span class="badge bg-qc-gold text-dark ms-1" style="font-size:0.65rem;">Senior Citizen</span>
+              {% endif %}
+            </div>
+            <div class="small text-muted">
+              <span class="font-mono">{{ b.beneficiary_id }}</span>
+              &bull; SC ID:
+              {% if b.senior_citizen_id %}
+              <span class="font-mono">{{ b.senior_citizen_id }}</span>
+              {% else %}<span class="fst-italic">Not set</span>{% endif %}
+              &bull; {{ b.municipality }}, {{ b.province }}
+              &bull; Age {{ b.age }}
+            </div>
+            {% for rep in b.representatives.all %}
+            {% if rep.is_active %}
+            <div class="small text-info mt-1">
+              <i class="bi bi-people me-1"></i>
+              Rep: {{ rep.full_name }} ({{ rep.relationship }}){% if not rep.has_face_data %} &mdash; <span class="text-warning">No face registered</span>{% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+            {% if b.status != 'active' %}
+            <div class="small text-danger mt-1">
+              <i class="bi bi-exclamation-circle me-1"></i>
+              <strong>{{ b.get_status_display }}</strong> &mdash; not eligible for claims
+            </div>
+            {% endif %}
+          </div>
+          <div class="d-flex gap-2 ms-3 flex-shrink-0">
+            {% if b.status == 'active' %}
+            <a href="{% url 'verification:verify_start' b.pk %}?claimant=beneficiary"
+               class="btn btn-success btn-sm px-3">
+              <i class="bi bi-person me-1"></i> Beneficiary
+            </a>
+            {% for rep in b.representatives.all %}
+            {% if rep.is_active and rep.has_face_data %}
+            <a href="{% url 'verification:verify_start' b.pk %}?claimant=representative&rep_id={{ rep.pk }}"
+               class="btn btn-outline-primary btn-sm px-3">
+              <i class="bi bi-people me-1"></i> {{ rep.first_name }}
+            </a>
+            {% endif %}
+            {% endfor %}
+            {% else %}
+            <span class="badge bg-secondary p-2">Ineligible</span>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="list-group-item text-center text-muted py-5">
+        <i class="bi bi-person-x fs-1 d-block mb-2 opacity-25"></i>
+        No active beneficiaries found for &ldquo;{{ query }}&rdquo;.
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="mt-4 p-3 rounded-3 small text-muted" style="background:#f0f4ff; border:1px solid #c7d7fa;">
+    <div class="fw-semibold text-qc-blue mb-1"><i class="bi bi-info-circle me-1"></i>Claim Type Guide</div>
+    <div class="mb-1"><strong>Beneficiary</strong> &mdash; Face scan verifies the senior citizen directly.</div>
+    <div><strong>Representative</strong> &mdash; Biometric face scan verifies the representative&rsquo;s identity. Rep must have face data registered; ID-only fallback is not available for representatives.</div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

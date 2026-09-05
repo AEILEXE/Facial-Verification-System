@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Register &mdash; Step 3{% endblock %}
+{% block nav_reg %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-8 col-xl-7">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Register Beneficiary
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-4"><i class="bi bi-person-plus me-2"></i>Register New Beneficiary</h4>
+
+  <div class="reg-stepper mb-4">
+    <div class="reg-step done">
+      <div class="step-dot"><i class="bi bi-check-lg"></i></div>
+      <div class="step-label">Personal Info</div>
+    </div>
+    <div class="reg-step done">
+      <div class="step-dot"><i class="bi bi-check-lg"></i></div>
+      <div class="step-label">Representative</div>
+    </div>
+    <div class="reg-step active">
+      <div class="step-dot">3</div>
+      <div class="step-label">Consent</div>
+    </div>
+    <div class="reg-step">
+      <div class="step-dot">4</div>
+      <div class="step-label">Face Capture</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-file-earmark-check me-2"></i>Step 3 of 4 &mdash; Privacy Notice and Consent
+    </div>
+    <div class="card-body p-4">
+
+      <div class="p-3 mb-4 rounded-3" style="background:#f0f4ff; border:1px solid #c7d7fa;">
+        <h6 class="fw-bold text-qc-blue mb-2">
+          <i class="bi bi-shield-check me-1"></i> Data Privacy Notice
+        </h6>
+        <p class="small mb-2">
+          In accordance with the <strong>Data Privacy Act of 2012 (Republic Act No. 10173)</strong>,
+          we collect your biometric data (facial image) for the following purposes:
+        </p>
+        <ul class="small mb-2">
+          <li>Verifying your identity during stipend distribution</li>
+          <li>Preventing fraudulent or duplicate claims</li>
+          <li>Maintaining accurate and auditable distribution records</li>
+        </ul>
+        <p class="small mb-2"><strong>Your biometric data is:</strong></p>
+        <ul class="small mb-0">
+          <li>Stored as encrypted mathematical embeddings &mdash; not as raw photographs</li>
+          <li>Used solely for identity verification within this system</li>
+          <li>Not shared with third parties without explicit consent</li>
+          <li>Protected by encryption and role-based access controls</li>
+        </ul>
+      </div>
+
+      <form method="POST" novalidate>
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <div class="form-check">
+            {{ form.consent }}
+            <label class="form-check-label" for="{{ form.consent.id_for_label }}">
+              {{ form.consent.label }}
+            </label>
+            {% if form.consent.errors %}
+              <div class="text-danger small mt-1">{{ form.consent.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="mb-4">
+          <div class="form-check">
+            {{ form.consent_privacy }}
+            <label class="form-check-label" for="{{ form.consent_privacy.id_for_label }}">
+              {{ form.consent_privacy.label }}
+            </label>
+            {% if form.consent_privacy.errors %}
+              <div class="text-danger small mt-1">{{ form.consent_privacy.errors|join:", " }}</div>
+            {% endif %}
+          </div>
+        </div>
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger d-flex gap-2 align-items-center">
+          <i class="bi bi-exclamation-triangle-fill"></i>
+          {{ form.non_field_errors|join:", " }}
+        </div>
+        {% endif %}
+
+        <div class="d-flex justify-content-between mt-4">
+          <a href="{% url 'beneficiaries:register_step2' %}" class="btn btn-outline-secondary px-4">
+            <i class="bi bi-arrow-left me-1"></i> Back
+          </a>
+          <button type="submit" class="btn btn-primary px-5">
+            Proceed to Face Capture <i class="bi bi-camera-video ms-1"></i>
+          </button>
+        </div>
+      </form>
+
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

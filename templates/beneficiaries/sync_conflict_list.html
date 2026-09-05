@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}Sync Conflict Queue{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+      Sync Conflict Queue
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-arrow-repeat me-2"></i>Offline Sync — Conflict &amp; Rejected Queue
+    </h4>
+  </div>
+</div>
+
+{% if conflict_records %}
+<div class="alert d-flex gap-2 align-items-start mb-3"
+     style="background:#fef3c7; border:1px solid #fcd34d; font-size:0.85rem;">
+  <i class="bi bi-shield-exclamation text-warning flex-shrink-0 mt-1"></i>
+  <div>
+    <strong>Admin action required.</strong>
+    The records below were created offline and could not be automatically synced to the central
+    server. Each record requires your review before the conflict is resolved.
+    <ul class="mb-0 mt-1">
+      <li><strong>Conflict</strong> — the central server already has a different record for the same ID.
+          Decide which version is authoritative.</li>
+      <li><strong>Rejected</strong> — the central server refused the payload (invalid data).
+          Review and retry, or permanently mark as rejected.</li>
+    </ul>
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-2 mb-3">
+  <div class="col-auto">
+    <div class="card text-center px-4 py-2" style="border-color:#fcd34d;">
+      <div class="fs-4 fw-bold text-warning">{{ conflict_count }}</div>
+      <div class="small text-muted">Conflicts</div>
+    </div>
+  </div>
+  <div class="col-auto">
+    <div class="card text-center px-4 py-2" style="border-color:#fca5a5;">
+      <div class="fs-4 fw-bold text-danger">{{ rejected_count }}</div>
+      <div class="small text-muted">Rejected</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Beneficiary ID</th>
+          <th>Name</th>
+          <th>Offline Device</th>
+          <th>Sync Attempted</th>
+          <th>State</th>
+          <th>Reason</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in conflict_records %}
+        <tr>
+          <td class="small font-mono">{{ b.beneficiary_id }}</td>
+          <td class="fw-semibold">{{ b.full_name }}</td>
+          <td class="small text-muted">{{ b.offline_device|default:"&mdash;" }}</td>
+          <td class="small text-muted" style="white-space:nowrap;">
+            {{ b.sync_attempted_at|date:"M d, Y H:i"|default:"&mdash;" }}
+          </td>
+          <td>
+            {% if b.sync_status == SYNC_CONFLICT %}
+            <span class="badge" style="background:#fcd34d; color:#92400e;">Conflict</span>
+            {% else %}
+            <span class="badge bg-danger">Rejected</span>
+            {% endif %}
+          </td>
+          <td class="small text-muted" style="max-width:220px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;"
+              title="{{ b.sync_error }}">
+            {{ b.sync_error|default:"&mdash;"|truncatechars:80 }}
+          </td>
+          <td>
+            <a href="{% url 'beneficiaries:sync_conflict_review' b.pk %}"
+               class="btn btn-sm btn-outline-primary">Review</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-5">
+            <i class="bi bi-check-circle fs-1 d-block mb-2 opacity-25"></i>
+            No conflicts or rejections. All offline records have been synced successfully.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

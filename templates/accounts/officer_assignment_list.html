@@ -1,0 +1,177 @@
+{% extends "base.html" %}
+{% block title %}Officer Assignments{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+      <a href="{% url 'accounts:user_list' %}">Users</a> / Officer Assignments
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-person-badge me-2"></i>Officer Assignments
+    </h4>
+  </div>
+  {% if user.has_financial_authority %}
+  <a href="{% url 'accounts:officer_assignment_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-circle me-1"></i>Assign Officer
+  </a>
+  {% endif %}
+</div>
+
+{% if messages %}
+  {% for msg in messages %}
+  <div class="alert alert-{% if msg.tags == 'error' %}danger{% else %}{{ msg.tags }}{% endif %} mb-3">
+    {{ msg }}
+  </div>
+  {% endfor %}
+{% endif %}
+
+<div class="mb-3">
+  <div class="btn-group btn-group-sm">
+    <a href="?current=1" class="btn {% if current_only %}btn-primary{% else %}btn-outline-primary{% endif %}">
+      Current Only
+    </a>
+    <a href="?current=0" class="btn {% if not current_only %}btn-primary{% else %}btn-outline-primary{% endif %}">
+      All History
+    </a>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body p-3">
+    <form method="GET" class="row g-2 align-items-end">
+      <input type="hidden" name="current" value="{{ current_only|yesno:'1,0' }}">
+      <div class="col-sm-6 col-md-2">
+        <label class="form-label fw-semibold small">Start Date From</label>
+        <input type="date" name="date_from" class="form-control form-control-sm" value="{{ date_from }}">
+      </div>
+      <div class="col-sm-6 col-md-2">
+        <label class="form-label fw-semibold small">Start Date To</label>
+        <input type="date" name="date_to" class="form-control form-control-sm" value="{{ date_to }}">
+      </div>
+      <div class="col-sm-6 col-md-2">
+        <label class="form-label fw-semibold small">Officer</label>
+        <select name="officer" class="form-select form-select-sm">
+          <option value="">All</option>
+          {% for o in officers %}
+          <option value="{{ o.id }}" {% if officer_id == o.id|stringformat:"s" %}selected{% endif %}>{{ o.get_full_name|default:o.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-6 col-md-2">
+        <label class="form-label fw-semibold small">Position</label>
+        <select name="position" class="form-select form-select-sm">
+          <option value="">All</option>
+          {% for p in positions %}
+          <option value="{{ p.id }}" {% if position_id == p.id|stringformat:"s" %}selected{% endif %}>{{ p.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-6 col-md-2">
+        <label class="form-label fw-semibold small">Status</label>
+        <select name="assignment_status" class="form-select form-select-sm">
+          <option value="">All</option>
+          <option value="current" {% if status_f == 'current' %}selected{% endif %}>Current</option>
+          <option value="ended" {% if status_f == 'ended' %}selected{% endif %}>Ended</option>
+        </select>
+      </div>
+      <div class="col-sm-6 col-md-2">
+        <label class="form-label fw-semibold small">Assigned By</label>
+        <select name="assigned_by" class="form-select form-select-sm">
+          <option value="">All</option>
+          {% for a in assigners %}
+          <option value="{{ a.id }}" {% if assigned_by_id == a.id|stringformat:"s" %}selected{% endif %}>{{ a.get_full_name|default:a.username }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 d-flex gap-2">
+        <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-funnel me-1"></i>Apply Filters</button>
+        <a href="{% url 'accounts:officer_assignment_list' %}" class="btn btn-outline-secondary btn-sm">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Position</th>
+            <th>Officer</th>
+            <th>Start Date</th>
+            <th>End Date</th>
+            <th class="text-center">Status</th>
+            <th>Assigned By</th>
+            <th>Remarks</th>
+            <th class="text-end">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in assignments %}
+          <tr class="{% if not a.is_current %}table-secondary{% endif %}">
+            <td class="fw-semibold">{{ a.position.name }}</td>
+            <td>{{ a.user.get_full_name|default:a.user.username }}</td>
+            <td>{{ a.start_date }}</td>
+            <td>{{ a.end_date|default:"—" }}</td>
+            <td class="text-center">
+              {% if a.is_current %}
+              <span class="badge bg-success">Current</span>
+              {% else %}
+              <span class="badge bg-secondary">Ended</span>
+              {% endif %}
+            </td>
+            <td class="text-muted small">
+              {% if a.assigned_by %}{{ a.assigned_by.get_full_name|default:a.assigned_by.username }}{% else %}—{% endif %}
+            </td>
+            <td class="text-muted small">{{ a.remarks|default:"—"|truncatechars:40 }}</td>
+            <td class="text-end">
+              {% if user.has_financial_authority and a.is_current %}
+              <form method="post" action="{% url 'accounts:officer_assignment_close' a.pk %}"
+                    onsubmit="return confirm('End {{ a.user.get_full_name|default:a.user.username }}\'s assignment as {{ a.position.name }}?')"
+                    class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-sm btn-outline-danger" title="Close assignment">
+                  <i class="bi bi-x-circle me-1"></i>End
+                </button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">No assignments found.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if page_obj.has_other_pages %}
+<nav class="mt-3">
+  <ul class="pagination pagination-sm justify-content-center">
+    {% if page_obj.has_previous %}
+    <li class="page-item"><a class="page-link" href="?{{ request.GET.urlencode }}&page={{ page_obj.previous_page_number }}">&laquo;</a></li>
+    {% endif %}
+    <li class="page-item disabled"><span class="page-link">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span></li>
+    {% if page_obj.has_next %}
+    <li class="page-item"><a class="page-link" href="?{{ request.GET.urlencode }}&page={{ page_obj.next_page_number }}">&raquo;</a></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
+<div class="mt-3 d-flex gap-2">
+  <a href="{% url 'accounts:officer_position_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-list-check me-1"></i>Positions
+  </a>
+  <a href="{% url 'accounts:org_chart' %}" class="btn btn-outline-info btn-sm">
+    <i class="bi bi-diagram-3 me-1"></i>Org Chart
+  </a>
+</div>
+{% endblock %}

@@ -1,0 +1,311 @@
+{% extends "base.html" %}
+{% block title %}Role Permission Matrix{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+      System Administration / Role Permission Matrix
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-shield-lock me-2"></i>Role Permission Matrix
+    </h4>
+    <p class="text-muted small mb-0">
+      What each system role can do in FANSC. Use this when assigning a role to a new user.
+    </p>
+  </div>
+  <a href="{% url 'accounts:user_list' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-people me-1"></i>Staff &amp; User Accounts
+  </a>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body p-3">
+    <div class="row g-3 small">
+      <div class="col-md-3">
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-warning text-dark">President</span>
+          <span class="text-muted">Operational head</span>
+        </div>
+        <div class="text-muted small mt-1">
+          Approves claims, overrides decisions, signs off on payouts. Highest operational authority.
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-primary">Admin</span>
+          <span class="text-muted">Administrative</span>
+        </div>
+        <div class="text-muted small mt-1">
+          Manages user accounts, beneficiaries, registrations, and reports.
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-info text-dark">Tech. Admin</span>
+          <span class="text-muted">Technical Administrator</span>
+        </div>
+        <div class="text-muted small mt-1">
+          Full system access including network/HTTPS status, database health, and configuration.
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div class="d-flex align-items-center gap-2">
+          <span class="badge bg-secondary">Staff</span>
+          <span class="text-muted">Frontline</span>
+        </div>
+        <div class="text-muted small mt-1">
+          Registers beneficiaries and runs verifications. No admin or reporting access.
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-header bg-qc-blue text-white">
+    <i class="bi bi-grid-3x3 me-2"></i>Capability Matrix
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th style="min-width:240px;">Capability</th>
+          <th class="text-center" style="width:90px;">President</th>
+          <th class="text-center" style="width:90px;">Admin</th>
+          <th class="text-center" style="width:90px;" title="Technical Administrator">Tech. Admin</th>
+          <th class="text-center" style="width:90px;">Staff</th>
+        </tr>
+      </thead>
+      <tbody>
+
+        <tr class="table-light">
+          <td colspan="5" class="fw-bold small text-uppercase text-muted">Beneficiary Management</td>
+        </tr>
+        <tr>
+          <td>Register a new beneficiary</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+        </tr>
+        <tr>
+          <td>Approve / reject pending registrations</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Edit / deactivate / reactivate a beneficiary</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+
+        <tr class="table-light">
+          <td colspan="5" class="fw-bold small text-uppercase text-muted">Claimant Verification</td>
+        </tr>
+        <tr>
+          <td>Start verification &amp; record claim</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+        </tr>
+        <tr>
+          <td>Approve manual verification request</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Approve pending claim (no active event)</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Admin override (force-verify after failure)</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Manual verification (ID-based) claim release</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+
+        <tr class="table-light">
+          <td colspan="5" class="fw-bold small text-uppercase text-muted">Payouts &amp; Schedule</td>
+        </tr>
+        <tr>
+          <td>View payout schedule</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+        </tr>
+        <tr>
+          <td>Create / edit payout event</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Approve / reject payout schedule</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Cancel / mark failed / edit released payout</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+
+        <tr class="table-light">
+          <td colspan="5" class="fw-bold small text-uppercase text-muted">Audit &amp; Verification Logs</td>
+        </tr>
+        <tr>
+          <td>View own verification attempts</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+        </tr>
+        <tr>
+          <td>View all verification attempts</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>View full audit log + export CSV</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+
+        <tr class="table-light">
+          <td colspan="5" class="fw-bold small text-uppercase text-muted">Reports</td>
+        </tr>
+        <tr>
+          <td>Payout Claims Report</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Distribution Summary Report</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Security Alerts / Suspicious Attempts</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Export reports (Excel / CSV / Print)</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+
+        <tr class="table-light">
+          <td colspan="5" class="fw-bold small text-uppercase text-muted">User &amp; Account Management</td>
+        </tr>
+        <tr>
+          <td>Create / edit user accounts</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Reset another user's password</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Change own password</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+        </tr>
+        <tr>
+          <td>Manage officer assignments / org chart</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+
+        <tr class="table-light">
+          <td colspan="5" class="fw-bold small text-uppercase text-muted">System Settings &amp; Technical Administration</td>
+        </tr>
+        <tr>
+          <td>Verification threshold settings</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Auto-approval settings</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Network &amp; HTTPS Status page</td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+        <tr>
+          <td>Database &amp; Backup Status page</td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-check-circle-fill text-success"></i></td>
+          <td class="text-center"><i class="bi bi-dash text-muted"></i></td>
+        </tr>
+
+      </tbody>
+    </table>
+  </div>
+  <div class="card-footer small text-muted">
+    <i class="bi bi-info-circle me-1"></i>
+    A checkmark means the role can perform the action via the user interface. A dash means the role has no UI access; attempting the action returns "Access Denied".
+    All sensitive actions are written to the audit log regardless of who performed them.
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,8 @@
+{% if category == 'fraud_alert' %}<i class="bi bi-flag-fill text-danger"></i>
+{% elif category == 'security_alert' %}<i class="bi bi-shield-exclamation text-danger"></i>
+{% elif category == 'approval_required' %}<i class="bi bi-hourglass-split text-warning"></i>
+{% elif category == 'approval_reminder' %}<i class="bi bi-alarm text-warning"></i>
+{% elif category == 'verification_review' %}<i class="bi bi-eye-fill text-info"></i>
+{% elif category == 'password_reset_request' %}<i class="bi bi-key-fill text-primary"></i>
+{% else %}<i class="bi bi-info-circle text-secondary"></i>
+{% endif %}

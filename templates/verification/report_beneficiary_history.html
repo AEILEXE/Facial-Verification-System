@@ -1,0 +1,148 @@
+{% extends "base.html" %}
+{% block title %}Payout History &mdash; {{ beneficiary.full_name }}{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    Reports / Beneficiary History / {{ beneficiary.full_name }}
+  </div>
+
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h4 class="fw-bold text-qc-blue mb-1">
+        <i class="bi bi-clock-history me-2"></i>{{ beneficiary.full_name }}
+      </h4>
+      <div class="text-muted small">
+        {{ beneficiary.beneficiary_id }} · Age {{ beneficiary.age }} · {{ beneficiary.barangay }}
+        {% if beneficiary.senior_citizen_id %} · OSCA {{ beneficiary.senior_citizen_id }}{% endif %}
+      </div>
+    </div>
+    <div class="d-flex gap-2">
+      <a href="?export=csv" class="btn btn-sm btn-outline-success">
+        <i class="bi bi-filetype-csv me-1"></i>CSV
+      </a>
+      <a href="?export=pdf" class="btn btn-sm btn-outline-danger">
+        <i class="bi bi-file-earmark-pdf me-1"></i>PDF
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-2 mb-3">
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-body p-2 text-center">
+          <div class="small text-muted">Total Distributed</div>
+          <div class="fw-bold text-success">₱ {{ totals.total_claimed_amount|default:0|floatformat:2 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-body p-2 text-center">
+          <div class="small text-muted">Claims</div>
+          <div class="fw-bold">{{ totals.total_records|default:0 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-4">
+      <div class="card">
+        <div class="card-body p-2 text-center">
+          <div class="small text-muted">Successfully Claimed</div>
+          <div class="fw-bold text-success">{{ totals.total_claimed|default:0 }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="card mb-3">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-cash-coin me-2"></i>Claim / Payout History
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 small">
+        <thead class="table-light">
+          <tr>
+            <th>Reference</th>
+            <th>Event</th>
+            <th class="text-end">Amount</th>
+            <th>Status</th>
+            <th>Method</th>
+            <th>Released By</th>
+            <th>Released At</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for c in claims %}
+          <tr>
+            <td class="font-monospace">{{ c.reference_number|default:"—" }}</td>
+            <td>{% if c.stipend_event %}{{ c.stipend_event.title }}{% else %}<span class="text-muted">(No Event)</span>{% endif %}</td>
+            <td class="text-end font-monospace">₱ {{ c.amount|floatformat:2 }}</td>
+            <td>
+              {% if c.status == 'claimed' %}<span class="badge bg-success">Claimed</span>
+              {% elif c.status == 'pending_approval' %}<span class="badge bg-warning text-dark">Pending</span>
+              {% elif c.status == 'failed' %}<span class="badge bg-danger">Failed</span>
+              {% elif c.status == 'cancelled' %}<span class="badge bg-secondary">Cancelled</span>
+              {% else %}<span class="badge bg-secondary">{{ c.status }}</span>{% endif %}
+            </td>
+            <td>{{ c.get_verification_method_display }}</td>
+            <td>{% if c.released_by %}{{ c.released_by.get_full_name|default:c.released_by.username }}{% else %}—{% endif %}</td>
+            <td class="text-nowrap">{{ c.released_at|date:"Y-m-d H:i"|default:"—" }}</td>
+            <td>
+              <a href="{% url 'verification:payout_detail' claim_id=c.id %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="8" class="text-center text-muted py-3">No claims recorded for this beneficiary.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-secondary text-white">
+      <i class="bi bi-camera-video me-2"></i>Recent Verification Attempts (last 50)
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 small">
+        <thead class="table-light">
+          <tr>
+            <th>Timestamp</th>
+            <th>Decision</th>
+            <th>Event</th>
+            <th>Score</th>
+            <th>Review Threshold</th>
+            <th>Performed By</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in attempts %}
+          <tr>
+            <td class="text-nowrap">{{ a.timestamp|date:"Y-m-d H:i" }}</td>
+            <td>
+              {% if a.decision == 'verified' %}<span class="badge bg-success">Verified</span>
+              {% elif a.decision == 'manual_review' %}<span class="badge bg-warning text-dark">Manual</span>
+              {% elif a.decision == 'denied' %}<span class="badge bg-danger">Denied</span>
+              {% else %}<span class="badge bg-secondary">{{ a.decision }}</span>{% endif %}
+            </td>
+            <td>{{ a.stipend_event.title|default:"—" }}</td>
+            <td class="font-monospace">{{ a.similarity_score|floatformat:3|default:"—" }}</td>
+            <td class="font-monospace">{{ a.threshold_used|floatformat:2 }}</td>
+            <td>{% if a.performed_by %}{{ a.performed_by.username }}{% endif %}</td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="6" class="text-center text-muted py-3">No verification attempts recorded.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

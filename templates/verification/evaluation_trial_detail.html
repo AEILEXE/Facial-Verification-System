@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+{% block title %}Controlled Trial{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+      <a href="{% url 'verification:evaluation_dataset_list' %}">System Evaluation &amp; Research</a> /
+      <a href="{% url 'verification:evaluation_dataset_detail' trial.dataset.pk %}">{{ trial.dataset.name }}</a> / Trial
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0"><i class="bi bi-clipboard-check me-2"></i>Controlled Trial Result</h4>
+  </div>
+  {% if trial.trial_status == 'pending' %}<span class="badge bg-warning text-dark fs-6">Pending</span>
+  {% elif trial.trial_status == 'completed' %}<span class="badge bg-success fs-6">Completed</span>
+  {% else %}<span class="badge bg-secondary fs-6">Aborted</span>{% endif %}
+  {% if trial.withdrawn %}<span class="badge bg-dark fs-6 ms-1"><i class="bi bi-person-dash me-1"></i>Withdrawn</span>{% endif %}
+</div>
+
+<div class="alert alert-warning">
+  <strong><i class="bi bi-flask me-1"></i> CONTROLLED EVALUATION — NOT LIVE STIPEND DISTRIBUTION.</strong>
+  NO CLAIM OR PAYOUT WAS CREATED for this trial.
+</div>
+
+{% if trial.withdrawn %}
+<div class="alert alert-dark">
+  <strong><i class="bi bi-person-dash me-1"></i> WITHDRAWN — excluded from all biometric metric calculations.</strong>
+  Withdrawn by {{ trial.withdrawn_by.get_full_name|default:trial.withdrawn_by.username|default:"—" }} on {{ trial.withdrawn_at|date:"Y-m-d H:i" }}.
+  <div class="small mt-1">Reason: {{ trial.withdrawal_reason }}</div>
+  {% if trial.dataset.has_post_finalization_amendment %}
+  <div class="small mt-1 text-warning-emphasis">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i>This dataset was already FINALIZED
+    ({{ trial.dataset.completed_at }}) when this withdrawal was recorded — see the AMENDED banner
+    on the dataset page.
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">Ground Truth (research protocol)</div>
+      <div class="card-body">
+        <dl class="row mb-0 small">
+          <dt class="col-5">Participant Code</dt><dd class="col-7">{{ trial.participant_code }}</dd>
+          <dt class="col-5">Target Identity Code</dt><dd class="col-7">{{ trial.target_identity_code }}</dd>
+          <dt class="col-5">Target Resolved</dt><dd class="col-7">
+            {% if trial.target_beneficiary %}Beneficiary: {{ trial.target_beneficiary.full_name }}
+            {% elif trial.target_representative %}Representative: {{ trial.target_representative.full_name }}
+            {% else %}<span class="text-danger">Not resolved — trial cannot be run</span>{% endif %}
+          </dd>
+          <dt class="col-5">Identity Ground Truth</dt><dd class="col-7"><strong>{{ trial.get_identity_ground_truth_display }}</strong></dd>
+          <dt class="col-5">Presentation Ground Truth</dt><dd class="col-7">{{ trial.get_presentation_ground_truth_display }}</dd>
+          <dt class="col-5">Notes</dt><dd class="col-7">{{ trial.notes|default:"—" }}</dd>
+        </dl>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <div class="card mb-3">
+      <div class="card-header fw-semibold">System Output</div>
+      <div class="card-body">
+        {% if trial.trial_status == 'pending' and trial.withdrawn %}
+          <p class="text-muted"><i class="bi bi-person-dash me-1"></i>This trial was withdrawn before it was run — it cannot be run or resumed. See the withdrawal notice above.</p>
+        {% elif trial.trial_status == 'pending' %}
+          {% if trial.liveness_proof_embedding %}
+            <p class="text-success"><i class="bi bi-check-circle-fill me-1"></i>Liveness passed ({{ trial.get_liveness_pathway_display }}). Final frame still needed.</p>
+          {% else %}
+            <p class="text-muted">No system result yet.</p>
+          {% endif %}
+          {% if request.user.is_admin_it %}
+            <a href="{% url 'verification:evaluation_trial_run' trial.pk %}" class="btn btn-primary">
+              <i class="bi bi-camera me-1"></i>{% if trial.liveness_proof_embedding %}Capture Final Frame{% else %}Run Controlled Trial{% endif %}
+            </a>
+            <form method="post" action="{% url 'verification:evaluation_trial_abort' trial.pk %}" class="d-inline">
+              {% csrf_token %}
+              <button type="submit" class="btn btn-outline-danger" onclick="return confirm('Abort this pending trial? No decision will be recorded.');">Abort Trial</button>
+            </form>
+          {% else %}
+            <p class="small text-muted"><i class="bi bi-eye me-1"></i>Read-only oversight — running/aborting a trial is restricted to the Technical Administrator.</p>
+          {% endif %}
+        {% elif trial.trial_status == 'aborted' %}
+          <p class="text-muted">Aborted — technical failure, never reached a decision (distinct from a security DENIED).</p>
+        {% else %}
+        <dl class="row mb-0 small">
+          <dt class="col-5">Final System Decision</dt><dd class="col-7"><strong>{{ trial.get_system_decision_display }}</strong></dd>
+          <dt class="col-5">Matcher Base Decision</dt><dd class="col-7">
+            {% if trial.matcher_base_decision %}{{ trial.get_matcher_base_decision_display }}
+              {% if trial.matcher_base_decision != trial.system_decision %}<span class="badge bg-warning text-dark ms-1">overridden</span>{% endif %}
+            {% else %}— (no comparison reached){% endif %}
+          </dd>
+          {% if trial.quality_override_applied %}<dt class="col-5">Quality Override</dt><dd class="col-7"><span class="badge bg-warning text-dark">Applied</span></dd>{% endif %}
+          {% if trial.lookalike_escalation_applied %}<dt class="col-5">Lookalike Escalation</dt><dd class="col-7"><span class="badge bg-warning text-dark">Applied</span></dd>{% endif %}
+          {% if trial.representative_fallback_blocked %}<dt class="col-5">Representative Fallback</dt><dd class="col-7"><span class="badge bg-danger">Blocked — matched beneficiary's face</span></dd>{% endif %}
+          <dt class="col-5">Similarity Score</dt><dd class="col-7">{% if trial.similarity_score != None %}{{ trial.similarity_score|floatformat:4 }}{% else %}— (null: no comparison reached){% endif %}</dd>
+          <dt class="col-5">Review Threshold (snapshot)</dt><dd class="col-7">{{ trial.review_threshold_snapshot|floatformat:2|default:"—" }}</dd>
+          <dt class="col-5">Auto-Verify Threshold (snapshot)</dt><dd class="col-7">{{ trial.auto_verify_threshold_snapshot|floatformat:2|default:"—" }}</dd>
+          <dt class="col-5">Liveness Pathway</dt><dd class="col-7">{{ trial.get_liveness_pathway_display|default:"—" }}</dd>
+          <dt class="col-5">Challenge Direction</dt><dd class="col-7">{{ trial.challenge_direction|default:"—" }} ({{ trial.head_movement_completed|yesno:"attested,not attested" }})</dd>
+          <dt class="col-5">Liveness Passed</dt><dd class="col-7">{{ trial.liveness_passed|yesno:"Yes,No,—" }} ({{ trial.liveness_score|floatformat:3|default:"—" }})</dd>
+          <dt class="col-5">Anti-Spoof Passed</dt><dd class="col-7">{{ trial.anti_spoof_passed|yesno:"Yes,No,—" }} ({{ trial.anti_spoof_score|floatformat:3|default:"—" }})</dd>
+          <dt class="col-5">PAD Score</dt><dd class="col-7">{{ trial.pa_score|floatformat:3|default:"—" }}</dd>
+          <dt class="col-5">Verification Duration</dt><dd class="col-7">{% if trial.verification_duration_ms != None %}{{ trial.verification_duration_ms }} ms{% else %}—{% endif %}</dd>
+          <dt class="col-5">Evaluated At</dt><dd class="col-7">{{ trial.evaluated_at|date:"Y-m-d H:i:s" }}</dd>
+        </dl>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if not trial.withdrawn and request.user.is_admin_it %}
+<div class="card mt-3 border-dark">
+  <div class="card-header fw-semibold">Participant Withdrawal (Technical Administrator only)</div>
+  <div class="card-body">
+    <p class="small text-muted">Marks this trial withdrawn/excluded from all biometric metric calculations. The row is never deleted — it is retained for audit. Does not affect any operational Beneficiary/Representative/VerificationAttempt/ClaimRecord data.</p>
+    <form method="post" action="{% url 'verification:evaluation_trial_withdraw' trial.pk %}" onsubmit="return confirm('Withdraw this trial? It will be permanently excluded from every future biometric metric calculation for this dataset.');">
+      {% csrf_token %}
+      <div class="mb-2">
+        <label class="form-label small">Withdrawal Reason (required)</label>
+        <input type="text" name="withdrawal_reason" class="form-control form-control-sm" required maxlength="500" placeholder="e.g. participant withdrew consent">
+      </div>
+      <button type="submit" class="btn btn-outline-dark btn-sm"><i class="bi bi-person-dash me-1"></i>Withdraw Trial</button>
+    </form>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

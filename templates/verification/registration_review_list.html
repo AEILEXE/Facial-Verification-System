@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Pending Registrations{% endblock %}
+{% block nav_reg %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+      <a href="{% url 'verification:manual_review' %}">Manual Review Queue</a> /
+      Pending Registrations
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-person-plus me-2"></i>Pending Registrations
+    </h4>
+  </div>
+</div>
+
+{% if pending %}
+<div class="alert d-flex gap-2 align-items-start mb-3"
+     style="background:#fef3c7; border:1px solid #fcd34d; font-size:0.85rem;">
+  <i class="bi bi-shield-exclamation text-warning flex-shrink-0 mt-1"></i>
+  <div>
+    <strong>Admin action required.</strong> Each registration below was submitted by staff and is
+    awaiting your approval. Beneficiaries with <strong>Pending</strong> status cannot be verified
+    or claim stipends until approved.
+  </div>
+</div>
+{% endif %}
+
+{% if duplicate_pending_count %}
+<div class="alert d-flex gap-2 align-items-start mb-3"
+     style="background:#fef2f2; border:1px solid #f87171; font-size:0.85rem;">
+  <i class="bi bi-person-bounding-box text-danger flex-shrink-0 mt-1"></i>
+  <div class="flex-grow-1">
+    <strong>{{ duplicate_pending_count }} pending registration{{ duplicate_pending_count|pluralize }}
+    {{ duplicate_pending_count|pluralize:"has,have" }} an unresolved duplicate-face conflict</strong>
+    and {{ duplicate_pending_count|pluralize:"is,are" }} not shown here — approving or rejecting a
+    face-conflicted registration this way would bypass identity review. Resolve
+    {{ duplicate_pending_count|pluralize:"it,them" }} in the Duplicate Face Review queue instead.
+    <div class="mt-2">
+      <a href="{% url 'beneficiaries:duplicate_review_list' %}" class="btn btn-sm btn-danger">
+        <i class="bi bi-person-bounding-box me-1"></i> Open Duplicate Face Review
+      </a>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover table-sm mb-0">
+      <thead>
+        <tr>
+          <th>Beneficiary ID</th>
+          <th>Name</th>
+          <th>Date of Birth</th>
+          <th>Barangay</th>
+          <th>Registered By</th>
+          <th>Submitted</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in pending %}
+        <tr>
+          <td class="small font-mono">{{ b.beneficiary_id }}</td>
+          <td class="fw-semibold">{{ b.full_name }}</td>
+          <td class="small text-muted">{{ b.date_of_birth|date:"M d, Y" }}</td>
+          <td class="small text-muted">{{ b.barangay }}</td>
+          <td class="small">{% if b.registered_by %}{{ b.registered_by.get_full_name|default:b.registered_by.username }}{% else %}&mdash;{% endif %}</td>
+          <td class="small text-muted" style="white-space:nowrap;">{{ b.created_at|date:"M d, Y H:i" }}</td>
+          <td>
+            <a href="{% url 'verification:registration_review' b.pk %}"
+               class="btn btn-sm btn-primary">Review</a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-5">
+            <i class="bi bi-check-circle fs-1 d-block mb-2 opacity-25"></i>
+            No pending registrations.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

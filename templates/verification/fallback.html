@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}Manual Verification Required{% endblock %}
+{% block nav_verify %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-6">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'verification:verify_select' %}">Verify</a> /
+    Manual Verification
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-4">
+    <i class="bi bi-card-checklist me-2"></i>Manual Verification Required
+    {% if attempt.claimant_type == 'representative' %}
+      <span class="badge bg-primary fs-6 ms-2">Representative</span>
+    {% else %}
+      <span class="badge bg-warning text-dark fs-6 ms-2">Manual Verification</span>
+    {% endif %}
+  </h4>
+
+  {% if attempt.claimant_type == 'representative' %}
+  <div class="alert d-flex gap-3 align-items-start mb-4"
+       style="background:#e0f2fe; border:1px solid #7dd3fc;">
+    <i class="bi bi-people-fill text-info flex-shrink-0 mt-1" style="font-size:1.3rem;"></i>
+    <div>
+      <div class="fw-bold mb-1">Representative Claim</div>
+      <div class="small">Verify the representative's identity using their registered ID before releasing the stipend.</div>
+    </div>
+  </div>
+  {% else %}
+  <div class="alert d-flex gap-3 align-items-start mb-4"
+       style="background:#fff7ed; border:1px solid #fdba74;">
+    <i class="bi bi-exclamation-triangle-fill text-warning flex-shrink-0 mt-1" style="font-size:1.3rem;"></i>
+    <div>
+      <div class="fw-bold mb-1">Facial Verification Failed After Retry</div>
+      <div class="small">Please verify the beneficiary's identity using a physical government-issued ID.</div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="card mb-4">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-person me-2"></i>
+      {% if attempt.claimant_type == 'representative' %}Representative Info
+      {% else %}Beneficiary{% endif %}
+    </div>
+    <div class="card-body">
+      {% if attempt.claimant_type == 'representative' %}
+        <div class="fw-bold fs-5">
+          {{ attempt.beneficiary.rep_first_name }} {{ attempt.beneficiary.rep_last_name }}
+        </div>
+        <div class="small text-muted">
+          Relationship: {{ attempt.beneficiary.rep_relationship }}
+          &bull; Contact: {{ attempt.beneficiary.rep_contact|default:"&mdash;" }}
+        </div>
+        <div class="small text-muted mt-1">
+          Registered ID: {{ attempt.beneficiary.rep_id_type|default:"&mdash;" }}
+          &bull; {{ attempt.beneficiary.rep_id_number|default:"&mdash;" }}
+        </div>
+        <hr class="my-2">
+        <div class="small text-muted">Claiming on behalf of:</div>
+        <div class="fw-semibold">{{ attempt.beneficiary.full_name }}</div>
+        <div class="font-mono text-muted small">{{ attempt.beneficiary.beneficiary_id }}</div>
+      {% else %}
+        <div class="fw-bold fs-5">{{ attempt.beneficiary.full_name }}</div>
+        <div class="font-mono text-muted small">{{ attempt.beneficiary.beneficiary_id }}</div>
+      {% endif %}
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-pencil-square me-2"></i>ID Verification Form
+    </div>
+    <div class="card-body p-4">
+      <form method="POST" novalidate>
+        {% csrf_token %}
+
+        <div class="mb-4">
+          <label for="id-type" class="form-label fw-semibold">ID Type Presented <span class="text-danger">*</span></label>
+          <select id="id-type" name="id_type" class="form-select" required>
+            <option value="">-- Select ID Type --</option>
+            <option value="PhilSys" {% if rep_id_type == 'PhilSys' %}selected{% endif %}>PhilSys ID (National ID)</option>
+            <option value="Passport" {% if rep_id_type == 'Passport' %}selected{% endif %}>Passport</option>
+            <option value="Drivers License" {% if rep_id_type == 'Drivers License' %}selected{% endif %}>Driver's License</option>
+            <option value="UMID" {% if rep_id_type == 'UMID' %}selected{% endif %}>UMID</option>
+            <option value="Voters ID" {% if rep_id_type == 'Voters ID' %}selected{% endif %}>Voter's ID</option>
+            <option value="Senior Citizen ID" {% if rep_id_type == 'Senior Citizen ID' %}selected{% endif %}>Senior Citizen ID</option>
+            <option value="Other" {% if rep_id_type == 'Other' %}selected{% endif %}>Other Government-Issued ID</option>
+          </select>
+        </div>
+
+        {% if rep_id_number %}
+        <div class="mb-4">
+          <label for="registered-id-number" class="form-label fw-semibold">Registered ID Number</label>
+          <input type="text" id="registered-id-number" class="form-control font-mono" value="{{ rep_id_number }}" readonly>
+          <div class="form-text">Cross-check the presented ID against this registered number.</div>
+        </div>
+        {% endif %}
+
+        <div class="mb-4">
+          <label for="fallback-notes" class="form-label fw-semibold">Notes</label>
+          <textarea id="fallback-notes" name="notes" class="form-control" rows="3"
+                    placeholder="Additional observations or remarks&hellip;"></textarea>
+        </div>
+
+        <div class="mb-4">
+          <label class="form-label fw-semibold">Verification Decision <span class="text-danger">*</span></label>
+          <div class="d-flex gap-4">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="id_verified"
+                     value="true" id="idYes" required>
+              <label class="form-check-label fw-semibold text-success" for="idYes">
+                <i class="bi bi-check-circle me-1"></i> ID Verified &mdash; Release Stipend
+              </label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" name="id_verified"
+                     value="false" id="idNo">
+              <label class="form-check-label fw-semibold text-danger" for="idNo">
+                <i class="bi bi-x-circle me-1"></i> ID Not Verified &mdash; Deny
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-primary fw-semibold px-4">
+            <i class="bi bi-check2-square me-1"></i> Submit Decision
+          </button>
+          <a href="{% url 'verification:verify_select' %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

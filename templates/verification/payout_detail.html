@@ -1,0 +1,365 @@
+{% extends "base.html" %}
+{% block title %}Payout {{ claim.reference_number|default:claim.id }}{% endblock %}
+{% block nav_distribution %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-10">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'verification:report_claims' %}">Detailed Payout Report</a> /
+    Payout {{ claim.reference_number|default:claim.id|truncatechars:14 }}
+  </div>
+
+  <div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+      <h4 class="fw-bold text-qc-blue mb-1">
+        <i class="bi bi-receipt me-2"></i>Payout Record
+      </h4>
+      <div class="text-muted small font-mono">{{ claim.reference_number|default:"(no reference)" }}</div>
+    </div>
+    <div>
+      {% if claim.status == 'claimed' %}
+        <span class="badge bg-success fs-6">Claimed / Released</span>
+      {% elif claim.status == 'pending_approval' %}
+        <span class="badge bg-warning text-dark fs-6">Pending Approval</span>
+      {% elif claim.status == 'failed' %}
+        <span class="badge bg-danger fs-6">Failed</span>
+      {% elif claim.status == 'cancelled' %}
+        <span class="badge bg-secondary fs-6">Cancelled</span>
+      {% elif claim.status == 'rejected' %}
+        <span class="badge bg-danger fs-6">Rejected</span>
+      {% else %}
+        <span class="badge bg-secondary fs-6">{{ claim.get_status_display }}</span>
+      {% endif %}
+      {% if claim.override_by %}
+        <span class="badge bg-info ms-1">Overridden</span>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{% if msg.tags == 'error' %}danger{% else %}{{ msg.tags }}{% endif %} mb-3">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="row g-3">
+
+    <div class="col-lg-7">
+      <div class="card mb-3">
+        <div class="card-header bg-qc-blue text-white">
+          <i class="bi bi-person-badge me-2"></i>Beneficiary
+        </div>
+        <div class="card-body p-3">
+          <div class="row g-2 small">
+            <div class="col-sm-6">
+              <div class="text-muted">Beneficiary ID</div>
+              <div class="font-mono">{{ claim.beneficiary.beneficiary_id }}</div>
+            </div>
+            <div class="col-sm-6">
+              <div class="text-muted">Full Name</div>
+              <div class="fw-semibold">{{ claim.beneficiary.full_name }}</div>
+            </div>
+            <div class="col-sm-4">
+              <div class="text-muted">Age</div>
+              <div>{{ claim.beneficiary.age }}</div>
+            </div>
+            <div class="col-sm-4">
+              <div class="text-muted">Senior Citizen ID</div>
+              <div>{{ claim.beneficiary.senior_citizen_id|default:"—" }}</div>
+            </div>
+            <div class="col-sm-4">
+              <div class="text-muted">Barangay</div>
+              <div>{{ claim.beneficiary.barangay }}</div>
+            </div>
+            <div class="col-12">
+              <div class="text-muted">Address</div>
+              <div>{{ claim.beneficiary.address }}</div>
+            </div>
+          </div>
+          <div class="mt-2">
+            <a href="{% url 'verification:report_beneficiary_history' beneficiary_id=claim.beneficiary.id %}"
+               class="btn btn-outline-secondary btn-sm">
+              <i class="bi bi-clock-history me-1"></i>View Payout History
+            </a>
+          </div>
+        </div>
+      </div>
+
+      <div class="card mb-3">
+        <div class="card-header bg-qc-blue text-white">
+          <i class="bi bi-cash-coin me-2"></i>Payout Details
+        </div>
+        <div class="card-body p-3">
+          <div class="row g-2 small">
+            <div class="col-sm-6">
+              <div class="text-muted">Stipend Event</div>
+              <div>
+                {% if claim.stipend_event %}
+                  {{ claim.stipend_event.title }} ({{ claim.stipend_event.date }})
+                {% else %}<span class="text-muted">(no event linked)</span>{% endif %}
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="text-muted">Amount</div>
+              <div class="fs-5 fw-bold text-success">₱ {{ claim.amount|floatformat:2 }}</div>
+            </div>
+            <div class="col-sm-6">
+              <div class="text-muted">Verification Method</div>
+              <div>{{ claim.get_verification_method_display }}</div>
+            </div>
+            <div class="col-sm-6">
+              <div class="text-muted">Claimant Type</div>
+              <div>
+                {% if claim.claimant_type == 'beneficiary' %}Beneficiary
+                {% else %}Representative
+                  {% if claim.representative %} — {{ claim.representative.full_name }}{% endif %}
+                {% endif %}
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="text-muted">Released By</div>
+              <div>
+                {% if claim.released_by %}
+                  {{ claim.released_by.get_full_name|default:claim.released_by.username }}
+                {% else %}<span class="text-muted">—</span>{% endif %}
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="text-muted">Released At</div>
+              <div>{{ claim.released_at|date:"Y-m-d H:i"|default:"—" }}</div>
+            </div>
+            <div class="col-sm-6">
+              <div class="text-muted">Claimed By (Verifier)</div>
+              <div>
+                {% if claim.claimed_by %}{{ claim.claimed_by.get_full_name|default:claim.claimed_by.username }}{% else %}—{% endif %}
+              </div>
+            </div>
+            <div class="col-sm-6">
+              <div class="text-muted">Approved By</div>
+              <div>
+                {% if claim.approved_by %}{{ claim.approved_by.get_full_name|default:claim.approved_by.username }}{% else %}—{% endif %}
+              </div>
+            </div>
+            {% if claim.payout_remarks %}
+            <div class="col-12">
+              <div class="text-muted">Remarks</div>
+              <div>{{ claim.payout_remarks }}</div>
+            </div>
+            {% endif %}
+            {% if claim.notes %}
+            <div class="col-12">
+              <div class="text-muted">Notes</div>
+              <div class="small">{{ claim.notes }}</div>
+            </div>
+            {% endif %}
+            <div class="col-sm-6">
+              <div class="text-muted">Created</div>
+              <div>{{ claim.claimed_at|date:"Y-m-d H:i" }}</div>
+            </div>
+            <div class="col-sm-6">
+              <div class="text-muted">Last Updated</div>
+              <div>{{ claim.updated_at|date:"Y-m-d H:i" }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {% if claim.verification_attempt %}
+      <div class="card mb-3">
+        <div class="card-header bg-qc-blue text-white">
+          <i class="bi bi-shield-check me-2"></i>Verification Evidence
+        </div>
+        <div class="card-body p-3 small">
+          <div class="row g-2 font-mono">
+            <div class="col-sm-3"><span class="text-muted">Similarity Score</span><br>{{ claim.verification_attempt.similarity_score|floatformat:3|default:"—" }}</div>
+            <div class="col-sm-3"><span class="text-muted">Auto-Verify Threshold</span><br>{{ current_auto_verify_threshold|floatformat:2 }}<sup title="Current setting — may differ from the value in effect at the time of this attempt.">†</sup></div>
+            <div class="col-sm-3"><span class="text-muted">Manual-Review Threshold Recorded</span><br>{{ claim.verification_attempt.threshold_used|floatformat:2 }}</div>
+            <div class="col-sm-3"><span class="text-muted">Final Decision</span><br>{{ claim.verification_attempt.get_decision_display }}</div>
+          </div>
+          <div class="row g-2 font-mono mt-1">
+            <div class="col-sm-3"><span class="text-muted">Liveness Passed</span><br>{{ claim.verification_attempt.liveness_passed|yesno:"Yes,No,—" }}</div>
+            <div class="col-sm-3"><span class="text-muted">Liveness Score</span><br>{{ claim.verification_attempt.liveness_score|floatformat:3|default:"—" }}</div>
+            <div class="col-sm-3"><span class="text-muted">Anti-Spoof Score</span><br>{{ claim.verification_attempt.anti_spoof_score|floatformat:3|default:"—" }}</div>
+            {% if liveness_tx %}
+            <div class="col-sm-3"><span class="text-muted">Presentation-Attack Score</span><br>{{ liveness_tx.pa_score|floatformat:3 }}</div>
+            {% endif %}
+          </div>
+          {% if claim.overridden %}
+          <div class="mt-2"><span class="badge bg-warning text-dark">Decision Overridden</span> — see Admin Override Applied below.</div>
+          {% endif %}
+          <div class="text-muted mt-2" style="font-size:0.72rem;">
+            † Auto-Verify Threshold is the current configured setting, not a per-attempt snapshot.
+            "Manual-Review Threshold Recorded" is the value actually stored on this attempt
+            (<code>threshold_used</code>) — historical attempts only ever persisted one threshold
+            snapshot, so a second historical value is never fabricated here.
+            Similarity is the FaceNet cosine-similarity score; thresholds determine routing
+            (auto-verify / manual review), and liveness/anti-spoof rules may still escalate or block a result.
+          </div>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if lifecycle %}
+      <div class="card mb-3">
+        <div class="card-header bg-qc-blue text-white">
+          <i class="bi bi-diagram-3 me-2"></i>Lifecycle
+        </div>
+        <div class="card-body p-3">
+          <ol class="list-group list-group-numbered list-group-flush small">
+            {% for step in lifecycle %}
+            <li class="list-group-item d-flex justify-content-between align-items-start px-0">
+              <div class="ms-2 me-auto">
+                <div class="fw-semibold">{{ step.label }}</div>
+                {% if step.actor %}<div class="text-muted">by {{ step.actor.get_full_name|default:step.actor.username }}</div>{% endif %}
+                {% if step.detail %}<div class="text-muted font-mono">{{ step.detail }}</div>{% endif %}
+              </div>
+              <span class="text-muted text-nowrap small">{{ step.timestamp|date:"Y-m-d H:i" }}</span>
+            </li>
+            {% endfor %}
+          </ol>
+        </div>
+      </div>
+      {% endif %}
+
+      {% if claim.override_by %}
+      <div class="card mb-3 border-warning">
+        <div class="card-header bg-warning text-dark">
+          <i class="bi bi-shield-exclamation me-2"></i>Admin Override Applied
+        </div>
+        <div class="card-body p-3 small">
+          <div class="text-muted">Override By</div>
+          <div class="fw-semibold">{% if claim.override_by %}{{ claim.override_by.get_full_name|default:claim.override_by.username }}{% else %}&mdash;{% endif %}</div>
+          <div class="text-muted mt-2">Override At</div>
+          <div>{{ claim.override_at|date:"Y-m-d H:i" }}</div>
+          <div class="text-muted mt-2">Reason</div>
+          <div>{{ claim.override_reason }}</div>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    {# Right panel: admin actions on locked records — secondary, not the primary record view #}
+    <div class="col-lg-5">
+      {% if can_correct and claim.is_locked %}
+      <div class="card border-danger">
+        <div class="card-header bg-danger text-white">
+          <i class="bi bi-pencil-square me-2"></i>Administrative Correction
+          <span class="badge bg-light text-dark ms-2">President / Admin only</span>
+        </div>
+        <div class="card-body p-3">
+          <div class="alert alert-warning small d-flex gap-2 mb-3" role="alert">
+            <i class="bi bi-exclamation-triangle-fill mt-1"></i>
+            <div>
+              <strong>Use only for correction after review.</strong>
+              This panel exists to rarely correct payout records that are already
+              in a terminal state (Released / Cancelled / Failed). It is
+              <em>not</em> a normal-edit channel. All actions are recorded in the
+              audit log with the user, timestamp, before/after values, and your
+              written reason.
+            </div>
+          </div>
+          <p class="small text-muted mb-2">
+            Current status: <strong>{{ claim.get_status_display }}</strong>.
+            Normal staff edits are blocked on terminal records.
+          </p>
+
+          {% if prior_cancelled_count > 0 %}
+          <div class="alert alert-warning small d-flex gap-2 mb-3" role="alert">
+            <i class="bi bi-clock-history mt-1"></i>
+            <div>
+              <strong>Repeated cancellation notice:</strong>
+              this beneficiary already has <strong>{{ prior_cancelled_count }}</strong>
+              cancelled record(s) for this stipend event.
+              {% if cancel_repeat_blocked %}
+              Only President or Admin may cancel further records, and a written
+              reason of at least {{ cancel_repeat_reason_min|default:30 }} characters
+              is required.
+              {% else %}
+              A more detailed written reason is required if you cancel again.
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
+
+          {% if claim.status == 'claimed' %}
+          <form method="post" action="{% url 'verification:payout_action' claim_id=claim.id %}" class="mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="cancel">
+            <label for="override-reason-cancel" class="form-label small fw-semibold">Required Override Reason &mdash; Cancel Released Payout</label>
+            <textarea id="override-reason-cancel" name="override_reason" class="form-control form-control-sm mb-2" rows="2"
+                      placeholder="Required: reason for cancelling this payout…" required></textarea>
+            <button class="btn btn-sm btn-outline-danger w-100" {% if cancel_repeat_blocked %}disabled title="Repeated cancellation requires President/Admin"{% endif %}
+                    onclick="return confirm('Cancel this released payout? This is recorded in the audit log.');">
+              <i class="bi bi-x-circle me-1"></i>Cancel Payout
+            </button>
+          </form>
+
+          <form method="post" action="{% url 'verification:payout_action' claim_id=claim.id %}" class="mb-3">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="fail">
+            <label for="override-reason-fail" class="form-label small fw-semibold">Required Override Reason &mdash; Mark as Failed</label>
+            <textarea id="override-reason-fail" name="override_reason" class="form-control form-control-sm mb-2" rows="2"
+                      placeholder="Required: reason the payout could not be completed…" required></textarea>
+            <button class="btn btn-sm btn-outline-warning w-100"
+                    onclick="return confirm('Mark this payout as FAILED? This action will be recorded in the audit log.');">
+              <i class="bi bi-exclamation-triangle me-1"></i>Mark Failed
+            </button>
+          </form>
+          {% endif %}
+
+          <form method="post" action="{% url 'verification:payout_action' claim_id=claim.id %}">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="override">
+            <label class="form-label small fw-semibold">Edit Locked Payout (Correction Only)</label>
+            <div class="row g-1 mb-2">
+              <div class="col-12">
+                <label for="override-amount" class="form-label small text-muted mb-0">Amount (PHP)</label>
+                <input type="number" id="override-amount" name="amount" min="0" step="0.01" class="form-control form-control-sm"
+                       value="{{ claim.amount }}" placeholder="Amount (PHP)">
+              </div>
+              <div class="col-12">
+                <label for="override-reference-number" class="form-label small text-muted mb-0">Reference Number</label>
+                <input type="text" id="override-reference-number" name="reference_number" class="form-control form-control-sm"
+                       value="{{ claim.reference_number }}" placeholder="Reference Number">
+              </div>
+              <div class="col-12">
+                <label for="override-remarks" class="form-label small text-muted mb-0">Remarks</label>
+                <input type="text" id="override-remarks" name="payout_remarks" class="form-control form-control-sm"
+                       value="{{ claim.payout_remarks }}" placeholder="Remarks">
+              </div>
+            </div>
+            <label for="override-reason-correction" class="form-label small fw-semibold">Required Override Reason</label>
+            <textarea id="override-reason-correction" name="override_reason" class="form-control form-control-sm mb-2" rows="2"
+                      placeholder="Required: reason for this correction…" required></textarea>
+            <button class="btn btn-sm btn-outline-primary w-100">
+              <i class="bi bi-save me-1"></i>Apply Override Edit
+            </button>
+          </form>
+        </div>
+      </div>
+      {% elif can_admin and claim.is_locked %}
+      <div class="card bg-light">
+        <div class="card-body p-3 small text-muted">
+          <i class="bi bi-info-circle me-1"></i>
+          Technical Administrator has read access to this record for diagnostics.
+          Correcting a released payout requires President or Admin.
+        </div>
+      </div>
+      {% elif not can_admin %}
+      <div class="card bg-light">
+        <div class="card-body p-3 small text-muted">
+          <i class="bi bi-info-circle me-1"></i>
+          Released payouts are read-only for staff. Contact an admin to request any
+          correction.
+        </div>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}User Management{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / User Management
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-people me-2"></i>User Management
+    </h4>
+  </div>
+  <a href="{% url 'beneficiaries:user_create' %}" class="btn btn-primary">
+    <i class="bi bi-person-plus me-1"></i> Add User
+  </a>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>Name</th>
+          <th>Username</th>
+          <th>System Role</th>
+          <th>Assigned Office / Unit</th>
+          <th>Officer Position</th>
+          <th>Status</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr {% if not u.is_active %}class="opacity-50"{% endif %}>
+          <td>
+            <div class="fw-semibold">{{ u.get_full_name|default:u.username }}</div>
+            {% if u.phone %}<div class="small text-muted">{{ u.phone }}</div>{% endif %}
+          </td>
+          <td><span class="font-mono small">{{ u.username }}</span></td>
+          <td>
+            <span class="badge
+              {% if u.role == 'it' %}bg-danger
+              {% elif u.role == 'president' %}bg-warning text-dark
+              {% elif u.role == 'admin' %}bg-info text-dark
+              {% else %}bg-primary{% endif %}">
+              {{ u.get_role_display }}
+            </span>
+          </td>
+          <td class="small text-muted">{{ u.assigned_office|default:"&mdash;" }}</td>
+          <td class="small">
+            {% with assignment=u.get_current_officer_assignment %}
+              {% if assignment %}
+                <span class="badge bg-light text-dark border">{{ assignment.position.name }}</span>
+              {% else %}
+                <span class="text-muted">&mdash;</span>
+              {% endif %}
+            {% endwith %}
+          </td>
+          <td>
+            {% if u.is_active %}
+              <span class="badge bg-success">Active</span>
+            {% else %}
+              <span class="badge bg-secondary">Inactive</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if u.pk != request.user.pk %}
+            <div class="d-flex gap-1 flex-wrap">
+              <a href="{% url 'beneficiaries:user_edit' u.pk %}"
+                 class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-pencil me-1"></i>Edit
+              </a>
+              {# President can reset any user; Admin and IT can reset Staff only #}
+              {% if user.is_president or not u.is_admin %}
+              <a href="{% url 'accounts:admin_reset_password' u.pk %}"
+                 class="btn btn-sm btn-outline-warning"
+                 title="Reset password for {{ u.get_full_name|default:u.username }}">
+                <i class="bi bi-key"></i>
+              </a>
+              {% endif %}
+            </div>
+            {% else %}
+            <span class="text-muted small fst-italic">You
+              <a href="{% url 'accounts:change_password' %}" class="small ms-1">Change PW</a>
+            </span>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-5">
+            <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
+            No users found.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Review Pending Claim{% endblock %}
+{% block nav_distribution %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-7">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'verification:manual_review' %}">Admin Queue</a> /
+    Pending Claim Review
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-4">
+    <i class="bi bi-hourglass-split me-2"></i>Pending Claim — No Active Event
+  </h4>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{% if msg.tags == 'error' %}danger{% else %}{{ msg.tags }}{% endif %} mb-3">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="card mb-4">
+    <div class="card-header bg-qc-blue text-white fw-semibold">
+      <i class="bi bi-person me-2"></i>Claim Details
+    </div>
+    <div class="card-body">
+      <dl class="row mb-0">
+        <dt class="col-sm-4">Beneficiary</dt>
+        <dd class="col-sm-8">
+          {{ claim.beneficiary.full_name }}
+          <span class="text-muted small">({{ claim.beneficiary.beneficiary_id }})</span>
+        </dd>
+        <dt class="col-sm-4">Claimant Type</dt>
+        <dd class="col-sm-8">
+          {{ claim.claimant_type|capfirst }}
+          {% if claim.representative %}&mdash; {{ claim.representative.full_name }}{% endif %}
+        </dd>
+        <dt class="col-sm-4">Submitted By</dt>
+        <dd class="col-sm-8">
+          {% if claim.claimed_by %}
+            {{ claim.claimed_by.get_full_name|default:claim.claimed_by.username }}
+            ({{ claim.claimed_by.get_role_display }})
+          {% else %}Unknown{% endif %}
+        </dd>
+        <dt class="col-sm-4">Submitted At</dt>
+        <dd class="col-sm-8">{{ claim.created_at|date:"Y-m-d H:i" }}</dd>
+        <dt class="col-sm-4">Verification</dt>
+        <dd class="col-sm-8">
+          {% if claim.verification_attempt %}
+            Score: {{ claim.verification_attempt.similarity_score|floatformat:3 }}
+            &nbsp;|&nbsp; Decision: {{ claim.verification_attempt.decision }}
+            &nbsp;
+            <a href="{% url 'verification:verify_result' claim.verification_attempt.id %}"
+               class="small" target="_blank">View result</a>
+          {% else %}
+            <span class="text-muted">No linked attempt</span>
+          {% endif %}
+        </dd>
+        <dt class="col-sm-4">Notes</dt>
+        <dd class="col-sm-8">{{ claim.notes|default:"—" }}</dd>
+      </dl>
+    </div>
+  </div>
+
+  <div class="alert alert-warning">
+    <i class="bi bi-exclamation-triangle me-2"></i>
+    <strong>No active payout event was open when this claim was submitted.</strong>
+    Approving this claim will record it as a completed disbursement outside of a
+    scheduled event. Reject it if it was submitted in error or outside approved
+    distribution days.
+  </div>
+
+  <div class="card">
+    <div class="card-header fw-semibold">
+      <i class="bi bi-check2-circle me-2"></i>Your Decision
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="review-notes" class="form-label fw-semibold">Review Notes <span class="text-danger">*</span></label>
+          <textarea id="review-notes" name="review_notes" class="form-control" rows="3"
+                    placeholder="State your reason for approval or rejection (required)..." required></textarea>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" name="action" value="approve"
+                  class="btn btn-success fw-semibold px-4"
+                  onclick="return confirm('Approve this pending claim and process the payout? This action will be recorded in the audit log.')">
+            <i class="bi bi-check-circle me-1"></i>Process Payout
+          </button>
+          <button type="submit" name="action" value="reject"
+                  class="btn btn-danger fw-semibold px-4"
+                  onclick="return confirm('Reject this pending claim? This action will be recorded in the audit log.')">
+            <i class="bi bi-x-circle me-1"></i>Reject Request
+          </button>
+          <a href="{% url 'verification:manual_review' %}" class="btn btn-outline-secondary ms-auto">
+            Cancel
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

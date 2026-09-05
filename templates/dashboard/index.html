@@ -1,0 +1,535 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block nav_dashboard %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h4 class="fw-bold text-qc-blue mb-0">Distribution Dashboard</h4>
+    <p class="text-muted small mb-0">
+      Senior Citizen Stipend Distribution
+      &middot; <span title="This page reflects data as of the last time it was loaded — reopen or refresh to see new verifications/claims.">Data as of {{ server_time|date:"M d, Y g:i:s A" }}</span>
+      <a href="{{ request.path }}" class="ms-1"><i class="bi bi-arrow-clockwise"></i> Refresh</a>
+    </p>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'beneficiaries:register_step1' %}" class="btn btn-primary">
+      <i class="bi bi-person-plus me-1"></i> Register Beneficiary
+    </a>
+    <a href="{% url 'verification:verify_select' %}" class="btn btn-success">
+      <i class="bi bi-camera-video me-1"></i> Start Verification
+    </a>
+  </div>
+</div>
+
+{% if needs_president_bootstrap %}
+<div class="alert d-flex gap-2 align-items-center mb-2" style="background:#eff6ff; border:1px solid #93c5fd;">
+  <i class="bi bi-person-plus-fill text-primary flex-shrink-0" style="font-size:1.15rem;"></i>
+  <div class="flex-grow-1">
+    <div class="fw-bold">Initial organizational setup required</div>
+    <div class="small text-muted">Create the authorized President account to complete first-run setup.</div>
+  </div>
+  <a href="{% url 'accounts:bootstrap_president' %}" class="btn btn-sm btn-primary flex-shrink-0">
+    <i class="bi bi-person-plus me-1"></i> Create President Account
+  </a>
+</div>
+{% endif %}
+
+{# ══════════════════════ ACTIVE DISTRIBUTION EVENT ═══════════════════════ #}
+<div class="text-muted text-uppercase fw-semibold mb-1" style="font-size:0.7rem; letter-spacing:0.08em;">
+  <i class="bi bi-calendar-event me-1"></i>Active Distribution Event
+</div>
+<div class="card mb-3">
+  <div class="card-body d-flex flex-wrap gap-3 align-items-center p-3">
+    <div class="flex-grow-1" style="min-width:240px;">
+      <div class="d-flex align-items-center gap-2 flex-wrap">
+        <span class="badge
+          {% if claiming_status == 'OPEN' %}bg-success
+          {% elif claiming_status == 'SCHEDULED' %}bg-info text-dark
+          {% elif claiming_status == 'UPCOMING' %}bg-success-subtle text-success-emphasis border border-success
+          {% elif claiming_status == 'PENDING APPROVAL' %}bg-warning text-dark
+          {% else %}bg-secondary{% endif %}">{{ claiming_status }}</span>
+      </div>
+      {% if current_event %}
+      <div class="fw-bold mt-1">
+        {% if current_event.event_type == 'birthday_bonus' %}<span class="badge bg-warning text-dark me-1"><i class="bi bi-gift me-1"></i>Birthday Bonus</span>{% endif %}
+        {{ current_event.title }} &mdash; &#8369;{{ current_event.amount|floatformat:2 }}
+      </div>
+      <div class="small text-muted">
+        {{ current_event.date|date:"l, F d, Y" }}
+        {% if current_event.payout_start_date %} &mdash; Claiming window: {{ current_event.payout_start_date|date:"M d" }} &ndash; {{ current_event.payout_end_date|date:"M d, Y" }}{% endif %}
+      </div>
+      {% if claiming_status == 'SCHEDULED' and current_event.payout_start_time %}
+      <div class="small text-muted">
+        <i class="bi bi-clock-history me-1"></i>Verification opens today at {{ current_event.payout_start_time|time:"g:i A" }}{% if current_event.payout_end_time %} and closes at {{ current_event.payout_end_time|time:"g:i A" }}{% endif %}
+      </div>
+      {% endif %}
+      {% if distribution_progress %}
+      <div class="mt-2" style="max-width:420px;">
+        <div class="d-flex justify-content-between small text-muted mb-1">
+          <span>Claimed {{ distribution_progress.claimed }} of {{ distribution_progress.eligible }} eligible</span>
+          <span>{{ distribution_progress.remaining }} remaining</span>
+        </div>
+        <div class="progress" style="height:8px;">
+          <div class="progress-bar bg-success" role="progressbar" style="width:{{ distribution_progress.pct }}%;"
+               aria-valuenow="{{ distribution_progress.pct }}" aria-valuemin="0" aria-valuemax="100"></div>
+        </div>
+      </div>
+      {% endif %}
+      {% else %}
+      <div class="text-muted small mt-1">No distribution event is scheduled right now.</div>
+      {% endif %}
+    </div>
+    {% if claiming_status == 'OPEN' %}
+    <a href="{% url 'verification:verify_select' %}" class="btn btn-success flex-shrink-0">
+      <i class="bi bi-camera-video me-1"></i> Verify Now
+    </a>
+    {% else %}
+    <a href="{% url 'verification:stipend_list' %}" class="btn btn-outline-secondary flex-shrink-0">
+      <i class="bi bi-calendar3 me-1"></i> Payout Schedule
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+{# ══════════════════════════ ACTION REQUIRED ══════════════════════════════ #}
+{% if user.is_admin %}
+<div class="text-muted text-uppercase fw-semibold mb-1" style="font-size:0.7rem; letter-spacing:0.08em;">
+  <i class="bi bi-flag-fill me-1"></i>Action Required
+</div>
+
+{% if pending_approval_events_count or manual_review_pending or pending_registrations_count or shared_rep_review_pending or duplicate_review_pending %}
+
+{% if pending_approval_events_count %}
+<div class="alert d-flex gap-2 align-items-center mb-2" style="background:#fffbeb; border:1px solid #fcd34d;">
+  <i class="bi bi-hourglass-split text-warning flex-shrink-0" style="font-size:1.15rem;"></i>
+  <div class="flex-grow-1">
+    <div class="fw-bold">{{ pending_approval_events_count }} payout schedule{{ pending_approval_events_count|pluralize }} awaiting approval</div>
+    <div class="small text-muted">Not yet confirmed — no stipends can be released against these until the President approves.</div>
+  </div>
+  <a href="{% url 'verification:stipend_list' %}" class="btn btn-sm btn-outline-warning flex-shrink-0">
+    <i class="bi bi-eye me-1"></i> Review
+  </a>
+</div>
+{% endif %}
+
+{% if manual_review_pending and manual_review_pending > 0 %}
+<div class="alert d-flex gap-2 align-items-center mb-2" style="background:#fce7f3; border:1px solid #f9a8d4;">
+  <i class="bi bi-eye-fill flex-shrink-0" style="font-size:1.15rem; color:#9d174d;"></i>
+  <div class="flex-grow-1">
+    <div class="fw-bold" style="color:#9d174d;">{{ manual_review_pending }} item{{ manual_review_pending|pluralize }} pending manual review</div>
+    <div class="small text-muted">Administrator action required before stipend release.</div>
+  </div>
+  <a href="{% url 'verification:manual_review' %}" class="btn btn-sm btn-outline-danger flex-shrink-0">
+    <i class="bi bi-eye me-1"></i> Review Now
+  </a>
+</div>
+{% endif %}
+
+{% if pending_registrations_count and pending_registrations_count > 0 %}
+<div class="alert d-flex gap-2 align-items-center mb-2" style="background:#f0fdf4; border:1px solid #86efac;">
+  <i class="bi bi-person-plus-fill flex-shrink-0 text-success" style="font-size:1.15rem;"></i>
+  <div class="flex-grow-1">
+    <div class="fw-bold text-success">{{ pending_registrations_count }} pending registration{{ pending_registrations_count|pluralize }} awaiting approval</div>
+    <div class="small text-muted">New beneficiaries submitted by staff. Approve before they can be verified.</div>
+  </div>
+  <a href="{% url 'verification:registration_review_list' %}" class="btn btn-sm btn-outline-success flex-shrink-0">
+    <i class="bi bi-person-check me-1"></i> Approve Now
+  </a>
+</div>
+{% endif %}
+
+{% if duplicate_review_pending and duplicate_review_pending > 0 %}
+<div class="alert d-flex gap-2 align-items-center mb-2" style="background:#eef2ff; border:1px solid #a5b4fc;">
+  <i class="bi bi-person-bounding-box flex-shrink-0" style="font-size:1.15rem; color:#4338ca;"></i>
+  <div class="flex-grow-1">
+    <div class="fw-bold" style="color:#4338ca;">{{ duplicate_review_pending }} possible duplicate face{{ duplicate_review_pending|pluralize }} awaiting review</div>
+    <div class="small text-muted">Registration stays pending until each match is confirmed as a different person or merged.</div>
+  </div>
+  <a href="{% url 'beneficiaries:duplicate_review_list' %}" class="btn btn-sm btn-outline-primary flex-shrink-0">
+    <i class="bi bi-eye me-1"></i> Review Now
+  </a>
+</div>
+{% endif %}
+
+{% if shared_rep_review_pending and shared_rep_review_pending > 0 %}
+<div class="alert d-flex gap-2 align-items-center mb-2" style="background:#fff7ed; border:1px solid #fdba74;">
+  <i class="bi bi-people-fill flex-shrink-0" style="font-size:1.15rem; color:#c2410c;"></i>
+  <div class="flex-grow-1">
+    <div class="fw-bold" style="color:#c2410c;">
+      {{ shared_rep_review_pending }} representative case{{ shared_rep_review_pending|pluralize }} pending review
+    </div>
+    <div class="small text-muted">
+      Same person registered as representative for more than one beneficiary &mdash;
+      approve legitimate shared representatives or reject suspicious ones.
+      Release stays BLOCKED until each case is decided.
+    </div>
+  </div>
+  <a href="{% url 'verification:shared_rep_review_list' %}" class="btn btn-sm btn-outline-warning flex-shrink-0">
+    <i class="bi bi-list-check me-1"></i> Review Now
+  </a>
+</div>
+{% endif %}
+
+{% else %}
+<div class="alert d-flex gap-2 align-items-center mb-2" style="background:#f0fdf4; border:1px solid #86efac;">
+  <i class="bi bi-check-circle-fill text-success flex-shrink-0" style="font-size:1.15rem;"></i>
+  <div class="flex-grow-1">
+    <div class="fw-bold text-success">All caught up</div>
+    <div class="small text-muted">No pending reviews, approvals, or flagged cases need your attention right now.</div>
+  </div>
+</div>
+{% endif %}
+{% endif %}{# end is_admin — Action Required #}
+
+{# ══════════════════════════ OPERATION SUMMARY ════════════════════════════ #}
+<div class="text-muted text-uppercase fw-semibold mb-1 mt-1" style="font-size:0.7rem; letter-spacing:0.08em;">
+  <i class="bi bi-speedometer2 me-1"></i>Operation Summary
+</div>
+<div class="row g-3 mb-3">
+  <div class="col-12 col-sm-6 col-md-4 col-xl">
+    <a href="{% url 'beneficiaries:beneficiary_list' %}" class="text-decoration-none">
+    <div class="card stat-card h-100 stat-card-link">
+      <div class="card-body d-flex align-items-center gap-2 p-3">
+        <div class="stat-icon blue"><i class="bi bi-people-fill"></i></div>
+        <div>
+          <div class="stat-value text-qc-blue"><span class="js-countup" data-countup="{{ total_beneficiaries }}">{{ total_beneficiaries }}</span></div>
+          <div class="stat-label">Registered Beneficiaries</div>
+        </div>
+      </div>
+    </div>
+    </a>
+  </div>
+  <div class="col-12 col-sm-6 col-md-4 col-xl">
+    <a href="{% url 'beneficiaries:beneficiary_list' %}?status=active" class="text-decoration-none">
+    <div class="card stat-card h-100 stat-card-link">
+      <div class="card-body d-flex align-items-center gap-2 p-3">
+        <div class="stat-icon green"><i class="bi bi-person-check-fill"></i></div>
+        <div>
+          <div class="stat-value" style="color:#15803d;"><span class="js-countup" data-countup="{{ active_beneficiaries }}">{{ active_beneficiaries }}</span></div>
+          <div class="stat-label">Active Beneficiaries</div>
+        </div>
+      </div>
+    </div>
+    </a>
+  </div>
+  <div class="col-12 col-sm-6 col-md-4 col-xl">
+    <a href="{% url 'logs:verification_logs' %}" class="text-decoration-none">
+    <div class="card stat-card h-100 stat-card-link">
+      <div class="card-body d-flex align-items-center gap-2 p-3">
+        <div class="stat-icon amber"><i class="bi bi-camera-video-fill"></i></div>
+        <div>
+          <div class="stat-value" style="color:#a16207;"><span class="js-countup" data-countup="{{ verifications_today }}">{{ verifications_today }}</span></div>
+          <div class="stat-label">{% if user.is_staff_member %}My Verification Attempts Today{% else %}Verification Attempts Today{% endif %}</div>
+        </div>
+      </div>
+    </div>
+    </a>
+  </div>
+  <div class="col-12 col-sm-6 col-md-4 col-xl">
+    <a href="{% url 'logs:verification_logs' %}" class="text-decoration-none">
+    <div class="card stat-card h-100 stat-card-link">
+      <div class="card-body d-flex align-items-center gap-2 p-3">
+        <div class="stat-icon green"><i class="bi bi-patch-check-fill"></i></div>
+        <div>
+          <div class="stat-value" style="color:#15803d;"><span class="js-countup" data-countup="{{ verified_today }}">{{ verified_today }}</span></div>
+          <div class="stat-label">{% if user.is_staff_member %}My Successful Verifications Today{% else %}Successful Verifications Today{% endif %}</div>
+        </div>
+      </div>
+    </div>
+    </a>
+  </div>
+  {% if user.is_admin %}
+  <div class="col-12 col-sm-6 col-md-4 col-xl">
+    <a href="{% url 'verification:report_claims' %}?quick=released" class="text-decoration-none">
+    <div class="card stat-card h-100 stat-card-link">
+      <div class="card-body d-flex align-items-center gap-2 p-3">
+        <div class="stat-icon green"><i class="bi bi-cash-coin"></i></div>
+        <div>
+          <div class="stat-value" style="color:#15803d;"><span class="js-countup" data-countup="{{ claims_released_today }}">{{ claims_released_today }}</span></div>
+          <div class="stat-label">Claims Released Today</div>
+        </div>
+      </div>
+    </div>
+    </a>
+  </div>
+  <div class="col-12 col-sm-6 col-md-4 col-xl">
+    <a href="{% url 'verification:report_claims' %}?quick=released" class="text-decoration-none">
+    <div class="card stat-card h-100 stat-card-link">
+      <div class="card-body d-flex align-items-center gap-2 p-3">
+        <div class="stat-icon blue"><i class="bi bi-currency-exchange"></i></div>
+        <div>
+          <div class="stat-value text-qc-blue">&#8369;{{ amount_released_today|floatformat:0 }}</div>
+          <div class="stat-label">Amount Released Today</div>
+        </div>
+      </div>
+    </div>
+    </a>
+  </div>
+  {% endif %}
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-lightning-charge-fill me-2 text-qc-gold"></i>Quick Actions
+      </div>
+      <div class="card-body d-flex flex-column gap-2 p-3">
+
+        {# ── Beneficiary Management ─────────────────────────────── #}
+        <div class="text-muted text-uppercase fw-semibold mb-1" style="font-size:0.65rem; letter-spacing:0.05em;">Beneficiary Management</div>
+        <a href="{% url 'beneficiaries:register_step1' %}" class="action-btn">
+          <div class="action-icon" style="background:#dbeafe; color:#1d4ed8;"><i class="bi bi-person-plus-fill"></i></div>
+          <span>Register Beneficiary</span>
+        </a>
+        <a href="{% url 'beneficiaries:beneficiary_list' %}" class="action-btn">
+          <div class="action-icon" style="background:#f1f5f9; color:#475569;"><i class="bi bi-list-ul"></i></div>
+          <span>Registered Beneficiaries</span>
+        </a>
+
+        {# ── Verification & Claims ──────────────────────────────── #}
+        <div class="text-muted text-uppercase fw-semibold mt-2 mb-1" style="font-size:0.65rem; letter-spacing:0.05em;">Verification &amp; Claims</div>
+        <a href="{% url 'verification:verify_select' %}" class="action-btn">
+          <div class="action-icon" style="background:#dcfce7; color:#15803d;"><i class="bi bi-camera-video-fill"></i></div>
+          <span>Start Verification</span>
+        </a>
+        <a href="{% url 'verification:stipend_list' %}" class="action-btn">
+          <div class="action-icon" style="background:#fef9c3; color:#a16207;"><i class="bi bi-calendar3"></i></div>
+          <span>Payout Schedule</span>
+        </a>
+        <a href="{% url 'logs:verification_logs' %}" class="action-btn">
+          <div class="action-icon" style="background:#e0f2fe; color:#0369a1;"><i class="bi bi-journal-text"></i></div>
+          <span>Verification Logs</span>
+        </a>
+
+        {% if user.is_admin %}
+        {# ── Reports ────────────────────────────────────────────── #}
+        <div class="text-muted text-uppercase fw-semibold mt-2 mb-1" style="font-size:0.65rem; letter-spacing:0.05em;">Reports</div>
+        <a href="{% url 'verification:report_claims' %}" class="action-btn">
+          <div class="action-icon" style="background:#e0f2fe; color:#0284c7;"><i class="bi bi-file-earmark-bar-graph-fill"></i></div>
+          <span>Payout Claims Report</span>
+        </a>
+        <a href="{% url 'verification:report_event_summary' %}" class="action-btn">
+          <div class="action-icon" style="background:#f0fdf4; color:#15803d;"><i class="bi bi-bar-chart-line-fill"></i></div>
+          <span>Distribution Summary Report</span>
+        </a>
+
+        {# ── Administration ─────────────────────────────────────── #}
+        <div class="text-muted text-uppercase fw-semibold mt-2 mb-1" style="font-size:0.65rem; letter-spacing:0.05em;">Administration</div>
+        <a href="{% url 'verification:manual_review' %}" class="action-btn">
+          <div class="action-icon" style="background:#fce7f3; color:#9d174d;">
+            <i class="bi bi-eye-fill"></i>
+          </div>
+          <span>Manual Review Queue{% if manual_review_pending and manual_review_pending > 0 %} <span class="badge bg-danger ms-1">{{ manual_review_pending }}</span>{% endif %}</span>
+        </a>
+        <a href="{% url 'verification:registration_review_list' %}" class="action-btn">
+          <div class="action-icon" style="background:#dcfce7; color:#15803d;">
+            <i class="bi bi-person-check-fill"></i>
+          </div>
+          <span>Pending Registrations{% if pending_registrations_count and pending_registrations_count > 0 %} <span class="badge bg-success ms-1">{{ pending_registrations_count }}</span>{% endif %}</span>
+        </a>
+        <a href="{% url 'accounts:user_list' %}" class="action-btn">
+          <div class="action-icon" style="background:#f1f5f9; color:#374151;"><i class="bi bi-people-fill"></i></div>
+          <span>Staff &amp; User Accounts</span>
+        </a>
+        <a href="{% url 'role_matrix' %}" class="action-btn">
+          <div class="action-icon" style="background:#f1f5f9; color:#475569;"><i class="bi bi-shield-lock"></i></div>
+          <span>Role Permission Matrix</span>
+        </a>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-8">
+
+    {# ══════════════════ OPERATIONAL TRENDS (dashboard-local charts; ═══════ #}
+    {# the admin-only "Analytics" area lives under its own nav item — kept   #}
+    {# out of this label so AdminMenuReorganizationTest's staff/Analytics   #}
+    {# visibility boundary stays intact). #}
+    <div class="d-flex justify-content-between align-items-center mb-1">
+      <span class="text-muted text-uppercase fw-semibold" style="font-size:0.7rem; letter-spacing:0.08em;">
+        <i class="bi bi-graph-up-arrow me-1"></i>Operational Trends
+      </span>
+      {% if user.is_admin %}
+      <a href="{% url 'verification:analytics_executive' %}" class="small text-decoration-none">View Full Analytics <i class="bi bi-arrow-right"></i></a>
+      {% endif %}
+    </div>
+
+    {# ── One useful operational trend — section 12: not a growth chart. ─── #}
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-graph-up me-2 text-qc-blue"></i>Verification &amp; Claims Trend
+        <span class="text-muted small fw-normal">&mdash; Last 7 Days</span>
+      </div>
+      <div class="card-body p-3">
+        <div class="chart-canvas-wrap" style="position:relative; height:220px;">
+          <canvas id="dashboardTrendChart"></canvas>
+        </div>
+      </div>
+    </div>
+
+    {# ── Beneficiary Status snapshot — a point-in-time distribution, not a #}
+    {# trend, so it belongs on the Dashboard rather than only in Analytics. #}
+    {% if total_beneficiaries > 0 %}
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-pie-chart-fill me-2 text-qc-blue"></i>Beneficiary Status
+      </div>
+      <div class="card-body p-3">
+        <div class="chart-canvas-wrap" style="position:relative; height:220px;">
+          <canvas id="beneficiaryStatusChart"></canvas>
+        </div>
+      </div>
+    </div>
+    {% endif %}
+
+    {# ══════════════════════════ AUDIT ACTIVITY ═══════════════════════════ #}
+    <div class="text-muted text-uppercase fw-semibold mb-1" style="font-size:0.7rem; letter-spacing:0.08em;">
+      <i class="bi bi-clock-history me-1"></i>Audit Activity
+    </div>
+    <div class="card mb-3">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Recent Activity</span>
+        <a href="{% url 'logs:audit_logs' %}" class="btn btn-sm btn-outline-primary" style="font-size:0.75rem; padding:0.2rem 0.6rem;">View All</a>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table mb-0">
+            <thead>
+              <tr>
+                <th>Time</th>
+                <th>User</th>
+                <th>Action</th>
+                <th>Detail</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for log in recent_logs %}
+              <tr>
+                <td class="text-muted" style="white-space:nowrap;">{{ log.timestamp|date:"M d, H:i" }}</td>
+                <td><span class="font-mono">{{ log.user.username|default:"&mdash;" }}</span></td>
+                <td>
+                  <span class="badge
+                    {% if log.action == 'login' %}bg-success
+                    {% elif log.action == 'logout' %}bg-secondary
+                    {% elif log.action == 'login_failed' %}bg-danger
+                    {% elif log.action == 'verify' %}bg-primary
+                    {% elif log.action == 'register' %}bg-info
+                    {% elif log.action == 'override' %}bg-warning text-dark
+                    {% elif log.action == 'update' %}bg-info text-dark
+                    {% else %}bg-light text-dark{% endif %}">
+                    {{ log.get_action_display }}
+                  </span>
+                </td>
+                <td class="text-muted" style="font-size:0.8rem;">{{ log.target_type }} {{ log.target_id|truncatechars:18 }}</td>
+              </tr>
+              {% empty %}
+              <tr>
+                <td colspan="4" class="text-center text-muted py-5">
+                  <i class="bi bi-inbox fs-2 d-block mb-2"></i>No activity yet.
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    {# ── Network Access Info — IT role only ─────────────────────────────── #}
+    {% if user.is_admin_it %}
+    <div class="card mb-3">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-wifi text-success"></i>Network Access
+        {% if request.is_secure %}
+        <span class="ms-auto fw-normal" style="display:inline-block; padding:2px 7px; border-radius:10px; background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:0.62rem; font-weight:600;">
+          <i class="bi bi-shield-check me-1"></i>Secure Access
+        </span>
+        {% else %}
+        <span class="ms-auto fw-normal" style="display:inline-block; padding:2px 7px; border-radius:10px; background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-size:0.62rem; font-weight:600;">
+          <i class="bi bi-exclamation-triangle me-1"></i>Fallback Access (HTTP)
+        </span>
+        {% endif %}
+      </div>
+      <div class="card-body p-3">
+
+        {# Primary / Secure path #}
+        <div class="mb-3 pb-3 border-bottom">
+          <div class="d-flex align-items-center gap-1 mb-1">
+            <i class="bi bi-shield-check" style="font-size:0.8rem; color:#15803d;"></i>
+            <span class="fw-semibold" style="font-size:0.75rem; color:#15803d;">Secure Access</span>
+            <span style="display:inline-block; padding:1px 5px; border-radius:8px; background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:0.58rem; font-weight:600; margin-left:2px;">Recommended</span>
+          </div>
+          <a href="{{ server_domain_url }}" class="font-mono small text-primary text-decoration-none d-block mb-1">
+            {{ server_domain_url }}
+          </a>
+          <div class="text-muted" style="font-size:0.7rem;">HTTPS &bull; Camera enabled &bull; Requires one-time hosts file setup</div>
+        </div>
+
+        {# Fallback / HTTP path #}
+        <div class="mb-3">
+          <div class="d-flex align-items-center gap-1 mb-1">
+            <i class="bi bi-hdd-network" style="font-size:0.8rem; color:#b45309;"></i>
+            <span class="fw-semibold" style="font-size:0.75rem; color:#b45309;">Fallback Access</span>
+            <span style="display:inline-block; padding:1px 5px; border-radius:8px; background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-size:0.58rem; font-weight:600; margin-left:2px;">No setup needed</span>
+          </div>
+          {% if server_lan_url %}
+          <a href="{{ server_lan_url }}" class="font-mono small text-decoration-none fw-semibold d-block mb-1" style="color:#b45309;">
+            {{ server_lan_url }}
+          </a>
+          {% else %}
+          <span class="font-mono small text-muted">Not detected</span>
+          {% endif %}
+          <div class="text-muted" style="font-size:0.7rem;">HTTP only &bull; Camera disabled &bull; Works immediately</div>
+        </div>
+
+        {# Contextual nudge when currently on HTTP #}
+        {% if not request.is_secure %}
+        <div class="rounded p-2 mb-3" style="background:#fff7ed; border:1px solid #fed7aa; font-size:0.75rem;">
+          <i class="bi bi-exclamation-triangle me-1" style="color:#c2410c;"></i>
+          <strong style="color:#c2410c;">You are on Fallback Access.</strong>
+          Camera will not work.
+          <a href="{{ server_domain_url }}" class="fw-semibold text-decoration-none" style="color:#c2410c;">
+            Switch to Secure Access &rarr;
+          </a>
+        </div>
+        {% endif %}
+
+        <a href="{% url 'system_connection' %}" class="btn btn-sm btn-outline-secondary w-100">
+          <i class="bi bi-hdd-network me-1"></i>System Connection Info &rarr;
+        </a>
+      </div>
+    </div>
+    {% endif %}{# end is_admin_it — Network Access #}
+
+    {% if upcoming_events %}
+    <div class="card">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-calendar3 me-2 text-qc-blue"></i>Upcoming Payouts</span>
+        <a href="{% url 'verification:stipend_list' %}" class="btn btn-sm btn-outline-primary" style="font-size:0.75rem; padding:0.2rem 0.6rem;">All</a>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for ev in upcoming_events %}
+        <div class="list-group-item py-2 px-3">
+          <div class="fw-semibold small">{{ ev.title }}</div>
+          <div class="text-muted" style="font-size:0.78rem;">
+            <i class="bi bi-calendar3 me-1"></i>{{ ev.date|date:"M d, Y" }}
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{{ chart_data|json_script:"analytics-data" }}
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script src="{% static 'vendor/chartjs-4.4.4/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/analytics.js' %}"></script>
+{% endblock %}

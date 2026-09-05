@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}Beneficiaries{% endblock %}
+{% block nav_reg %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Beneficiaries
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0"><i class="bi bi-people me-2"></i>Beneficiaries</h4>
+  </div>
+  <a href="{% url 'beneficiaries:register_step1' %}" class="btn btn-primary">
+    <i class="bi bi-person-plus me-1"></i> Register New
+  </a>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-md-5">
+        <label for="filter-search" class="form-label small fw-semibold mb-1">Search</label>
+        <input type="text" id="filter-search" name="q" value="{{ query }}" class="form-control"
+               placeholder="Name, Beneficiary ID, or Senior Citizen ID&hellip;">
+      </div>
+      <div class="col-md-3">
+        <label for="filter-status" class="form-label small fw-semibold mb-1">Status</label>
+        <select id="filter-status" name="status" class="form-select">
+          <option value="">All Statuses</option>
+          <option value="active" {% if status_filter == 'active' %}selected{% endif %}>Active</option>
+          <option value="inactive" {% if status_filter == 'inactive' %}selected{% endif %}>Inactive</option>
+          <option value="deceased" {% if status_filter == 'deceased' %}selected{% endif %}>Deceased</option>
+          <option value="pending" {% if status_filter == 'pending' %}selected{% endif %}>Pending</option>
+          <option value="disapproved" {% if status_filter == 'disapproved' %}selected{% endif %}>Disapproved</option>
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-search me-1"></i> Search
+        </button>
+        <a href="{% url 'beneficiaries:beneficiary_list' %}" class="btn btn-outline-secondary">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if paginator.count > 0 %}
+<p class="text-muted small mb-2">
+  Showing {{ page_obj.start_index }}&ndash;{{ page_obj.end_index }} of {{ paginator.count }}
+  beneficiar{% if paginator.count == 1 %}y{% else %}ies{% endif %}{% if query %} for &ldquo;{{ query }}&rdquo;{% endif %}
+</p>
+{% endif %}
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th style="width:48px;"></th>
+          <th>Beneficiary ID</th>
+          <th>Name</th>
+          <th>Location</th>
+          <th>Status</th>
+          <th>Registered</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for b in beneficiaries %}
+        <tr>
+          <td class="py-2 ps-3">
+            {% if b.profile_picture %}
+            <img src="{{ b.profile_picture.url }}" alt=""
+                 class="rounded" style="width:36px; height:36px; object-fit:cover;">
+            {% else %}
+            <span class="d-flex align-items-center justify-content-center rounded bg-light text-secondary"
+                  style="width:36px; height:36px; font-size:1.1rem;">
+              <i class="bi bi-person-circle"></i>
+            </span>
+            {% endif %}
+          </td>
+          <td>
+            <span class="font-mono fw-semibold d-block">{{ b.beneficiary_id }}</span>
+            <span class="font-mono text-muted small d-block">
+              {% if b.senior_citizen_id %}SC ID: {{ b.senior_citizen_id }}{% else %}<span class="text-danger">SC ID: not provided</span>{% endif %}
+            </span>
+          </td>
+          <td>
+            <div class="fw-semibold">{{ b.full_name }}</div>
+            {% if b.has_representative %}
+              <span class="badge bg-info bg-opacity-10 text-info border border-info small">
+                <i class="bi bi-people me-1"></i>Has Rep.
+              </span>
+            {% endif %}
+          </td>
+          <td class="small text-muted">{{ b.municipality }}, {{ b.province }}</td>
+          <td>
+            <span class="badge
+              {% if b.status == 'active' %}bg-success
+              {% elif b.status == 'inactive' %}bg-secondary
+              {% elif b.status == 'deceased' %}bg-dark
+              {% elif b.status == 'disapproved' %}bg-danger
+              {% else %}bg-warning text-dark{% endif %}">
+              {{ b.get_status_display }}
+            </span>
+            {% if b.duplicate_review_required %}
+            <span class="badge bg-danger" title="Face matches another record — unresolved, pending admin review">
+              <i class="bi bi-person-bounding-box me-1"></i>Duplicate Face
+            </span>
+            {% endif %}
+          </td>
+          <td class="small text-muted">{{ b.created_at|date:"M d, Y" }}</td>
+          <td>
+            <a href="{% url 'beneficiaries:beneficiary_detail' b.pk %}"
+               class="btn btn-sm btn-outline-primary me-1">
+              <i class="bi bi-eye me-1"></i>View
+            </a>
+            {% if b.status == 'active' %}
+            <a href="{% url 'verification:verify_start' b.pk %}?claimant=beneficiary"
+               class="btn btn-sm btn-success">
+              <i class="bi bi-camera-video me-1"></i>Verify
+            </a>
+            {% endif %}
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="7" class="text-center text-muted py-5">
+            <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
+            {% if query %}No beneficiaries found for &ldquo;{{ query }}&rdquo;.
+            {% else %}No beneficiaries registered yet.{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% if paginator.num_pages > 1 %}
+<nav class="mt-3" aria-label="Beneficiary list navigation">
+  <ul class="pagination justify-content-center">
+    {% if page_obj.has_previous %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}">
+        &laquo; Previous
+      </a>
+    </li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">&laquo; Previous</span></li>
+    {% endif %}
+
+    <li class="page-item disabled">
+      <span class="page-link">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+    </li>
+
+    {% if page_obj.has_next %}
+    <li class="page-item">
+      <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}">
+        Next &raquo;
+      </a>
+    </li>
+    {% else %}
+    <li class="page-item disabled"><span class="page-link">Next &raquo;</span></li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+{% endblock %}

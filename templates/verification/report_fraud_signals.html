@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% block title %}Security Review{% endblock %}
+{% block nav_logs %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Security Review
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">Security Review</h4>
+    <div class="text-muted small mt-1">
+      Rule-based flags for review only — nothing on this page blocks, suspends,
+      or denies anything automatically. Follow up using the linked pages.
+    </div>
+  </div>
+</div>
+
+<!-- ── Repeated Verification Failures ─────────────────────────────────────── -->
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-exclamation-triangle-fill text-warning fs-5"></i>
+    <h5 class="fw-bold mb-0">Repeated Verification Failures</h5>
+    <span class="badge bg-warning text-dark ms-1">{{ repeated_failures|length }}</span>
+  </div>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>Risk</th><th>Beneficiary</th><th class="text-end">Failed Attempts</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for row in repeated_failures %}
+          <tr>
+            <td>{% include "verification/_risk_badge.html" with level=row.risk_level score=row.risk_score %}</td>
+            <td>{{ row.beneficiary__first_name }} {{ row.beneficiary__last_name }} <span class="text-muted small">({{ row.beneficiary__beneficiary_id }})</span></td>
+            <td class="text-end">{{ row.n_failed }}</td>
+            <td class="text-end">
+              <a href="{% url 'verification:report_beneficiary_history' beneficiary_id=row.beneficiary__id %}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i> View
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted py-4">No beneficiaries over the threshold.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Anomalous Staff Verification Volume ────────────────────────────────── -->
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-speedometer text-warning fs-5"></i>
+    <h5 class="fw-bold mb-0">Anomalous Staff Verification Volume</h5>
+    <span class="badge bg-warning text-dark ms-1">{{ anomalous_staff_volume|length }}</span>
+  </div>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>Risk</th><th>Staff</th><th class="text-end">Attempts</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for row in anomalous_staff_volume %}
+          <tr>
+            <td>{% include "verification/_risk_badge.html" with level=row.risk_level score=row.risk_score %}</td>
+            <td>{{ row.performed_by__first_name }} {{ row.performed_by__last_name|default:row.performed_by__username }}</td>
+            <td class="text-end">{{ row.n }}</td>
+            <td class="text-end">
+              <a href="{% url 'verification:report_staff_performance' %}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i> View
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted py-4">No staff over the threshold.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Admin Mass-Edit Detection ───────────────────────────────────────────── -->
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-pencil-square text-warning fs-5"></i>
+    <h5 class="fw-bold mb-0">Admin Mass-Edit Detection</h5>
+    <span class="badge bg-warning text-dark ms-1">{{ mass_edit_detection|length }}</span>
+  </div>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>Risk</th><th>Admin</th><th class="text-end">Edits</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for row in mass_edit_detection %}
+          <tr>
+            <td>{% include "verification/_risk_badge.html" with level=row.risk_level score=row.risk_score %}</td>
+            <td>{{ row.user__first_name }} {{ row.user__last_name|default:row.user__username }}</td>
+            <td class="text-end">{{ row.n }}</td>
+            <td class="text-end">
+              <a href="{% url 'logs:audit_logs' %}?user={{ row.user__username }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i> View
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted py-4">No admins over the threshold.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Repeated Login Failures ─────────────────────────────────────────────── -->
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-shield-lock-fill text-warning fs-5"></i>
+    <h5 class="fw-bold mb-0">Repeated Login Failures</h5>
+    <span class="badge bg-warning text-dark ms-1">{{ repeated_login_failures|length }}</span>
+  </div>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>Risk</th><th>IP Address</th><th class="text-end">Failed Attempts</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for row in repeated_login_failures %}
+          <tr>
+            <td>{% include "verification/_risk_badge.html" with level=row.risk_level score=row.risk_score %}</td>
+            <td class="font-mono">{{ row.ip_address }}</td>
+            <td class="text-end">{{ row.n }}</td>
+            <td class="text-end">
+              <a href="{% url 'logs:audit_logs' %}?action=login_failed" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i> View
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted py-4">No IPs over the threshold.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Payout Anomalies ────────────────────────────────────────────────────── -->
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-cash-stack text-warning fs-5"></i>
+    <h5 class="fw-bold mb-0">Payout Anomalies</h5>
+    <span class="badge bg-warning text-dark ms-1">{{ payout_anomalies|length }}</span>
+  </div>
+  <p class="text-muted small mb-2">
+    Unusually frequent payout overrides, cancellations, failures, blocked duplicate
+    attempts, or fallback releases by one user — every individual action was already
+    audit-logged; this surfaces the pattern.
+  </p>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr><th>Risk</th><th>Staff / Admin</th><th class="text-end">Events</th><th></th></tr>
+        </thead>
+        <tbody>
+          {% for row in payout_anomalies %}
+          <tr>
+            <td>{% include "verification/_risk_badge.html" with level=row.risk_level score=row.risk_score %}</td>
+            <td>{{ row.user__first_name }} {{ row.user__last_name|default:row.user__username }}</td>
+            <td class="text-end">{{ row.n }}</td>
+            <td class="text-end">
+              <a href="{% url 'logs:audit_logs' %}?user={{ row.user__username }}" class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i> View
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="4" class="text-center text-muted py-4">No staff/admins over the threshold.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endblock %}

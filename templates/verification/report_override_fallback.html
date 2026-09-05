@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Override &amp; Manual Verification Report{% endblock %}
+{% block nav_logs %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    Reports / Override &amp; Manual Verification
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-3">
+    <i class="bi bi-shield-exclamation me-2"></i>Admin Override &amp; Manual Verification Report
+  </h4>
+  <p class="text-muted small">
+    Every payout that was not released via a clean face match &mdash; admin
+    overrides, approved manual verifications, fallback ID releases. Use this
+    to audit deviations from the standard verification path.
+  </p>
+
+  <div class="card mb-3">
+    <div class="card-header bg-qc-blue text-white"><i class="bi bi-funnel me-2"></i>Filters</div>
+    <div class="card-body p-3">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-sm-6 col-md-3">
+          <label for="filter-date-from" class="form-label fw-semibold small">Date From</label>
+          <input type="date" id="filter-date-from" name="date_from" class="form-control form-control-sm"
+                 value="{{ date_from|date:'Y-m-d'|default:'' }}">
+        </div>
+        <div class="col-sm-6 col-md-3">
+          <label for="filter-date-to" class="form-label fw-semibold small">Date To</label>
+          <input type="date" id="filter-date-to" name="date_to" class="form-control form-control-sm"
+                 value="{{ date_to|date:'Y-m-d'|default:'' }}">
+        </div>
+        <div class="col-sm-6 col-md-4">
+          <label for="filter-event" class="form-label fw-semibold small">Stipend Event</label>
+          <select id="filter-event" name="event" class="form-select form-select-sm">
+            <option value="">All Events</option>
+            {% for ev in events %}
+              <option value="{{ ev.id }}" {% if event_id == ev.id|stringformat:"s" %}selected{% endif %}>
+                {{ ev.title }} ({{ ev.date }})
+              </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-12 col-md-2 d-flex gap-1">
+          <button type="submit" class="btn btn-primary btn-sm"><i class="bi bi-search"></i></button>
+          <a href="?export=csv&date_from={{ date_from|date:'Y-m-d' }}&date_to={{ date_to|date:'Y-m-d' }}&event={{ event_id }}"
+             class="btn btn-outline-success btn-sm">
+            <i class="bi bi-filetype-csv me-1"></i>CSV
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-sm table-hover mb-0 small">
+        <thead class="table-light">
+          <tr>
+            <th>Reference</th>
+            <th>Beneficiary</th>
+            <th>Event</th>
+            <th class="text-end">Amount</th>
+            <th>Status</th>
+            <th>Method</th>
+            <th>Override By</th>
+            <th>Reason</th>
+            <th>Released At</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in rows %}
+          <tr>
+            <td class="font-monospace">{{ r.reference_number|default:"—" }}</td>
+            <td>
+              <div class="fw-semibold">{{ r.beneficiary.full_name }}</div>
+              <div class="text-muted font-mono" style="font-size:0.72rem;">{{ r.beneficiary.beneficiary_id }}</div>
+            </td>
+            <td>{% if r.stipend_event %}{{ r.stipend_event.title }}{% else %}<span class="text-muted">(No Event)</span>{% endif %}</td>
+            <td class="text-end font-monospace">₱ {{ r.amount|floatformat:2 }}</td>
+            <td>
+              {% if r.status == 'claimed' %}<span class="badge bg-success">Claimed</span>
+              {% elif r.status == 'failed' %}<span class="badge bg-danger">Failed</span>
+              {% elif r.status == 'cancelled' %}<span class="badge bg-secondary">Cancelled</span>
+              {% else %}<span class="badge bg-secondary">{{ r.status }}</span>{% endif %}
+            </td>
+            <td>{{ r.get_verification_method_display }}</td>
+            <td>
+              {% if r.override_by %}{{ r.override_by.get_full_name|default:r.override_by.username }}
+              {% else %}<span class="text-muted">—</span>{% endif %}
+            </td>
+            <td style="max-width:240px;" class="text-break">{{ r.override_reason|truncatechars:120 }}</td>
+            <td class="text-nowrap">{{ r.released_at|date:"Y-m-d H:i"|default:"—" }}</td>
+            <td>
+              <a href="{% url 'verification:payout_detail' claim_id=r.id %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="10" class="text-center text-muted py-4">No override or fallback payouts in the selected period.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if paginator.num_pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center py-2">
+      <span class="small text-muted">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+      <div>
+        {% if page_obj.has_previous %}
+          <a class="btn btn-sm btn-outline-secondary" href="?{{ request.GET.urlencode }}&page={{ page_obj.previous_page_number }}">Prev</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+          <a class="btn btn-sm btn-outline-secondary" href="?{{ request.GET.urlencode }}&page={{ page_obj.next_page_number }}">Next</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

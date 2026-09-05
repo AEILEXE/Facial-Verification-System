@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% load static %}
+{% block title %}Analytics — Operational{% endblock %}
+{% block nav_analytics %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Analytics
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">Analytics — Operational</h4>
+    <div class="text-muted small mt-1">
+      Daily verification volume, outcome distribution, registration activity, and staff verification
+      workload for the selected date range — trends over time, not a list of individual records.
+    </div>
+  </div>
+</div>
+
+{% include "verification/_analytics_nav.html" with active_tab="operational" %}
+
+<div class="row g-3 mb-4">
+  <div class="col-12 col-lg-7">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">Verification Volume (Daily)</div>
+      <div class="card-body">
+        <div class="chart-canvas-wrap" style="position:relative; height:300px;">
+          <canvas id="verificationTrendChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-5">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">Verification Results (range)</div>
+      <div class="card-body">
+        {% if decision_breakdown %}
+        <div class="chart-canvas-wrap" style="position:relative; height:260px;">
+          <canvas id="verificationResultsChart"></canvas>
+        </div>
+        {% else %}
+        <div class="text-center text-muted py-4">No data in range.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">New Registrations (Daily)</div>
+      <div class="card-body">
+        <div class="chart-canvas-wrap" style="position:relative; height:300px;">
+          <canvas id="registrationTrendChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-6">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">Top Staff by Verification Volume (range)</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr><th>Staff</th><th class="text-end">Attempts</th></tr></thead>
+          <tbody>
+            {% for row in staff_activity %}
+            <tr>
+              <td>{{ row.performed_by__first_name }} {{ row.performed_by__last_name|default:row.performed_by__username }}</td>
+              <td class="text-end">{{ row.n }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="2" class="text-center text-muted py-3">No data in range.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="card h-100">
+      <div class="card-header fw-semibold">Distribution Summary by Barangay (top 15, range)</div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <thead class="table-light"><tr><th>Barangay</th><th class="text-end">Claims</th><th class="text-end">Total Released (PHP)</th></tr></thead>
+          <tbody>
+            {% for row in barangay_distribution %}
+            <tr>
+              <td>{{ row.beneficiary__barangay|default:"(Unspecified)" }}</td>
+              <td class="text-end">{{ row.claims_count }}</td>
+              <td class="text-end">&#8369;{{ row.total_amount|floatformat:2 }}</td>
+            </tr>
+            {% empty %}
+            <tr><td colspan="3" class="text-center text-muted py-3">No released claims in range.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+
+{{ chart_data|json_script:"analytics-data" }}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/chartjs-4.4.4/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/analytics.js' %}"></script>
+{% endblock %}

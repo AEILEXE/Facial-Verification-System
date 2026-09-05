@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Review Face Update Request{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-7">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'verification:manual_review' %}">Manual Review Queue</a> /
+    Face Update Request
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-1">
+    <i class="bi bi-camera me-2"></i>Review Face Update Request
+  </h4>
+  <p class="text-muted mb-4">
+    Approve to apply the new face embedding; reject to discard the capture.
+    Face data is only changed when an admin explicitly approves.
+  </p>
+
+  <!-- Request details -->
+  <div class="card mb-3">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-info-circle me-2"></i>Request Details
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">BENEFICIARY</div>
+          <div class="fw-bold">{{ fur.beneficiary.full_name }}</div>
+          <div class="font-mono text-muted small">{{ fur.beneficiary.beneficiary_id }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">REQUESTED ACTION</div>
+          <span class="badge {% if fur.action == 'replace' %}bg-danger{% else %}bg-info{% endif %} fs-6">
+            {{ fur.get_action_display }}
+          </span>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">REASON</div>
+          <div>{{ fur.get_reason_display }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">SUBMITTED BY</div>
+          <div>{% if fur.requested_by %}{{ fur.requested_by.get_full_name|default:fur.requested_by.username }}{% else %}&mdash;{% endif %}</div>
+          <div class="text-muted small">{{ fur.created_at|date:"M d, Y H:i" }}</div>
+        </div>
+        {% if fur.notes %}
+        <div class="col-12">
+          <div class="text-muted small fw-semibold mb-1">NOTES</div>
+          <div class="p-2 rounded text-muted small" style="background:#f8fafc; border:1px solid #e2e8f0;">
+            {{ fur.notes }}
+          </div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  {% if fur.duplicate_match_beneficiary %}
+  <div class="alert alert-danger d-flex gap-2 align-items-start mb-3">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1 fs-5"></i>
+    <div>
+      <strong>Duplicate Face Detected.</strong>
+      The newly captured face for <strong>{{ fur.beneficiary.full_name }}</strong> also matches
+      <strong>{{ fur.duplicate_match_beneficiary.full_name }}</strong>
+      (ID: {{ fur.duplicate_match_beneficiary.beneficiary_id }})
+      at a similarity of
+      <strong>{% widthratio fur.duplicate_match_score 1 100 %}%</strong>
+      (detected {{ fur.created_at|date:"M d, Y H:i" }}).
+      Verify government IDs for both individuals before approving — do not approve if this
+      capture may belong to a different person.
+      <a href="{% url 'beneficiaries:beneficiary_detail' pk=fur.duplicate_match_beneficiary.pk %}"
+         class="alert-link ms-1">View matched beneficiary <i class="bi bi-box-arrow-up-right"></i></a>
+      <div class="form-check mt-2">
+        <input class="form-check-input" type="checkbox" name="duplicate_confirmed"
+               id="duplicateConfirmed" form="faceUpdateReviewForm" required>
+        <label class="form-check-label fw-semibold" for="duplicateConfirmed">
+          I have compared government IDs and confirm this is a legitimate separate person
+          (or reject below if not).
+        </label>
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- What will happen on approval -->
+  <div class="alert d-flex gap-2 align-items-start mb-3"
+       style="background:#f0f4ff; border:1px solid #c7d7fa; font-size:0.85rem;">
+    <i class="bi bi-info-circle-fill text-qc-blue flex-shrink-0 mt-1"></i>
+    <div>
+      {% if fur.action == 'replace' %}
+        <strong>Approval effect:</strong> The beneficiary's <strong>primary face embedding</strong> will be
+        replaced with the newly captured data. Future verifications will use only the new embedding.
+      {% else %}
+        <strong>Approval effect:</strong> The new capture will be <strong>added as an additional template</strong>.
+        The existing primary embedding is kept. Face matching will consider both.
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Security notice -->
+  <div class="alert d-flex gap-2 align-items-start mb-4"
+       style="background:#fef3c7; border:1px solid #fcd34d; font-size:0.85rem;">
+    <i class="bi bi-shield-exclamation text-warning flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Accountability Notice</strong><br>
+      Changing enrolled face data is an irreversible biometric operation (for replace actions).
+      Your name, timestamp, and notes will be permanently recorded in the audit log.
+      Only approve if you have verified the request is legitimate and the new image represents
+      the actual beneficiary.
+    </div>
+  </div>
+
+  <!-- Approval form -->
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-pencil me-2"></i>Admin Decision
+    </div>
+    <div class="card-body">
+      <form method="POST" id="faceUpdateReviewForm">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="review-notes" class="form-label fw-semibold">
+            Review Notes <span class="text-danger">*</span>
+          </label>
+          <textarea id="review-notes" name="review_notes" class="form-control" rows="3" required
+                    placeholder="State how you verified this request is legitimate, or the reason for rejection…"></textarea>
+          <div class="form-text">Required. Will appear in audit log and face update history.</div>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" name="action" value="approve"
+                  class="btn btn-success fw-semibold"
+                  onclick="return confirm('Approve this face update? The biometric data for {{ fur.beneficiary.full_name }} will be changed. This action will be recorded in the audit log and face update history.')">
+            <i class="bi bi-check-circle me-1"></i> Approve Face Update
+          </button>
+          <button type="submit" name="action" value="reject" formnovalidate
+                  class="btn btn-danger fw-semibold"
+                  onclick="return confirm('Reject this face update request? The captured image will be discarded. This action will be recorded in the audit log.')">
+            <i class="bi bi-x-circle me-1"></i> Reject Request
+          </button>
+          <a href="{% url 'verification:manual_review' %}" class="btn btn-outline-secondary ms-auto">
+            <i class="bi bi-arrow-left me-1"></i> Back to Queue
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

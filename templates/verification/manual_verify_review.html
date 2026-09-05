@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Review Manual Verification Request{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-7">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'verification:manual_review' %}">Manual Review Queue</a> /
+    Manual Verification Request
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-1">
+    <i class="bi bi-person-badge me-2"></i>Review Manual Verification Request
+  </h4>
+  <p class="text-muted mb-4">
+    Approve to release the stipend; reject to deny the claim.
+    All actions are permanently logged in the audit trail.
+  </p>
+
+  <!-- Request details -->
+  <div class="card mb-3">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-info-circle me-2"></i>Request Details
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">BENEFICIARY</div>
+          <div class="fw-bold">{{ mvr.beneficiary.full_name }}</div>
+          <div class="font-mono text-muted small">{{ mvr.beneficiary.beneficiary_id }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">CLAIMANT TYPE</div>
+          <div class="fw-semibold">{{ mvr.get_claimant_type_display }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">SUBMITTED BY</div>
+          <div>{% if mvr.requested_by %}{{ mvr.requested_by.get_full_name|default:mvr.requested_by.username }}{% else %}&mdash;{% endif %}</div>
+          <div class="text-muted small">{{ mvr.created_at|date:"M d, Y H:i" }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">STIPEND EVENT</div>
+          <div>{{ mvr.stipend_event.title|default:"&mdash;" }}</div>
+        </div>
+        <div class="col-12">
+          <div class="text-muted small fw-semibold mb-1">REASON</div>
+          <div class="p-2 rounded" style="background:#f8fafc; border:1px solid #e2e8f0; font-size:0.9rem;">
+            {{ mvr.reason }}
+          </div>
+        </div>
+        {% if mvr.notes %}
+        <div class="col-12">
+          <div class="text-muted small fw-semibold mb-1">ADDITIONAL NOTES</div>
+          <div class="text-muted small">{{ mvr.notes }}</div>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <!-- Verification metrics -->
+  <div class="card mb-3">
+    <div class="card-header" style="background:#f1f5f9;">
+      <span class="fw-semibold small text-secondary">
+        <i class="bi bi-bar-chart me-1"></i>Original Verification Metrics
+      </span>
+    </div>
+    <div class="card-body">
+      <div class="row g-3 small">
+        <div class="col-4">
+          <div class="text-muted fw-semibold mb-1" style="font-size:0.72rem;">FACE SIMILARITY SCORE</div>
+          {% if mvr.similarity_score is not None %}
+          <div class="fw-bold text-danger font-mono fs-5">{{ mvr.similarity_score|floatformat:3 }}</div>
+          {% else %}
+          <div class="text-muted">&mdash;</div>
+          {% endif %}
+        </div>
+        <div class="col-4">
+          <div class="text-muted fw-semibold mb-1" style="font-size:0.72rem;">LIVENESS PASSED</div>
+          <div class="fw-semibold">
+            {% if mvr.liveness_passed %}
+              <i class="bi bi-check-circle-fill text-success me-1"></i>Yes
+            {% elif mvr.liveness_passed is not None %}
+              <i class="bi bi-x-circle-fill text-danger me-1"></i>No
+            {% else %}
+              <span class="text-muted">&mdash;</span>
+            {% endif %}
+          </div>
+        </div>
+        <div class="col-4">
+          <div class="text-muted fw-semibold mb-1" style="font-size:0.72rem;">ID VERIFICATION</div>
+          <div class="fw-semibold">
+            {{ mvr.id_type_checked|default:"&mdash;" }}
+            {% if mvr.id_verified %}
+              <i class="bi bi-check-circle-fill text-success ms-1"></i>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+      {% if mvr.verification_attempt %}
+      <div class="mt-3">
+        <a href="{% url 'verification:verify_result' mvr.verification_attempt.pk %}"
+           class="btn btn-sm btn-outline-secondary">
+          <i class="bi bi-eye me-1"></i>View Full Verification Attempt
+        </a>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Security notice -->
+  <div class="alert d-flex gap-2 align-items-start mb-4"
+       style="background:#fef3c7; border:1px solid #fcd34d; font-size:0.85rem;">
+    <i class="bi bi-shield-exclamation text-warning flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Accountability Notice</strong><br>
+      Your name, timestamp, and decision notes will be permanently recorded in the audit log.
+      Only approve if you have independently confirmed the beneficiary's identity.
+    </div>
+  </div>
+
+  <!-- Approval form -->
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-pencil me-2"></i>Admin Decision
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="review-notes" class="form-label fw-semibold">
+            Review Notes <span class="text-danger">*</span>
+          </label>
+          <textarea id="review-notes" name="review_notes" class="form-control" rows="3" required
+                    placeholder="Describe how you verified the beneficiary's identity, or the reason for rejection…"></textarea>
+          <div class="form-text">Required. Will appear in audit log.</div>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" name="action" value="approve"
+                  class="btn btn-success fw-semibold"
+                  onclick="return confirm('Approve this manual verification request? The stipend will be released to the claimant. This action will be recorded in the audit log.')">
+            <i class="bi bi-check-circle me-1"></i> Approve Manual Verification
+          </button>
+          <button type="submit" name="action" value="reject"
+                  class="btn btn-danger fw-semibold"
+                  onclick="return confirm('Reject this manual verification request? The claim will be denied. This action will be recorded in the audit log.')">
+            <i class="bi bi-x-circle me-1"></i> Reject Request
+          </button>
+          <a href="{% url 'verification:manual_review' %}" class="btn btn-outline-secondary ms-auto">
+            <i class="bi bi-arrow-left me-1"></i> Back to Queue
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

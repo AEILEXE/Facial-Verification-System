@@ -1,0 +1,198 @@
+{% extends "base.html" %}
+{% block title %}Review Duplicate: {{ beneficiary.full_name }}{% endblock %}
+{% block nav_reg %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-9">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'beneficiaries:duplicate_review_list' %}">Duplicate Review</a> /
+    {{ beneficiary.full_name }}
+  </div>
+
+  <h4 class="fw-bold text-qc-blue mb-4">
+    <i class="bi bi-person-exclamation me-2"></i>Duplicate Face Review
+  </h4>
+
+  {% if beneficiary.duplicate_review_required %}
+  <div class="alert alert-danger d-flex gap-2 align-items-start mb-4">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1 fs-5"></i>
+    <div>
+      <strong>Duplicate Face Detected at Registration.</strong>
+      The face submitted for <strong>{{ beneficiary.full_name }}</strong> matched an existing beneficiary
+      {% if beneficiary.duplicate_match_beneficiary %}
+        (<strong>{{ beneficiary.duplicate_match_beneficiary.full_name }}</strong>,
+        ID: {{ beneficiary.duplicate_match_beneficiary.beneficiary_id }})
+      {% endif %}
+      with a similarity score of
+      <strong>{% widthratio beneficiary.duplicate_match_score 1 100 %}%</strong>.
+      This record is <strong>pending</strong> and cannot claim stipends until reviewed.
+    </div>
+  </div>
+  {% else %}
+  <div class="alert alert-secondary d-flex gap-2 align-items-start mb-4">
+    <i class="bi bi-check-circle-fill flex-shrink-0 mt-1 fs-5"></i>
+    <div>
+      <strong>Review Already Completed.</strong>
+      This duplicate case for <strong>{{ beneficiary.full_name }}</strong> was resolved
+      {% if beneficiary.duplicate_reviewed_at %}on {{ beneficiary.duplicate_reviewed_at|date:"M d, Y H:i" }}{% endif %}
+      {% if beneficiary.duplicate_reviewed_by %}by {{ beneficiary.duplicate_reviewed_by.get_full_name|default:beneficiary.duplicate_reviewed_by.username }}{% endif %}.
+      Outcome:
+      <strong>
+        {% if beneficiary.status == 'active' %}Approved as legitimate twin/lookalike
+        {% elif beneficiary.status == 'disapproved' %}Rejected as duplicate/fraud
+        {% else %}{{ beneficiary.get_status_display }}{% endif %}
+      </strong>.
+      {% if beneficiary.duplicate_review_notes %}
+      <div class="small mt-1"><strong>Notes:</strong> {{ beneficiary.duplicate_review_notes }}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="row g-3 mb-4">
+
+    <!-- New registrant -->
+    <div class="col-md-6">
+      <div class="card h-100 border-warning">
+        <div class="card-header bg-warning text-dark fw-bold">
+          <i class="bi bi-person-plus me-1"></i> New Registrant (Pending)
+        </div>
+        <div class="card-body">
+          <dl class="row small mb-0">
+            <dt class="col-sm-5">Full Name</dt>
+            <dd class="col-sm-7">{{ beneficiary.full_name }}</dd>
+            <dt class="col-sm-5">Beneficiary ID</dt>
+            <dd class="col-sm-7 font-mono">{{ beneficiary.beneficiary_id }}</dd>
+            <dt class="col-sm-5">Date of Birth</dt>
+            <dd class="col-sm-7">{{ beneficiary.date_of_birth }}</dd>
+            <dt class="col-sm-5">Gender</dt>
+            <dd class="col-sm-7">{{ beneficiary.get_gender_display }}</dd>
+            <dt class="col-sm-5">Senior Citizen ID</dt>
+            <dd class="col-sm-7">{{ beneficiary.senior_citizen_id|default:"—" }}</dd>
+            <dt class="col-sm-5">Address</dt>
+            <dd class="col-sm-7">{{ beneficiary.full_address|default:"—" }}</dd>
+            <dt class="col-sm-5">Registered</dt>
+            <dd class="col-sm-7">{{ beneficiary.created_at|date:"Y-m-d H:i" }}</dd>
+            <dt class="col-sm-5">Registered By</dt>
+            <dd class="col-sm-7">{% if beneficiary.registered_by %}{{ beneficiary.registered_by.get_full_name|default:beneficiary.registered_by.username }}{% else %}&mdash;{% endif %}</dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <!-- Matched existing beneficiary -->
+    <div class="col-md-6">
+      <div class="card h-100 border-primary">
+        <div class="card-header bg-primary text-white fw-bold">
+          <i class="bi bi-person-check me-1"></i> Matched Existing Beneficiary
+        </div>
+        <div class="card-body">
+          {% if beneficiary.duplicate_match_beneficiary %}
+          {% with m=beneficiary.duplicate_match_beneficiary %}
+          <dl class="row small mb-0">
+            <dt class="col-sm-5">Full Name</dt>
+            <dd class="col-sm-7">{{ m.full_name }}</dd>
+            <dt class="col-sm-5">Beneficiary ID</dt>
+            <dd class="col-sm-7 font-mono">{{ m.beneficiary_id }}</dd>
+            <dt class="col-sm-5">Date of Birth</dt>
+            <dd class="col-sm-7">{{ m.date_of_birth }}</dd>
+            <dt class="col-sm-5">Gender</dt>
+            <dd class="col-sm-7">{{ m.get_gender_display }}</dd>
+            <dt class="col-sm-5">Senior Citizen ID</dt>
+            <dd class="col-sm-7">{{ m.senior_citizen_id|default:"—" }}</dd>
+            <dt class="col-sm-5">Address</dt>
+            <dd class="col-sm-7">{{ m.full_address|default:"—" }}</dd>
+            <dt class="col-sm-5">Status</dt>
+            <dd class="col-sm-7">
+              <span class="badge {% if m.status == 'active' %}bg-success{% elif m.status == 'inactive' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">
+                {{ m.get_status_display }}
+              </span>
+            </dd>
+          </dl>
+          <a href="{% url 'beneficiaries:beneficiary_detail' pk=m.pk %}" class="btn btn-sm btn-outline-primary mt-2">
+            <i class="bi bi-box-arrow-up-right me-1"></i> View Profile
+          </a>
+          {% endwith %}
+          {% else %}
+            <p class="text-muted">Matched record no longer available.</p>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Similarity score bar -->
+  <div class="card mb-4">
+    <div class="card-body">
+      <div class="d-flex justify-content-between small mb-1">
+        <span class="fw-semibold">Face Similarity Score</span>
+        <span class="fw-bold {% if beneficiary.duplicate_match_score >= 0.90 %}text-danger{% elif beneficiary.duplicate_match_score >= 0.80 %}text-warning{% else %}text-secondary{% endif %}">
+          {% widthratio beneficiary.duplicate_match_score 1 100 %}%
+        </span>
+      </div>
+      {% widthratio beneficiary.duplicate_match_score 1 100 as score_pct %}
+      <div class="progress" style="height:12px;">
+        <div class="progress-bar {% if beneficiary.duplicate_match_score >= 0.90 %}bg-danger{% elif beneficiary.duplicate_match_score >= 0.80 %}bg-warning{% else %}bg-secondary{% endif %}"
+             style="width: {{ score_pct }}%;"></div>
+      </div>
+      <div class="small text-muted mt-1">
+        Scores above 90% are very likely the same person. Scores 80-89% may indicate twins or lookalikes.
+        Verify with valid government IDs before approving.
+      </div>
+    </div>
+  </div>
+
+  {% if beneficiary.duplicate_review_required %}
+  <!-- Review form -->
+  <div class="card">
+    <div class="card-header fw-bold bg-qc-blue text-white">
+      <i class="bi bi-clipboard-check me-1"></i> Admin Decision
+    </div>
+    <div class="card-body">
+      <div class="alert alert-info small mb-3">
+        <i class="bi bi-info-circle me-1"></i>
+        <strong>Before deciding:</strong> Check government IDs for both individuals. If they are twins or
+        legitimate lookalikes, their IDs will have different ID numbers. If IDs are identical or no ID
+        is available for the new registrant, reject as duplicate.
+      </div>
+
+      <form method="post">
+        {% csrf_token %}
+
+        <div class="mb-3">
+          <label for="notes" class="form-label fw-semibold">Review Notes <span class="text-muted small">(optional but recommended)</span></label>
+          <textarea name="notes" id="notes" class="form-control" rows="3"
+                    placeholder="e.g. Verified twins — different Senior Citizen IDs confirmed. / Confirmed same person — rejected as fraud."></textarea>
+        </div>
+
+        <div class="d-flex gap-3">
+          <button type="submit" name="action" value="approve_twin"
+                  class="btn btn-success px-4"
+                  onclick="return confirm('Approve {{ beneficiary.full_name }} as a legitimate twin/lookalike and activate their record?')">
+            <i class="bi bi-check-circle me-1"></i> Approve — Legitimate Twin / Lookalike
+          </button>
+          <button type="submit" name="action" value="reject_duplicate"
+                  class="btn btn-danger px-4"
+                  onclick="return confirm('Reject {{ beneficiary.full_name }} as duplicate/fraud? This will deactivate their record.')">
+            <i class="bi bi-x-circle me-1"></i> Reject — Duplicate / Fraud
+          </button>
+          <a href="{% url 'beneficiaries:duplicate_review_list' %}" class="btn btn-outline-secondary ms-auto">
+            <i class="bi bi-arrow-left me-1"></i> Back to Queue
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+  {% else %}
+  <a href="{% url 'beneficiaries:duplicate_review_list' %}" class="btn btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i> Back to Queue
+  </a>
+  {% endif %}
+
+</div>
+</div>
+{% endblock %}

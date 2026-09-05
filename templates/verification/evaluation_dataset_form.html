@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}New Evaluation Session{% endblock %}
+{% block nav_technical %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+      <a href="{% url 'verification:evaluation_dataset_list' %}">System Evaluation &amp; Research</a> / New Evaluation Session
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0"><i class="bi bi-plus-circle me-2"></i>Create Evaluation Session</h4>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+      <div class="mb-3">
+        <label class="form-label">Evaluation Session / Study Name</label>
+        <input type="text" name="name" class="form-control" value="{{ name|default:'' }}" required maxlength="200">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Protocol / Version Identifier</label>
+        <input type="text" name="protocol_version" class="form-control" value="{{ protocol_version|default:'' }}" required maxlength="50" placeholder="e.g. bpa-protocol-v1">
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Purpose</label>
+        <select name="purpose" class="form-select" required>
+          <option value="">-- Select purpose --</option>
+          {% for value, label in purpose_choices %}
+          <option value="{{ value }}" {% if purpose == value %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+        <p class="form-text">
+          Required so QA/synthetic/pilot data can never be mistaken for a final research-study result.
+          Only "Final Research Evaluation" sessions, once Completed, are eligible to be cited as a final study result.
+        </p>
+        <ul class="small text-muted mb-0">
+          <li><strong>Final Research Evaluation</strong> &mdash; controlled study intended for final research analysis.</li>
+          <li><strong>Pilot / Calibration</strong> &mdash; preliminary controlled testing used before final evaluation.</li>
+          <li><strong>QA / Synthetic Test</strong> &mdash; developer/system validation using synthetic or non-final test data. Not valid final research evidence.</li>
+        </ul>
+      </div>
+      <div class="mb-3">
+        <label class="form-label">Description / Notes (optional)</label>
+        <textarea name="description" class="form-control" rows="3">{{ description|default:'' }}</textarea>
+      </div>
+      <p class="small text-muted">The session is created in DRAFT status. Start collection to begin adding trials.</p>
+      <button type="submit" class="btn btn-primary">Create Evaluation Session (Draft)</button>
+      <a href="{% url 'verification:evaluation_dataset_list' %}" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

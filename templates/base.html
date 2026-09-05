@@ -1,0 +1,500 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}FANSC{% endblock %} | FANSC: Secure FaceNet-Based Facial Verification System for Senior Citizen Stipend Distribution</title>
+  {% load static %}
+  {# Local-first asset loading. Run scripts/setup/fetch-vendor-assets.ps1 on a #}
+  {# machine with internet, then collectstatic, to populate static/vendor/.   #}
+  {# The CDN fallback exists only for development — barangay LAN deployments  #}
+  {# should always have the vendor folder populated.                          #}
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap-5.3.2/css/bootstrap.min.css' %}"
+        onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css';">
+  <link rel="stylesheet" href="{% static 'vendor/bootstrap-icons-1.11.3/font/bootstrap-icons.css' %}"
+        onerror="this.onerror=null;this.href='https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css';">
+  <link rel="stylesheet" href="{% static 'css/main.css' %}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<div class="top-accent-bar"></div>
+
+{% if user.is_authenticated %}
+<nav class="navbar navbar-fans navbar-expand-lg">
+  <div class="container-fluid px-3">
+
+    <a class="navbar-brand" href="{% url 'beneficiaries:dashboard' %}">
+      {# Logo file: place your logo at static/images/logo.png (36×36px recommended, PNG or SVG) #}
+      <img src="{% static 'images/logo.png' %}" alt="FANSC Logo"
+           style="width:36px; height:36px; object-fit:contain; flex-shrink:0; border-radius:4px;">
+      <span>
+        FANSC
+        <span class="brand-sub">
+          <span class="brand-sub-line brand-sub-system">Facial Verification System</span>
+          <span class="brand-sub-line brand-sub-city">Brgy. Santol, QC</span>
+        </span>
+      </span>
+    </a>
+
+    <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMain"
+            style="filter: invert(1);">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+
+    <div class="collapse navbar-collapse" id="navMain">
+      <ul class="navbar-nav mx-auto align-items-lg-stretch">
+
+        <li class="nav-item">
+          <a class="nav-link {% block nav_dashboard %}{% endblock %}" href="{% url 'beneficiaries:dashboard' %}">
+            <i class="bi bi-speedometer2 me-1"></i>Dashboard
+          </a>
+        </li>
+
+        {% comment %}
+        v2.2.0 Post-UAT Phase 11: previously "Beneficiary Management" only
+        linked registration entry points — the review queues existed but
+        were reachable only via dashboard cards or cross-links from their
+        own detail pages, never from the persistent nav.
+        {% endcomment %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% block nav_reg %}{% endblock %}" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-person-plus me-1"></i>Beneficiaries
+          </a>
+          <ul class="dropdown-menu">
+            <li>
+              <a class="dropdown-item" href="{% url 'beneficiaries:register_step1' %}">
+                <i class="bi bi-person-plus"></i>Register Beneficiary
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'beneficiaries:beneficiary_list' %}">
+                <i class="bi bi-people"></i>Registered Beneficiaries
+              </a>
+            </li>
+            {% if user.is_admin %}
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:registration_review_list' %}">
+                <i class="bi bi-inbox"></i>Registration Applications
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header text-uppercase small">Reports</h6></li>
+            <li>
+              <a class="dropdown-item" href="{% url 'beneficiaries:beneficiary_master_list_report' %}">
+                <i class="bi bi-file-earmark-spreadsheet"></i>Beneficiary Master List
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header text-uppercase small">Reviews</h6></li>
+            <li>
+              <a class="dropdown-item" href="{% url 'beneficiaries:duplicate_review_list' %}">
+                <i class="bi bi-person-bounding-box"></i>Duplicate Face Review
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'beneficiaries:namedob_review_list' %}">
+                <i class="bi bi-card-list"></i>Duplicate Name/DOB Review
+              </a>
+            </li>
+            {% endif %}
+          </ul>
+        </li>
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% block nav_verify %}{% endblock %}" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-camera-video me-1"></i>Verify
+          </a>
+          <ul class="dropdown-menu">
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:verify_select' %}">
+                <i class="bi bi-camera-video"></i>Claim Verification
+              </a>
+            </li>
+            {% if user.is_admin %}
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:manual_review' %}">
+                <i class="bi bi-eye"></i>Manual Review Queue
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:shared_rep_review_list' %}">
+                <i class="bi bi-people"></i>Representative Review Queue
+              </a>
+            </li>
+            {% endif %}
+          </ul>
+        </li>
+
+        {# Distribution — admin-level only; was previously buried under System Administration. #}
+        {% if user.is_admin %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% block nav_distribution %}{% endblock %}" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-calendar3 me-1"></i>Distribution
+          </a>
+          <ul class="dropdown-menu">
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:stipend_list' %}">
+                <i class="bi bi-calendar3"></i>Payout Schedule
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:report_claims' %}">
+                <i class="bi bi-clipboard-check"></i>Claims Management
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:report_event_summary' %}">
+                <i class="bi bi-bar-chart"></i>Distribution Summary
+              </a>
+            </li>
+          </ul>
+        </li>
+        {% endif %}
+
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% block nav_logs %}{% endblock %}" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-journal-text me-1"></i>Audit &amp; Logs
+          </a>
+          <ul class="dropdown-menu">
+            <li>
+              <a class="dropdown-item" href="{% url 'logs:verification_logs' %}">
+                <i class="bi bi-journal-text"></i>Verification Logs
+              </a>
+            </li>
+            {% if user.is_admin %}
+            <li>
+              <a class="dropdown-item" href="{% url 'logs:audit_logs' %}">
+                <i class="bi bi-journal-check"></i>Audit Logs
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header text-uppercase small">Security Events</h6></li>
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:fraud_signals_report' %}">
+                <i class="bi bi-flag"></i>Security Review
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:report_suspicious_attempts' %}">
+                <i class="bi bi-exclamation-triangle"></i>Security Alerts
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:report_override_fallback' %}">
+                <i class="bi bi-arrow-repeat"></i>Manual Override Logs
+              </a>
+            </li>
+            {% endif %}
+          </ul>
+        </li>
+
+        {# Analytics & Reports — admin-level only. #}
+        {% if user.is_admin %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% block nav_analytics %}{% endblock %}" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-graph-up me-1"></i>Analytics
+          </a>
+          <ul class="dropdown-menu">
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:analytics_executive' %}">
+                <i class="bi bi-bar-chart-line"></i>Analytics Dashboard
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:report_staff_performance' %}">
+                <i class="bi bi-person-check"></i>Staff Distribution Activity
+              </a>
+            </li>
+          </ul>
+        </li>
+        {% endif %}
+
+        {# Technical Administration — v2.1.19 UX pass sections 18/24: controlled #}
+        {# biometric research/evaluation and template-health maintenance tooling. #}
+        {# Technical Administrator only. President's backend access to these #}
+        {# views stays read-only (see the in-page banners), but the nav entry #}
+        {# point is hidden — a role with no write access to this tooling has no #}
+        {# reason to be routed into it from ordinary navigation (v2.1.17 QA). #}
+        {% if user.is_admin_it %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% block nav_technical %}{% endblock %}" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-cpu me-1"></i>Technical Administration
+          </a>
+          <ul class="dropdown-menu">
+            <li><h6 class="dropdown-header text-uppercase small">System Evaluation &amp; Research</h6></li>
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:evaluation_dataset_list' %}">
+                <i class="bi bi-clipboard-data"></i>Evaluation Sessions
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:analytics_biometric_performance' %}">
+                <i class="bi bi-graph-up-arrow"></i>Evaluation Performance Analytics
+              </a>
+            </li>
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header text-uppercase small">Template Maintenance</h6></li>
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:template_match_report' %}">
+                <i class="bi bi-diagram-3"></i>Face Template Health
+              </a>
+            </li>
+          </ul>
+        </li>
+        {% endif %}
+
+        {% comment %}
+        System Administration — narrowed to account/access/config concerns
+        now that Distribution, Analytics & Reports, and most Security items
+        have their own top-level groups (Phase 11). Visible to
+        President, Admin, IT. Staff cannot see this.
+        {% endcomment %}
+        {% if user.is_admin %}
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle {% block nav_admin %}{% endblock %}" href="#" data-bs-toggle="dropdown">
+            <i class="bi bi-gear me-1"></i>Administration
+          </a>
+          <ul class="dropdown-menu" style="max-height: 80vh; overflow-y: auto;">
+            <li><h6 class="dropdown-header text-uppercase small">Users &amp; Access</h6></li>
+            <li>
+              <a class="dropdown-item" href="{% url 'accounts:user_list' %}">
+                <i class="bi bi-people"></i>Staff Accounts
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'role_matrix' %}">
+                <i class="bi bi-shield-lock"></i>Roles &amp; Permissions
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'accounts:officer_assignment_list' %}">
+                <i class="bi bi-person-badge"></i>Officer Assignments
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'accounts:org_chart' %}">
+                <i class="bi bi-diagram-3"></i>Organization Chart
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'accounts:password_reset_request_list' %}">
+                <i class="bi bi-key"></i>Account Recovery Administration
+              </a>
+            </li>
+
+            <li><hr class="dropdown-divider"></li>
+            <li><h6 class="dropdown-header text-uppercase small">System &amp; Security Configuration</h6></li>
+            <li>
+              <a class="dropdown-item" href="{% url 'verification:config' %}">
+                <i class="bi bi-sliders"></i>System / Verification Settings
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'beneficiaries:auto_approval_settings' %}">
+                <i class="bi bi-check2-circle"></i>Auto-Approval Settings
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'privacy_consent' %}">
+                <i class="bi bi-shield-check"></i>Privacy &amp; Data Consent
+              </a>
+            </li>
+            {# System pages — IT role only (technical admin). #}
+            {% if user.is_admin_it %}
+            <li>
+              <a class="dropdown-item" href="{% url 'system_health' %}">
+                <i class="bi bi-hdd-stack"></i>Backup &amp; Database Status
+              </a>
+            </li>
+            <li>
+              <a class="dropdown-item" href="{% url 'system_connection' %}">
+                <i class="bi bi-wifi"></i>Network &amp; HTTPS Status
+              </a>
+            </li>
+            {% endif %}
+          </ul>
+        </li>
+        {% endif %}
+
+      </ul>
+
+      <div class="dropdown ms-2">
+        <a class="nav-link position-relative px-2" href="#" data-bs-toggle="dropdown" aria-label="Notifications" title="Notifications">
+          <i class="bi bi-bell-fill" style="font-size:1.2rem;"></i>
+          {% if unread_notification_count > 0 %}
+          <span class="position-absolute badge rounded-pill bg-danger" style="top:-2px; right:-2px; font-size:0.65rem;">
+            {% if unread_notification_count > 99 %}99+{% else %}{{ unread_notification_count }}{% endif %}
+          </span>
+          {% endif %}
+        </a>
+        <ul class="dropdown-menu dropdown-menu-end notification-dropdown-menu">
+          <li class="px-3 py-2 border-bottom d-flex justify-content-between align-items-center">
+            <span class="fw-semibold small">Notifications</span>
+            {% if unread_notification_count > 0 %}
+            <form method="POST" action="{% url 'logs:notification_mark_all_read' %}" class="mb-0">
+              {% csrf_token %}
+              <input type="hidden" name="next" value="{{ request.path }}">
+              <button type="submit" class="btn btn-link btn-sm p-0" style="font-size:0.75rem;">Mark all read</button>
+            </form>
+            {% endif %}
+          </li>
+          {% for n in recent_notifications %}
+          <li>
+            <a class="dropdown-item notification-item py-2 {% if n.priority == 'HIGH' %}border-start border-danger border-3{% endif %}"
+               href="{% url 'logs:notification_open' pk=n.id %}">
+              <span class="notification-item-icon">{% include "logs/_notification_icon.html" with category=n.category %}</span>
+              <div class="notification-item-body">
+                <div class="notification-item-title">{{ n.title }}</div>
+                {% if n.message %}<div class="notification-item-message">{{ n.message }}</div>{% endif %}
+                <div class="notification-item-time">{{ n.created_at|timesince }} ago</div>
+              </div>
+            </a>
+          </li>
+          {% empty %}
+          <li class="px-3 py-3 text-center text-muted small">No unread notifications.</li>
+          {% endfor %}
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item text-center small" href="{% url 'logs:notification_center' %}">
+              View all notifications
+            </a>
+          </li>
+        </ul>
+      </div>
+
+      <div class="dropdown ms-2">
+        <div class="user-badge" data-bs-toggle="dropdown">
+          <i class="bi bi-person-circle" style="font-size:1.1rem;"></i>
+          <span class="user-badge-name">{{ user.get_full_name|default:user.username }}</span>
+          <span class="role-pill">{{ user.get_role_display }}</span>
+          <i class="bi bi-chevron-down" style="font-size:0.7rem; opacity:0.7;"></i>
+        </div>
+        <ul class="dropdown-menu dropdown-menu-end">
+          <li class="px-3 py-2 border-bottom">
+            <div class="fw-semibold small">{{ user.get_full_name|default:user.username }}</div>
+            <div class="text-muted" style="font-size:0.75rem;">{{ user.email|default:user.username }}</div>
+          </li>
+          <li>
+            <a class="dropdown-item" href="{% url 'accounts:my_profile' %}">
+              <i class="bi bi-person-badge me-2"></i>My Profile
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="{% url 'accounts:change_password' %}">
+              <i class="bi bi-key me-2"></i>Change Password
+            </a>
+          </li>
+          <li>
+            <a class="dropdown-item" href="{% url 'privacy_consent' %}">
+              <i class="bi bi-shield-check me-2"></i>Privacy &amp; Data Consent
+            </a>
+          </li>
+          <li><hr class="dropdown-divider"></li>
+          <li>
+            <a class="dropdown-item text-danger" href="{% url 'accounts:logout' %}">
+              <i class="bi bi-box-arrow-right me-2"></i>Sign Out
+            </a>
+          </li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</nav>
+{% endif %}
+
+{# ── Limited HTTP mode banner — shown only when not on HTTPS.                  #}
+{# Camera verification is blocked by browsers over plain HTTP, and the backend  #}
+{# also rejects camera/liveness POSTs over HTTP in production mode.             #}
+{% if user.is_authenticated and not request.is_secure %}
+<div id="httpModeBanner" class="d-flex align-items-center gap-2 px-3 py-1"
+     style="background:#fefce8; border-bottom:1px solid #fde68a; font-size:0.78rem; min-height:32px;">
+  <i class="bi bi-lock-fill flex-shrink-0" style="color:#b45309; font-size:0.8rem;"></i>
+  <span style="color:#78350f;">
+    <strong>Limited HTTP mode</strong> &mdash; camera verification requires secure HTTPS.
+  </span>
+  <span class="ms-auto d-flex align-items-center gap-2 flex-shrink-0">
+    <a href="{{ server_domain_url }}" class="text-decoration-none fw-semibold"
+       style="color:#b45309; font-size:0.76rem;">
+      <i class="bi bi-shield-check me-1"></i>Open Secure HTTPS
+    </a>
+    {% if user.is_admin_it %}
+    <a href="{% url 'system_connection' %}" class="text-decoration-none"
+       style="color:#92400e; font-size:0.76rem;">Network &amp; HTTPS Status</a>
+    {% endif %}
+    <button type="button" onclick="document.getElementById('httpModeBanner').style.display='none'"
+            class="btn-close btn-sm" style="width:0.6rem; height:0.6rem;" aria-label="Dismiss"></button>
+  </span>
+</div>
+{% endif %}
+
+<div class="page-wrapper">
+  {% if messages %}
+  <div class="mb-3">
+    {% for message in messages %}
+    {% if message.tags == 'error' %}
+    <div class="alert alert-danger alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+      <span>{{ message }}</span>
+      <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+    </div>
+    {% elif message.tags == 'success' %}
+    <div class="alert alert-success alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-check-circle-fill flex-shrink-0"></i>
+      <span>{{ message }}</span>
+      <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+    </div>
+    {% elif message.tags == 'warning' %}
+    <div class="alert alert-warning alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-exclamation-circle-fill flex-shrink-0"></i>
+      <span>{{ message }}</span>
+      <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+    </div>
+    {% else %}
+    <div class="alert alert-info alert-dismissible fade show d-flex align-items-center gap-2" role="alert">
+      <i class="bi bi-info-circle-fill flex-shrink-0"></i>
+      <span>{{ message }}</span>
+      <button type="button" class="btn-close ms-auto" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% endif %}
+
+  {% block content %}{% endblock %}
+</div>
+
+<footer class="mt-auto py-3 text-center" style="font-size:0.75rem; color:#94a3b8; border-top:1px solid #e2e8f0; background:white;">
+  <div class="d-flex flex-wrap justify-content-center align-items-center gap-3">
+    <span>
+      <span class="fw-semibold" style="color:var(--qc-blue);">FANSC</span>
+      &mdash; Facial Verification System &mdash; Barangay Santol, Quezon City &mdash;
+      All actions are logged and audited.
+    </span>
+    <span class="d-flex align-items-center gap-2">
+      <span style="display:inline-block; width:7px; height:7px; border-radius:50%; background:#22c55e; flex-shrink:0;"></span>
+      {# IT role sees connection mode, URL, and System Info link.            #}
+      {# President, Admin, and Staff see only a clean "System Running" dot. #}
+      {% if user.is_admin_it %}
+        {% if request.is_secure %}
+          <span style="color:#15803d; font-weight:600;">Secure Access</span>
+          <span style="display:inline-block; padding:1px 5px; border-radius:4px; background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:0.65rem; font-weight:600;">HTTPS</span>
+          &mdash; <a href="{{ server_domain_url }}" class="text-decoration-none" style="color:#64748b;">{{ server_domain_url }}</a>
+        {% else %}
+          <span style="color:#b45309; font-weight:600;">Fallback Access</span>
+          <span style="display:inline-block; padding:1px 5px; border-radius:4px; background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-size:0.65rem; font-weight:600;">HTTP</span>
+          {% if server_lan_ip %}&mdash; <a href="{{ server_lan_url }}" class="text-decoration-none" style="color:#64748b;">{{ server_lan_url }}</a>{% endif %}
+        {% endif %}
+        &mdash; <a href="{% url 'system_connection' %}" class="text-decoration-none" style="color:#64748b;">Network &amp; HTTPS Status</a>
+      {% else %}
+        <span style="color:#15803d; font-weight:600;">System Running</span>
+      {% endif %}
+    </span>
+  </div>
+</footer>
+
+<script src="{% static 'vendor/bootstrap-5.3.2/js/bootstrap.bundle.min.js' %}"
+        onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js';document.head.appendChild(s);"></script>
+{% block extra_js %}{% endblock %}
+</body>
+</html>

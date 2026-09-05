@@ -1,0 +1,166 @@
+{% extends "base.html" %}
+{% block title %}Privacy & Data Consent{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Privacy &amp; Data Consent
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-shield-check me-2"></i>Privacy &amp; Data Consent Notice
+    </h4>
+    <p class="text-muted small mb-0">
+      How FANSC collects, secures, and uses personal and biometric data.
+    </p>
+  </div>
+  <a href="{% url 'beneficiaries:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+  </a>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-9">
+
+    <div class="card mb-3">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-info-circle me-2"></i>1. What Personal Data Is Collected
+      </div>
+      <div class="card-body">
+        <ul class="mb-0">
+          <li>Full name, date of birth, gender, address (province, municipality, barangay).</li>
+          <li>Contact number (optional).</li>
+          <li>Senior Citizen ID / OSCA number, valid government ID type and number (if presented at registration).</li>
+          <li>One or more face captures used to generate a FaceNet embedding (mathematical representation of the face).</li>
+          <li>Authorized representative information when a senior citizen cannot personally claim.</li>
+          <li>Verification attempts, claim records, and audit events created when staff uses the system.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-camera me-2"></i>2. Why Facial Data Is Collected
+      </div>
+      <div class="card-body">
+        <p class="mb-2">
+          Facial verification ensures that only the rightful senior citizen (or their registered representative)
+          can claim the stipend. It replaces fragile manual checks (visual ID, signature comparison) that are
+          vulnerable to impersonation and duplicate claims.
+        </p>
+        <p class="mb-0">
+          The face is used only to confirm identity at the point of payout &mdash; it is never used for general
+          surveillance, mass identification, or sharing with third parties.
+        </p>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-success text-white">
+        <i class="bi bi-shield-lock me-2"></i>3. How Face Data Is Stored
+      </div>
+      <div class="card-body">
+        <ul class="mb-0">
+          <li>
+            <strong>Raw webcam frames are NOT normally stored.</strong> Live verification frames are processed
+            in memory and discarded once the FaceNet embedding has been computed.
+          </li>
+          <li>
+            What is stored is a <strong>FaceNet embedding</strong> &mdash; a list of numbers describing the
+            geometry of the face. The original image cannot be reconstructed from this list.
+          </li>
+          <li>
+            Embeddings are <strong>encrypted at rest using Fernet (AES-128-CBC + HMAC-SHA256)</strong> with a
+            key (<code>EMBEDDING_ENCRYPTION_KEY</code>) held only by the deploying barangay office.
+          </li>
+          <li>
+            Registration photos may be retained for human review of duplicate-face cases or admin re-enrollment;
+            they are protected by the same OS-level file permissions as the database.
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-people me-2"></i>4. Who Can Access the Data
+      </div>
+      <div class="card-body">
+        <ul class="mb-0">
+          <li><strong>Staff</strong> &mdash; can register beneficiaries and run verifications. Cannot see other staff's attempts or the full audit log.</li>
+          <li><strong>President</strong> &mdash; can approve manual reviews, release claims, and view all reports.</li>
+          <li><strong>Admin</strong> &mdash; can manage users and beneficiaries, approve registrations, and view all reports and logs.</li>
+          <li><strong>Technical Administrator</strong> &mdash; full technical access (system health, network/HTTPS status, audit logs, configuration).</li>
+          <li>No external party, government agency, or vendor has remote access. Data lives on the barangay's local network.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-clock-history me-2"></i>5. Data Retention
+      </div>
+      <div class="card-body">
+        <ul class="mb-0">
+          <li>Beneficiary records are retained for as long as the person is enrolled in the senior citizen program.</li>
+          <li>Verification attempts and audit logs are retained for accountability and reporting (recommended minimum 2 years).</li>
+          <li>Deactivated or deceased beneficiaries are <strong>marked inactive, not deleted</strong>, so the audit trail of past claims remains intact.</li>
+          <li>Backups follow the same retention; old backups should be securely wiped when no longer needed.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-warning text-dark">
+        <i class="bi bi-pencil-square me-2"></i>6. Correction, Deactivation, and Withdrawal
+      </div>
+      <div class="card-body">
+        <p class="mb-2">
+          A senior citizen (or their authorized representative) may at any time request:
+        </p>
+        <ul class="mb-2">
+          <li><strong>Correction</strong> of personal details &mdash; staff edits the record; the change is recorded in the audit log.</li>
+          <li><strong>Re-enrollment of face data</strong> if appearance has changed significantly (illness, weight change, etc.).</li>
+          <li><strong>Deactivation</strong> &mdash; the beneficiary record is marked inactive and can no longer claim. A reason is required and recorded.</li>
+          <li><strong>Withdrawal</strong> from the program &mdash; treated the same as deactivation. Historical claim records are kept for audit purposes; the stored face embedding is no longer used for matching.</li>
+        </ul>
+        <p class="mb-0">
+          Requests are filed at the barangay office. Sensitive changes (deactivation, face re-enrollment) require
+          admin approval and a documented reason.
+        </p>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-secondary text-white">
+        <i class="bi bi-question-circle me-2"></i>7. Questions or Concerns
+      </div>
+      <div class="card-body">
+        <p class="mb-0">
+          For any privacy concern, please contact the barangay office where you registered. The Technical Administrator
+          handles technical questions about how data is stored and secured.
+        </p>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="col-lg-3">
+    <div class="card sticky-top" style="top:1rem;">
+      <div class="card-header"><i class="bi bi-bookmark me-2"></i>On this page</div>
+      <div class="card-body p-2">
+        <ol class="small mb-0 ps-3">
+          <li>What data is collected</li>
+          <li>Why facial data is collected</li>
+          <li>How face data is stored</li>
+          <li>Who can access the data</li>
+          <li>Data retention</li>
+          <li>Correction &amp; deactivation</li>
+          <li>Contact</li>
+        </ol>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

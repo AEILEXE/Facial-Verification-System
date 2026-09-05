@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+{% block title %}Update Face Data &mdash; {{ beneficiary.full_name }}{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-10 col-xl-9">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'beneficiaries:beneficiary_list' %}">Beneficiaries</a> /
+    <a href="{% url 'beneficiaries:beneficiary_detail' beneficiary.pk %}">{{ beneficiary.full_name }}</a> /
+    Update Face Data
+  </div>
+
+  <div class="d-flex justify-content-between align-items-start mb-4">
+    <div>
+      <h4 class="fw-bold text-qc-blue mb-0">
+        <i class="bi bi-camera-video me-2"></i>Update Face Data
+      </h4>
+      <span class="font-mono text-muted small">{{ beneficiary.beneficiary_id }}</span>
+      &mdash;
+      <span class="text-muted small">{{ beneficiary.full_name }}</span>
+    </div>
+    <a href="{% url 'beneficiaries:beneficiary_detail' beneficiary.pk %}"
+       class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i> Back
+    </a>
+  </div>
+
+  {% if using_mock %}
+  <div class="alert alert-danger d-flex gap-2 align-items-start mb-3">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Face recognition model not loaded &mdash; update will fail.</strong>
+      {% if model_load_error %}
+      <div class="mt-1 font-mono small text-danger-emphasis">{{ model_load_error }}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  {% if reenrollment_suggested %}
+  <div class="alert alert-info d-flex gap-2 align-items-start mb-3">
+    <i class="bi bi-lightbulb-fill flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Re-enrollment suggested.</strong> {{ reenrollment_reason }}
+      This is only a suggestion — the capture below is unaffected either way.
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Policy notice -->
+  <div class="alert d-flex gap-2 align-items-start mb-3"
+       style="background:#f0f4ff; border:1px solid #c7d7fa;">
+    <i class="bi bi-info-circle-fill text-qc-blue flex-shrink-0 mt-1"></i>
+    <div class="small">
+      <strong class="text-qc-blue">Face Update Policy</strong><br>
+      This is a <strong>controlled operation</strong>. Only use it when:<br>
+      &bull; The beneficiary has had repeated failed verifications<br>
+      &bull; There has been a major appearance change (illness, surgery, weight change)<br>
+      &bull; The original registration was poor quality<br>
+      &bull; A supervisor has decided an update is needed<br>
+      <span class="text-danger fw-semibold">Do NOT use this for routine monthly re-registration.</span>
+    </div>
+  </div>
+
+  <!-- Approval workflow notice -->
+  <div class="alert d-flex gap-2 align-items-start mb-4"
+       style="background:#fef3c7; border:1px solid #fcd34d;">
+    <i class="bi bi-shield-lock-fill text-warning flex-shrink-0 mt-1"></i>
+    <div class="small">
+      <strong>Approval Required</strong><br>
+      Submitting this form creates a <strong>pending request</strong>.
+      The new face data is <strong>not applied immediately</strong> &mdash; an administrator must review and
+      approve the request before the active biometric data is changed.
+      All submissions and approval decisions are permanently logged.
+    </div>
+  </div>
+
+  <div class="row g-4">
+
+    <!-- Left: form + camera -->
+    <div class="col-lg-7">
+
+      <!-- Step 1: Reason -->
+      <div class="card mb-3">
+        <div class="card-header bg-qc-blue text-white">
+          <i class="bi bi-1-circle me-2"></i>Step 1: Select Reason &amp; Action
+        </div>
+        <div class="card-body p-3">
+          <div class="mb-3">
+            <label class="form-label" for="updateReason">Reason for updating face data <span class="text-danger">*</span></label>
+            <select id="updateReason" class="form-select">
+              {% for value, label in update_reasons %}
+              <option value="{{ value }}">{{ label }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Action</label>
+            <div class="d-flex gap-3">
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="updateAction"
+                       id="actionReplace" value="replace" checked>
+                <label class="form-check-label small" for="actionReplace">
+                  <strong>Replace</strong> primary embedding
+                  <div class="text-muted" style="font-size:0.78rem;">
+                    Best when original is very poor or outdated. Old face data is discarded.
+                  </div>
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="updateAction"
+                       id="actionAugment" value="augment">
+                <label class="form-check-label small" for="actionAugment">
+                  <strong>Add template</strong> (keep original + add new)
+                  <div class="text-muted" style="font-size:0.78rem;">
+                    Best when appearance changed but original still works sometimes.
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+          <div class="mb-2">
+            <label class="form-label" for="updateNotes">Notes (optional)</label>
+            <textarea id="updateNotes" class="form-control" rows="2"
+                      placeholder="e.g. Beneficiary recovered from illness, face changed significantly."></textarea>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 2: Camera -->
+      <div class="card mb-3">
+        <div class="card-header bg-qc-blue text-white d-flex justify-content-between align-items-center">
+          <span><i class="bi bi-2-circle me-2"></i>Step 2: Capture New Face</span>
+          <div id="qualityIndicator" style="display:none;"></div>
+        </div>
+        <div class="card-body text-center p-3">
+          <div class="video-container mb-3">
+            <video id="video" autoplay muted playsinline></video>
+            <div id="faceBorder" class="face-ring"></div>
+          </div>
+          <canvas id="captureCanvas" style="display:none;"></canvas>
+
+          <!-- Preview after capture -->
+          <div id="capturedPreview" style="display:none;" class="mb-3">
+            <div class="small text-muted mb-1 fw-semibold">Captured preview:</div>
+            <img id="previewImg" src="" alt="Captured face"
+                 style="max-width:200px; border-radius:10px; border:2px solid #22c55e;">
+          </div>
+
+          <div id="statusMsg" class="alert alert-info mb-3">
+            <i class="bi bi-hourglass-split me-1"></i> Starting camera&hellip;
+          </div>
+
+          <div class="d-grid gap-2">
+            <button id="captureBtn" class="btn btn-primary" disabled>
+              <i class="bi bi-camera me-1"></i> Capture Face
+            </button>
+            <button id="retakeBtn" class="btn btn-outline-secondary" style="display:none;">
+              <i class="bi bi-arrow-repeat me-1"></i> Retake
+            </button>
+            <button id="submitBtn" class="btn btn-warning fw-semibold" style="display:none;">
+              <i class="bi bi-send me-1"></i> Submit for Admin Approval
+            </button>
+          </div>
+
+          <div id="processingSpinner" style="display:none;" class="mt-3 text-center">
+            <div class="spinner-border text-warning me-2" role="status"></div>
+            <span class="fw-semibold">Submitting request&hellip; please wait.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tips -->
+      <div class="verify-tips">
+        <div class="tip"><i class="bi bi-sun me-1"></i>Face a light source for clear capture</div>
+        <div class="tip"><i class="bi bi-arrows-angle-contract me-1"></i>Position face 30&ndash;50 cm from camera</div>
+        <div class="tip"><i class="bi bi-eye me-1"></i>Look directly at the camera, neutral expression</div>
+        <div class="tip"><i class="bi bi-stop-circle me-1"></i>Hold very still during capture</div>
+        <div class="tip"><i class="bi bi-exclamation-circle me-1 text-warning"></i>Remove glasses or hat if possible</div>
+      </div>
+
+    </div>
+
+    <!-- Right: info panels -->
+    <div class="col-lg-5">
+
+      <!-- Current embedding status -->
+      <div class="card mb-3">
+        <div class="card-header bg-qc-blue text-white">
+          <i class="bi bi-database me-2"></i>Current Face Data
+        </div>
+        <div class="card-body p-3 small">
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Primary embedding</span>
+            {% if has_embedding %}
+            <span class="badge bg-success">Present</span>
+            {% else %}
+            <span class="badge bg-danger">Missing</span>
+            {% endif %}
+          </div>
+          <div class="d-flex justify-content-between mb-2">
+            <span class="text-muted">Additional templates</span>
+            <span class="badge bg-secondary">{{ additional_count }}</span>
+          </div>
+          {% if not has_embedding %}
+          <div class="alert alert-warning mt-2 mb-0 py-2 small">
+            No face embedding exists. Use <strong>Replace</strong> action to create the initial embedding.
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- Recent failures -->
+      {% if recent_failures %}
+      <div class="card mb-3">
+        <div class="card-header bg-qc-blue text-white">
+          <i class="bi bi-x-circle me-2"></i>Recent Failed Verifications
+        </div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Decision</th>
+                <th>Score</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for a in recent_failures %}
+              <tr>
+                <td class="small text-muted">{{ a.timestamp|date:"M d, H:i" }}</td>
+                <td>
+                  <span class="badge bg-danger small">{{ a.get_decision_display }}</span>
+                </td>
+                <td class="font-mono small">
+                  {% if a.similarity_score is not None %}{{ a.similarity_score|floatformat:3 }}
+                  {% else %}&mdash;{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+      {% endif %}
+
+      <!-- Update history -->
+      <div class="card mb-3">
+        <div class="card-header bg-qc-blue text-white">
+          <i class="bi bi-clock-history me-2"></i>Update History
+        </div>
+        {% if update_history %}
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0">
+            <thead>
+              <tr><th>Date</th><th>Reason</th><th>Action</th><th>Result</th></tr>
+            </thead>
+            <tbody>
+              {% for log in update_history %}
+              <tr>
+                <td class="small text-muted">{{ log.timestamp|date:"M d, Y" }}</td>
+                <td class="small">{{ log.get_reason_display }}</td>
+                <td class="small">{{ log.get_action_display }}</td>
+                <td>
+                  {% if log.success %}
+                    <i class="bi bi-check-circle-fill text-success"></i>
+                  {% else %}
+                    <i class="bi bi-x-circle-fill text-danger"></i>
+                  {% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="card-body text-center text-muted small py-3">
+          <i class="bi bi-clock-history d-block mb-1 opacity-25" style="font-size:1.5rem;"></i>
+          No update history.
+        </div>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+{% load static %}
+<script>
+const SUBMIT_URL  = "{% url 'verification:update_face_submit' beneficiary.pk %}";
+const CSRF_TOKEN  = "{{ csrf_token }}";
+</script>
+<script src="{% static 'js/webcam.js' %}"></script>
+<script>
+document.addEventListener('DOMContentLoaded', async () => {
+  const video           = document.getElementById('video');
+  const captureCanvas   = document.getElementById('captureCanvas');
+  const captureBtn      = document.getElementById('captureBtn');
+  const retakeBtn       = document.getElementById('retakeBtn');
+  const submitBtn       = document.getElementById('submitBtn');
+  const statusMsg       = document.getElementById('statusMsg');
+  const capturedPreview = document.getElementById('capturedPreview');
+  const previewImg      = document.getElementById('previewImg');
+  const processingSpinner = document.getElementById('processingSpinner');
+  const qualityIndicator  = document.getElementById('qualityIndicator');
+  const faceBorder        = document.getElementById('faceBorder');
+
+  let capturedImageData = null;
+  let _qualityTimer = null;
+
+  function setStatus(msg, type) {
+    statusMsg.className = `alert alert-${type} mb-3`;
+    statusMsg.innerHTML = msg;
+  }
+
+  // Quality preview
+  function startQualityPreview() {
+    if (!qualityIndicator) return;
+    qualityIndicator.style.display = '';
+    _qualityTimer = setInterval(() => {
+      const w = video.videoWidth || 320;
+      const h = video.videoHeight || 240;
+      if (!w || !h) return;
+      const tmp = document.createElement('canvas');
+      tmp.width = w; tmp.height = h;
+      const ctx = tmp.getContext('2d');
+      ctx.drawImage(video, 0, 0, w, h);
+      const sharp = estimateSharpnessSobel(ctx, w, h);
+      const sample = ctx.getImageData(w/4, h/4, w/2, h/2);
+      let lum = 0;
+      for (let i = 0; i < sample.data.length; i += 4) {
+        lum += 0.299*sample.data[i] + 0.587*sample.data[i+1] + 0.114*sample.data[i+2];
+      }
+      const brightness = lum / (sample.data.length / 4);
+      let level = 'good', msg = 'Good quality';
+      if (sharp < 20)       { level = 'bad';     msg = 'Too blurry'; }
+      else if (sharp < 60)  { level = 'warning'; msg = 'Hold still'; }
+      if (brightness < 30)  { level = 'bad';     msg = 'Too dark'; }
+      else if (brightness > 230) { level = 'warning'; msg = 'Too bright'; }
+      const c = { good:'#22c55e', warning:'#f59e0b', bad:'#ef4444' };
+      qualityIndicator.innerHTML =
+        `<span class="quality-dot" style="background:${c[level]};"></span>
+         <span style="font-size:0.78rem;font-weight:600;color:${c[level]};">${msg}</span>`;
+      if (faceBorder) {
+        faceBorder.style.borderColor = level === 'good' ? 'rgba(34,197,94,0.85)'
+          : level === 'warning' ? 'rgba(234,179,8,0.85)'
+          : 'rgba(239,68,68,0.85)';
+      }
+    }, 800);
+  }
+
+  function stopQualityPreview() {
+    if (_qualityTimer) { clearInterval(_qualityTimer); _qualityTimer = null; }
+  }
+
+  // Start camera
+  setStatus('<i class="bi bi-hourglass-split me-1"></i> Starting camera\u2026', 'info');
+  const camResult = await startCamera(video);
+  if (!camResult.success) {
+    setStatus(`<i class="bi bi-camera-video-off me-1"></i> Camera error: ${camResult.error}`, 'danger');
+    captureBtn.disabled = true;
+    return;
+  }
+  await new Promise(r => { video.addEventListener('play', r, {once:true}); setTimeout(r, 1500); });
+  setStatus('<i class="bi bi-check-circle me-1"></i> Camera ready. Position face in the oval, then click Capture.', 'success');
+  captureBtn.disabled = false;
+  startQualityPreview();
+
+  captureBtn.addEventListener('click', async () => {
+    captureBtn.disabled = true;
+    setStatus('<i class="bi bi-hourglass-split me-1"></i> Capturing best frame\u2026', 'info');
+    stopQualityPreview();
+
+    capturedImageData = await captureFrameHighQuality(video, captureCanvas, 7, 70);
+    previewImg.src = capturedImageData;
+    capturedPreview.style.display = '';
+    captureBtn.style.display = 'none';
+    retakeBtn.style.display = '';
+    submitBtn.style.display = '';
+    setStatus(
+      '<i class="bi bi-eye me-1"></i> Check the preview. If the face is clear and centered, click <strong>Submit for Admin Approval</strong>. Otherwise click Retake.',
+      'info'
+    );
+  });
+
+  retakeBtn.addEventListener('click', () => {
+    capturedImageData = null;
+    capturedPreview.style.display = 'none';
+    captureBtn.style.display = '';
+    captureBtn.disabled = false;
+    retakeBtn.style.display = 'none';
+    submitBtn.style.display = 'none';
+    setStatus('<i class="bi bi-camera me-1"></i> Ready. Position face and click Capture.', 'success');
+    startQualityPreview();
+  });
+
+  submitBtn.addEventListener('click', async () => {
+    if (!capturedImageData) return;
+
+    const reason = document.getElementById('updateReason').value;
+    const actionEl = document.querySelector('input[name="updateAction"]:checked');
+    const action = actionEl ? actionEl.value : 'replace';
+    const notes = document.getElementById('updateNotes').value.trim();
+
+    submitBtn.disabled = true;
+    retakeBtn.disabled = true;
+    processingSpinner.style.display = '';
+    setStatus('<i class="bi bi-hourglass-split me-1"></i> Submitting request\u2026 please wait.', 'info');
+
+    try {
+      const result = await postJSON(SUBMIT_URL, {
+        image:  capturedImageData,
+        reason: reason,
+        action: action,
+        notes:  notes,
+      }, CSRF_TOKEN);
+
+      processingSpinner.style.display = 'none';
+
+      if (result.success) {
+        stopCamera();
+        const icon = result.pending
+          ? '<i class="bi bi-hourglass-split me-1"></i>'
+          : '<i class="bi bi-check-circle-fill me-1"></i>';
+        setStatus(`${icon} ${result.message}`, result.pending ? 'warning' : 'success');
+        submitBtn.style.display = 'none';
+        retakeBtn.style.display = 'none';
+        setTimeout(() => { window.location.href = result.redirect; }, result.pending ? 3000 : 1800);
+      } else {
+        setStatus(`<i class="bi bi-x-circle me-1"></i> ${result.error}`, 'danger');
+        submitBtn.disabled = false;
+        retakeBtn.disabled = false;
+      }
+    } catch (err) {
+      processingSpinner.style.display = 'none';
+      setStatus(`<i class="bi bi-x-circle me-1"></i> Network error: ${err.message}`, 'danger');
+      submitBtn.disabled = false;
+      retakeBtn.disabled = false;
+    }
+  });
+});
+</script>
+{% endblock %}

@@ -1,0 +1,110 @@
+{% extends "base.html" %}
+{% block title %}Release Payout — Override{% endblock %}
+{% block nav_verify %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-6">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'verification:verify_result' attempt.pk %}">Verification Result</a> /
+    Release Payout
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-4">Release Payout — Admin Override</h4>
+
+  {% if messages %}
+  {% for msg in messages %}
+  <div class="alert {% if msg.tags == 'error' %}alert-danger{% elif msg.tags == 'warning' %}alert-warning{% else %}alert-info{% endif %} d-flex gap-2 align-items-center mb-3">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>
+    {{ msg }}
+  </div>
+  {% endfor %}
+  {% endif %}
+
+  <div class="alert d-flex gap-3 align-items-start mb-4"
+       style="background:#fef2f2; border:1px solid #fca5a5;">
+    <i class="bi bi-exclamation-octagon-fill text-danger flex-shrink-0 mt-1" style="font-size:1.3rem;"></i>
+    <div>
+      <div class="fw-bold text-danger mb-1">Permanent Payout Action</div>
+      <div class="small">
+        Confirming will create a claim record and release the stipend payout.
+        This action is permanently logged. It cannot be undone without a separate
+        admin override of the claim record.
+      </div>
+    </div>
+  </div>
+
+  <!-- Beneficiary card -->
+  <div class="card mb-3">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-person me-2"></i>Beneficiary
+    </div>
+    <div class="card-body">
+      <div class="fw-bold fs-5">{{ attempt.beneficiary.full_name }}</div>
+      <div class="font-mono text-muted small mb-2">{{ attempt.beneficiary.beneficiary_id }}</div>
+      <div class="small text-muted">
+        SC ID: {{ attempt.beneficiary.senior_citizen_id|default:"—" }} &bull;
+        Status: <span class="fw-semibold">{{ attempt.beneficiary.get_status_display }}</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Stipend event card -->
+  <div class="card mb-3">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-calendar-event me-2"></i>Stipend Event
+    </div>
+    <div class="card-body">
+      <div class="fw-bold">{{ attempt.stipend_event.title }}</div>
+      <div class="small text-muted mt-1">
+        Date: {{ attempt.stipend_event.date|date:"M d, Y" }} &bull;
+        Amount: <span class="fw-semibold text-success">&#8369;{{ attempt.stipend_event.amount|floatformat:2 }}</span>
+      </div>
+      <div class="small text-muted">
+        Type: {{ attempt.stipend_event.get_event_type_display }}
+      </div>
+    </div>
+  </div>
+
+  <!-- Override details card -->
+  <div class="card mb-4">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-shield-check me-2"></i>Override Details
+    </div>
+    <div class="card-body small">
+      <div><strong>Overridden by:</strong> {% if attempt.override_by %}{{ attempt.override_by.get_full_name|default:attempt.override_by.username }}{% else %}&mdash;{% endif %}</div>
+      <div><strong>Overridden at:</strong> {{ attempt.override_at|date:"M d, Y H:i" }}</div>
+      <div class="mt-2"><strong>Override reason:</strong></div>
+      <div class="text-muted fst-italic">{{ attempt.override_reason }}</div>
+    </div>
+  </div>
+
+  <!-- Confirmation form -->
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-cash-coin me-2"></i>Confirm Payout Release
+    </div>
+    <div class="card-body p-4">
+      <p class="mb-4">
+        Release the stipend payout of
+        <strong class="text-success">&#8369;{{ attempt.stipend_event.amount|floatformat:2 }}</strong>
+        to <strong>{{ attempt.beneficiary.full_name }}</strong>
+        for <strong>{{ attempt.stipend_event.title }}</strong>?
+      </p>
+      <form method="POST" novalidate>
+        {% csrf_token %}
+        <div class="d-flex gap-2">
+          <button type="submit" class="btn btn-success fw-semibold px-4">
+            <i class="bi bi-check2-square me-1"></i> Confirm Release
+          </button>
+          <a href="{% url 'verification:verify_result' attempt.pk %}"
+             class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

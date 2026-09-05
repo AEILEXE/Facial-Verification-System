@@ -1,0 +1,248 @@
+{% extends "base.html" %}
+{% block title %}Database & Backup Status{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+      System Administration / Database &amp; Backup Status
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-activity me-2"></i>Database &amp; Backup Status
+    </h4>
+    <p class="text-muted small mb-0">
+      Read-only health snapshot for Admin / Technical Administrator. Restart not required to view.
+    </p>
+  </div>
+  <a href="{% url 'beneficiaries:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+  </a>
+</div>
+
+{# ── Top status cards ───────────────────────────────────────────────────── #}
+<div class="row g-3 mb-3">
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-body p-3">
+        <div class="small text-muted text-uppercase fw-semibold">Database</div>
+        {% if db_status == 'connected' %}
+        <div class="fw-bold mt-1" style="color:#15803d;">
+          <i class="bi bi-check-circle-fill me-1"></i>Connected
+        </div>
+        {% elif db_status == 'error' %}
+        <div class="fw-bold mt-1 text-danger">
+          <i class="bi bi-x-octagon-fill me-1"></i>Error
+        </div>
+        <div class="small text-danger font-mono mt-1">{{ db_error|truncatechars:120 }}</div>
+        {% else %}
+        <div class="fw-bold mt-1 text-muted">Unknown</div>
+        {% endif %}
+        <div class="small text-muted mt-1">{{ db_engine_short }}</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-body p-3">
+        <div class="small text-muted text-uppercase fw-semibold">Last Backup</div>
+        {% if last_backup %}
+        <div class="fw-bold mt-1 text-success">
+          <i class="bi bi-shield-check me-1"></i>{{ last_backup|date:"M d, Y" }}
+        </div>
+        <div class="small text-muted">{{ last_backup|date:"H:i" }} &mdash; {{ backup_count }} completed backup{{ backup_count|pluralize }}</div>
+        {% else %}
+        <div class="fw-bold mt-1 text-warning">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>Not detected
+        </div>
+        <div class="small text-muted">No backup folder found</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-body p-3">
+        <div class="small text-muted text-uppercase fw-semibold">Media Folder</div>
+        {% if media_exists %}
+        <div class="fw-bold mt-1 text-success">
+          <i class="bi bi-folder-check me-1"></i>{{ media_file_count }} file{{ media_file_count|pluralize }}
+        </div>
+        <div class="small text-muted">
+          {% widthratio media_size_bytes 1048576 1 %} MB stored
+        </div>
+        {% else %}
+        <div class="fw-bold mt-1 text-warning">
+          <i class="bi bi-folder-x me-1"></i>Missing
+        </div>
+        <div class="small text-muted">Folder does not exist</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-3">
+    <div class="card h-100">
+      <div class="card-body p-3">
+        <div class="small text-muted text-uppercase fw-semibold">Encryption Key</div>
+        {% if embedding_key_set %}
+        <div class="fw-bold mt-1 text-success">
+          <i class="bi bi-key-fill me-1"></i>Configured
+        </div>
+        <div class="small text-muted">Face embeddings can be decrypted</div>
+        {% else %}
+        <div class="fw-bold mt-1 text-danger">
+          <i class="bi bi-key me-1"></i>Missing
+        </div>
+        <div class="small text-muted">EMBEDDING_ENCRYPTION_KEY not set</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Detail tables ──────────────────────────────────────────────────────── #}
+<div class="row g-3">
+  <div class="col-lg-6">
+
+    <div class="card mb-3">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-database me-2"></i>Database
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0 small">
+          <tbody>
+            <tr><th>Engine</th><td class="font-mono">{{ db_engine_full }}</td></tr>
+            <tr><th>Type</th><td>{{ db_engine_short }}</td></tr>
+            <tr><th>Status</th>
+              <td>
+                {% if db_status == 'connected' %}
+                  <span class="badge bg-success">Connected</span>
+                {% elif db_status == 'error' %}
+                  <span class="badge bg-danger">Error</span>
+                {% else %}
+                  <span class="badge bg-secondary">Unknown</span>
+                {% endif %}
+              </td>
+            </tr>
+            <tr><th>Database file / name</th><td class="font-mono">{{ db_name }}</td></tr>
+            {% if db_file_size is not None %}
+            <tr><th>Database size</th>
+              <td>{% widthratio db_file_size 1024 1 %} KB</td>
+            </tr>
+            <tr><th>Last modified</th>
+              <td>{{ db_file_mtime|date:"Y-m-d H:i:s" }}</td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-folder me-2"></i>Media Folder
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0 small">
+          <tbody>
+            <tr><th>Path</th><td class="font-mono">{{ media_root }}</td></tr>
+            <tr><th>Exists</th>
+              <td>{% if media_exists %}<span class="badge bg-success">Yes</span>{% else %}<span class="badge bg-warning text-dark">No</span>{% endif %}</td>
+            </tr>
+            <tr><th>File count</th><td>{{ media_file_count }}</td></tr>
+            <tr><th>Total size</th><td>{% widthratio media_size_bytes 1048576 1 %} MB</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="col-lg-6">
+
+    <div class="card mb-3">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-bar-chart me-2"></i>Record Counts
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0 small">
+          <tbody>
+            <tr><th>Registered beneficiary records</th><td>{{ beneficiary_count }}</td></tr>
+            <tr><th>Face embedding records</th><td>{{ embedding_count }}</td></tr>
+            <tr><th>Audit log entries</th><td>{{ audit_count }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-cloud-arrow-down me-2"></i>Backups
+      </div>
+      <div class="card-body">
+        {% if backup_dir %}
+        <table class="table table-sm mb-2 small">
+          <tbody>
+            <tr><th>Backup folder</th><td class="font-mono">{{ backup_dir }}</td></tr>
+            <tr><th>Completed backups</th><td>{{ backup_count }}</td></tr>
+            <tr><th>Most recent backup</th><td>{% if last_backup %}{{ last_backup|date:"Y-m-d H:i:s" }}{% else %}<span class="text-muted">&mdash;</span>{% endif %}</td></tr>
+            {% if last_backup %}
+            <tr><th>Latest backup contents</th><td>
+              {% if latest_backup_db_present %}<span class="text-success"><i class="bi bi-check-circle"></i> db.sqlite3</span>{% else %}<span class="text-danger"><i class="bi bi-x-circle"></i> db.sqlite3 missing</span>{% endif %}
+              &nbsp;
+              {% if latest_backup_env_present %}<span class="text-success"><i class="bi bi-check-circle"></i> .env</span>{% else %}<span class="text-danger"><i class="bi bi-x-circle"></i> .env missing</span>{% endif %}
+            </td></tr>
+            <tr><th>Integrity (verified at backup time)</th><td>{% if latest_backup_integrity == 'ok' %}<span class="text-success">PRAGMA integrity_check: ok</span>{% else %}<span class="text-muted">{{ latest_backup_integrity|default:"unknown" }}</span>{% endif %}</td></tr>
+            {% endif %}
+            {% if incomplete_backup_count %}
+            <tr><th>Incomplete backup attempts</th><td><span class="text-warning">{{ incomplete_backup_count }}</span> <span class="text-muted">(not deleted, not counted as valid &mdash; inspect <code>backups\</code> manually)</span></td></tr>
+            {% endif %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="alert alert-warning small mb-2">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          No <code>backups/</code> folder found next to the app.
+          Create one and back up <code>db.sqlite3</code>, <code>.env</code>, and <code>media/</code> together.
+        </div>
+        {% endif %}
+        <div class="small text-muted">
+          A complete backup includes:
+          <code>db.sqlite3</code>, <code>.env</code>, <code>media/</code>, and a securely-stored copy of
+          <code>EMBEDDING_ENCRYPTION_KEY</code>. Integrity is checked once, when the backup is created &mdash;
+          this page reports whether the required files are still present and match what was recorded then.
+        </div>
+      </div>
+    </div>
+
+    <div class="card mb-3">
+      <div class="card-header bg-secondary text-white">
+        <i class="bi bi-info-circle me-2"></i>Application Storage
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0 small">
+          <tbody>
+            <tr><th>Base directory</th><td class="font-mono">{{ base_dir }}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="alert alert-info d-flex gap-3 align-items-start mt-2" role="alert">
+  <i class="bi bi-shield-fill-exclamation fs-4 flex-shrink-0"></i>
+  <div class="small">
+    <strong>Backup Reminder.</strong> The database, media folder, environment file, and encryption key must
+    be backed up <em>together</em>. Encrypted face embeddings cannot be recovered if the
+    <code>EMBEDDING_ENCRYPTION_KEY</code> is lost. Store the key offline (printed and locked, or in a sealed
+    USB stick) separately from the device that runs FANSC.
+  </div>
+</div>
+
+{% endblock %}

@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% block title %}Notifications{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Notifications
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">Notifications</h4>
+  </div>
+  <div>
+    <form method="POST" action="{% url 'logs:notification_mark_all_read' %}" class="mb-0">
+      {% csrf_token %}
+      <input type="hidden" name="next" value="{% url 'logs:notification_center' %}">
+      <button type="submit" class="btn btn-sm btn-outline-secondary">
+        <i class="bi bi-check2-all me-1"></i>Mark all read
+      </button>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-sm mb-0">
+      <thead class="table-light">
+        <tr><th></th><th>Priority</th><th>Notification</th><th>Received</th></tr>
+      </thead>
+      <tbody>
+        {% for n in notifications %}
+        <tr class="{% if not n.is_read %}fw-semibold{% endif %}">
+          <td class="text-nowrap">
+            {% if not n.is_read %}<span class="badge bg-primary">New</span>{% endif %}
+            <span class="ms-1">{% include "logs/_notification_icon.html" with category=n.category %}</span>
+          </td>
+          <td>{% include "verification/_risk_badge.html" with level=n.priority %}</td>
+          <td>
+            <a href="{% url 'logs:notification_open' pk=n.id %}" class="text-decoration-none">
+              <div>{{ n.title }}</div>
+              {% if n.message %}<div class="text-muted small fw-normal">{{ n.message }}</div>{% endif %}
+            </a>
+          </td>
+          <td class="text-muted small text-nowrap">{{ n.created_at|date:"M d, Y H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="4" class="text-center text-muted py-4">No notifications yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if notifications.has_other_pages %}
+  <div class="card-footer">
+    <nav>
+      <ul class="pagination pagination-sm mb-0 justify-content-center">
+        {% if notifications.has_previous %}
+        <li class="page-item"><a class="page-link" href="?page={{ notifications.previous_page_number }}">Previous</a></li>
+        {% endif %}
+        <li class="page-item disabled"><span class="page-link">Page {{ notifications.number }} of {{ notifications.paginator.num_pages }}</span></li>
+        {% if notifications.has_next %}
+        <li class="page-item"><a class="page-link" href="?page={{ notifications.next_page_number }}">Next</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

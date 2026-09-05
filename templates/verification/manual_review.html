@@ -1,0 +1,474 @@
+{% extends "base.html" %}
+{% block title %}Manual Review Queue{% endblock %}
+{% block nav_verify %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Manual Review Queue
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">Manual Review Queue</h4>
+    <div class="text-muted small mt-1">
+      All items require administrator approval before any change takes effect.
+    </div>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <span class="badge bg-warning text-dark" style="font-size:0.9rem; padding:0.5rem 0.9rem;">
+      {{ pending_manual_requests.count|add:pending_face_requests.count|add:pending_special_claims.count|add:pending_registrations.count }} pending
+    </span>
+    <a href="{% url 'beneficiaries:auto_approval_settings' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-toggles me-1"></i>Auto-Approval Settings
+      {% if auto_approval_on %}<span class="badge bg-success ms-1">ON</span>{% else %}<span class="badge bg-secondary ms-1">OFF</span>{% endif %}
+    </a>
+  </div>
+</div>
+
+<!-- ── Section 0: Representative Review Queue ─────────────────────────── -->
+{% if pending_shared_reps %}
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-people-fill text-warning fs-5"></i>
+    <h5 class="fw-bold mb-0">Representative Review Queue</h5>
+    <span class="badge bg-warning text-dark ms-1">{{ pending_shared_reps.count }}</span>
+    <a href="{% url 'verification:shared_rep_review_list' %}" class="ms-auto btn btn-sm btn-outline-warning">
+      <i class="bi bi-list me-1"></i>Open full queue
+    </a>
+  </div>
+  <p class="text-muted small mb-3">
+    Representatives whose face is already enrolled for another beneficiary.
+    Approve legitimate shared representatives; reject suspicious ones. Release stays
+    BLOCKED until each case is decided.
+  </p>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Flagged</th>
+            <th>Representative</th>
+            <th>New Beneficiary</th>
+            <th>Matched Beneficiary</th>
+            <th class="text-end">Match Score</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in pending_shared_reps %}
+          <tr>
+            <td class="small text-muted text-nowrap">{{ r.flagged_at|date:"M d H:i" }}</td>
+            <td><div class="fw-semibold">{{ r.representative.full_name }}</div></td>
+            <td><div class="font-mono small">{{ r.representative.beneficiary.beneficiary_id }}</div></td>
+            <td><div class="font-mono small">{{ r.matched_beneficiary_id }}</div></td>
+            <td class="text-end font-monospace">{{ r.matched_score|floatformat:3 }}</td>
+            <td class="text-end">
+              <a href="{% url 'verification:shared_rep_review_detail' review_id=r.id %}"
+                 class="btn btn-sm btn-outline-primary">
+                <i class="bi bi-eye"></i> Review
+              </a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Section 1: Pending Registrations ─────────────────────────────────── -->
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-person-plus-fill text-success fs-5"></i>
+    <h5 class="fw-bold mb-0">Pending Registrations</h5>
+    <span class="badge bg-success ms-1">{{ pending_registrations.count }}</span>
+  </div>
+  <p class="text-muted small mb-3">
+    New beneficiaries submitted by staff. Each must be approved before they can be verified or
+    claim stipends. Face deduplication was already run at submission time.
+  </p>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Submitted</th>
+            <th>Beneficiary ID</th>
+            <th>Name</th>
+            <th>Barangay</th>
+            <th>Registered By</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for b in pending_registrations %}
+          <tr>
+            <td class="small text-muted" style="white-space:nowrap;">{{ b.created_at|date:"M d, Y H:i" }}</td>
+            <td class="font-mono small">{{ b.beneficiary_id }}</td>
+            <td class="fw-semibold">{{ b.full_name }}</td>
+            <td class="small text-muted">{{ b.barangay }}</td>
+            <td class="small">{% if b.registered_by %}{{ b.registered_by.get_full_name|default:b.registered_by.username }}{% else %}&mdash;{% endif %}</td>
+            <td>
+              <a href="{% url 'verification:registration_review' b.pk %}"
+                 class="btn btn-sm btn-success">
+                <i class="bi bi-pencil me-1"></i>Review
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+              <i class="bi bi-check-all fs-2 d-block mb-2 text-success opacity-50"></i>
+              No pending registrations.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 2: Manual Verification Requests ──────────────────────────── -->
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-person-badge text-warning fs-5"></i>
+    <h5 class="fw-bold mb-0">Manual Verification Requests</h5>
+    <span class="badge bg-warning text-dark ms-1">{{ pending_manual_requests.count }}</span>
+  </div>
+  <p class="text-muted small mb-3">
+    Submitted when a beneficiary's face scan failed but staff verified their ID in person.
+    Approving grants the stipend claim; rejecting records a denial.
+  </p>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Submitted</th>
+            <th>Beneficiary</th>
+            <th>Face Score</th>
+            <th>ID Checked</th>
+            <th>Liveness</th>
+            <th>Submitted By</th>
+            <th>Stipend Event</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for mvr in pending_manual_requests %}
+          <tr>
+            <td class="small text-muted" style="white-space:nowrap;">{{ mvr.created_at|date:"M d, Y H:i" }}</td>
+            <td>
+              <div class="fw-semibold">{{ mvr.beneficiary.full_name }}</div>
+              <div class="font-mono text-muted small">{{ mvr.beneficiary.beneficiary_id }}</div>
+            </td>
+            <td>
+              {% if mvr.similarity_score is not None %}
+              <span class="badge bg-warning text-dark font-mono">{{ mvr.similarity_score|floatformat:3 }}</span>
+              {% else %}
+              <span class="text-muted">&mdash;</span>
+              {% endif %}
+            </td>
+            <td class="small">
+              {{ mvr.id_type_checked|default:"&mdash;" }}
+              {% if mvr.id_verified %}
+              <i class="bi bi-check-circle-fill text-success ms-1"></i>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              {% if mvr.liveness_passed %}
+                <i class="bi bi-check-circle-fill text-success"></i>
+              {% elif mvr.liveness_passed is not None %}
+                <i class="bi bi-x-circle-fill text-danger"></i>
+              {% else %}
+                <span class="text-muted">&mdash;</span>
+              {% endif %}
+            </td>
+            <td class="small">{% if mvr.requested_by %}{{ mvr.requested_by.get_full_name|default:mvr.requested_by.username }}{% else %}&mdash;{% endif %}</td>
+            <td class="small text-muted">{{ mvr.stipend_event.title|default:"&mdash;" }}</td>
+            <td style="white-space:nowrap;">
+              {% if mvr.verification_attempt %}
+              <a href="{% url 'verification:verify_result' mvr.verification_attempt.pk %}"
+                 class="btn btn-sm btn-outline-secondary me-1" title="View original attempt">
+                <i class="bi bi-eye me-1"></i>Attempt
+              </a>
+              {% endif %}
+              <a href="{% url 'verification:manual_verify_review' mvr.pk %}"
+                 class="btn btn-sm btn-warning">
+                <i class="bi bi-pencil me-1"></i>Review
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="8" class="text-center text-muted py-4">
+              <i class="bi bi-check-all fs-2 d-block mb-2 text-success opacity-50"></i>
+              No pending manual verification requests.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 2: Face Update Requests ──────────────────────────────────── -->
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-camera-fill text-primary fs-5"></i>
+    <h5 class="fw-bold mb-0">Face Update Requests</h5>
+    <span class="badge bg-primary ms-1">{{ pending_face_requests.count }}</span>
+  </div>
+  <p class="text-muted small mb-3">
+    Submitted when staff re-captures a beneficiary's face.
+    Approving applies the new embedding to the active face data; rejecting discards the capture.
+  </p>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Submitted</th>
+            <th>Beneficiary</th>
+            <th>Reason</th>
+            <th>Action</th>
+            <th>Notes</th>
+            <th>Submitted By</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for fur in pending_face_requests %}
+          <tr>
+            <td class="small text-muted" style="white-space:nowrap;">{{ fur.created_at|date:"M d, Y H:i" }}</td>
+            <td>
+              <div class="fw-semibold">{{ fur.beneficiary.full_name }}</div>
+              <div class="font-mono text-muted small">{{ fur.beneficiary.beneficiary_id }}</div>
+              {% if fur.duplicate_match_beneficiary %}
+              <span class="badge bg-danger mt-1">
+                <i class="bi bi-exclamation-triangle-fill me-1"></i>Duplicate face
+              </span>
+              {% endif %}
+            </td>
+            <td class="small">{{ fur.get_reason_display }}</td>
+            <td>
+              <span class="badge {% if fur.action == 'replace' %}bg-danger{% else %}bg-info{% endif %}">
+                {{ fur.get_action_display }}
+              </span>
+            </td>
+            <td class="small text-muted">{{ fur.notes|truncatechars:40|default:"&mdash;" }}</td>
+            <td class="small">{% if fur.requested_by %}{{ fur.requested_by.get_full_name|default:fur.requested_by.username }}{% else %}&mdash;{% endif %}</td>
+            <td>
+              <a href="{% url 'verification:face_update_review' fur.pk %}"
+                 class="btn btn-sm btn-primary">
+                <i class="bi bi-pencil me-1"></i>Review
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">
+              <i class="bi bi-check-all fs-2 d-block mb-2 text-success opacity-50"></i>
+              No pending face update requests.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 3: Special Claim Requests ────────────────────────────────── -->
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-plus-circle-fill text-warning fs-5"></i>
+    <h5 class="fw-bold mb-0">Special Claim Requests</h5>
+    <span class="badge bg-warning text-dark ms-1">{{ pending_special_claims.count }}</span>
+  </div>
+  <p class="text-muted small mb-3">
+    Submitted when a beneficiary has already claimed a stipend event but a second claim is required.
+    Approving creates an additional claim record; rejecting records a denial.
+  </p>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Submitted</th>
+            <th>Beneficiary</th>
+            <th>Event</th>
+            <th>Reason</th>
+            <th>Submitted By</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for scr in pending_special_claims %}
+          <tr>
+            <td class="small text-muted" style="white-space:nowrap;">{{ scr.created_at|date:"M d, Y H:i" }}</td>
+            <td>
+              <div class="fw-semibold">{{ scr.beneficiary.full_name }}</div>
+              <div class="font-mono text-muted small">{{ scr.beneficiary.beneficiary_id }}</div>
+            </td>
+            <td class="small text-muted">{{ scr.stipend_event.title|default:"&mdash;" }}</td>
+            <td class="small">{{ scr.reason|truncatechars:60 }}</td>
+            <td class="small">{% if scr.requested_by %}{{ scr.requested_by.get_full_name|default:scr.requested_by.username }}{% else %}&mdash;{% endif %}</td>
+            <td>
+              <a href="{% url 'verification:special_claim_review' scr.pk %}"
+                 class="btn btn-sm btn-warning">
+                <i class="bi bi-pencil me-1"></i>Review
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="6" class="text-center text-muted py-4">
+              <i class="bi bi-check-all fs-2 d-block mb-2 text-success opacity-50"></i>
+              No pending special claim requests.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section 4: Low-score Verifications (legacy manual_review) ─────────── -->
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-bar-chart-fill text-secondary fs-5"></i>
+    <h5 class="fw-bold mb-0">Low-Score Verification Attempts</h5>
+    <span class="badge bg-secondary ms-1">{{ pending.count }}</span>
+  </div>
+  <p class="text-muted small mb-3">
+    Attempts whose face similarity score fell in the manual-review band (threshold &times; 0.85 to threshold).
+    Use <em>Override Decision</em> to set a final outcome, or the staff member may submit a manual verification request via the fallback flow.
+  </p>
+
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead>
+          <tr>
+            <th>Date / Time</th>
+            <th>Beneficiary</th>
+            <th>Score</th>
+            <th>Review Threshold</th>
+            <th>Liveness</th>
+            <th>Performed By</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for a in pending %}
+          <tr>
+            <td class="small text-muted" style="white-space:nowrap;">{{ a.timestamp|date:"M d, Y H:i" }}</td>
+            <td>
+              <div class="fw-semibold">{{ a.beneficiary.full_name }}</div>
+              <div class="font-mono text-muted small">{{ a.beneficiary.beneficiary_id }}</div>
+            </td>
+            <td>
+              <span class="badge bg-warning text-dark font-mono">
+                {{ a.similarity_score|floatformat:4|default:"N/A" }}
+              </span>
+            </td>
+            <td class="small font-mono text-muted">{{ a.threshold_used }}</td>
+            <td class="text-center">
+              {% if a.liveness_passed %}
+                <i class="bi bi-check-circle-fill text-success"></i>
+              {% elif a.liveness_passed is not None %}
+                <i class="bi bi-x-circle-fill text-danger"></i>
+              {% else %}
+                <span class="text-muted">&mdash;</span>
+              {% endif %}
+            </td>
+            <td class="small">{% if a.performed_by %}{{ a.performed_by.get_full_name|default:a.performed_by.username }}{% else %}&mdash;{% endif %}</td>
+            <td style="white-space:nowrap;">
+              <a href="{% url 'verification:verify_result' a.pk %}"
+                 class="btn btn-sm btn-outline-primary me-1">
+                <i class="bi bi-eye me-1"></i>View
+              </a>
+              <a href="{% url 'verification:admin_override' a.pk %}"
+                 class="btn btn-sm btn-warning">
+                <i class="bi bi-pencil me-1"></i>Override
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="7" class="text-center text-muted py-4">
+              <i class="bi bi-check-all fs-2 d-block mb-2 text-success opacity-50"></i>
+              No low-score attempts in the review band.
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ── Section: Pending Claims (No Active Payout Event) ──────────────────── -->
+{% if pending_no_event_claims %}
+<div class="mb-4">
+  <div class="d-flex align-items-center gap-2 mb-2">
+    <i class="bi bi-hourglass-split text-warning fs-5"></i>
+    <h5 class="fw-bold mb-0">Pending Claims &mdash; No Active Payout Event</h5>
+    <span class="badge bg-warning text-dark ms-1">{{ pending_no_event_claims.count }}</span>
+  </div>
+  <p class="text-muted small mb-2">
+    These claims passed face verification but were submitted outside an active payout window.
+    President must approve or reject each one.
+  </p>
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Beneficiary</th>
+            <th>Claimant Type</th>
+            <th>Submitted By</th>
+            <th>Submitted At</th>
+            <th>Action</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for claim in pending_no_event_claims %}
+          <tr>
+            <td>
+              <div class="fw-semibold">{{ claim.beneficiary.full_name }}</div>
+              <div class="text-muted small">{{ claim.beneficiary.beneficiary_id }}</div>
+            </td>
+            <td>{{ claim.claimant_type|capfirst }}</td>
+            <td class="small">
+              {% if claim.claimed_by %}{{ claim.claimed_by.get_full_name|default:claim.claimed_by.username }}{% endif %}
+            </td>
+            <td class="small text-nowrap">{{ claim.created_at|date:"Y-m-d H:i" }}</td>
+            <td>
+              {% if request.user.has_financial_authority %}
+              <a href="{% url 'verification:pending_claim_review' claim.id %}"
+                 class="btn btn-sm btn-warning text-dark fw-semibold">
+                <i class="bi bi-eye me-1"></i>Review
+              </a>
+              {% else %}
+              <span class="text-muted small">Requires President/Admin</span>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

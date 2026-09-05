@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Review Registration{% endblock %}
+{% block nav_reg %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-7">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'verification:manual_review' %}">Manual Review Queue</a> /
+    <a href="{% url 'verification:registration_review_list' %}">Pending Registrations</a> /
+    Review
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-1">
+    <i class="bi bi-person-check me-2"></i>Review Registration
+  </h4>
+  <p class="text-muted mb-4">
+    Approve to activate this beneficiary. Reject to deny the registration permanently.
+    Your decision is recorded in the audit log.
+  </p>
+
+  <div class="card mb-3">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-person me-2"></i>Beneficiary Details
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">FULL NAME</div>
+          <div class="fw-bold">{{ beneficiary.full_name }}</div>
+          <div class="font-mono text-muted small">{{ beneficiary.beneficiary_id }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">DATE OF BIRTH</div>
+          <div>{{ beneficiary.date_of_birth|date:"F d, Y" }}</div>
+          <div class="text-muted small">Gender: {{ beneficiary.get_gender_display }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">ADDRESS</div>
+          <div class="small">{{ beneficiary.address }}</div>
+          <div class="small text-muted">{{ beneficiary.barangay }}, {{ beneficiary.municipality }}, {{ beneficiary.province }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">CONTACT</div>
+          <div class="small">{{ beneficiary.contact_number|default:"&mdash;" }}</div>
+        </div>
+        {% if beneficiary.senior_citizen_id %}
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">SENIOR CITIZEN ID</div>
+          <div class="font-mono small">{{ beneficiary.senior_citizen_id }}</div>
+        </div>
+        {% endif %}
+        {% if beneficiary.valid_id_type %}
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">VALID ID</div>
+          <div class="small">{{ beneficiary.valid_id_type }}: {{ beneficiary.valid_id_number|default:"&mdash;" }}</div>
+        </div>
+        {% endif %}
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">REGISTERED BY</div>
+          <div class="small">{% if beneficiary.registered_by %}{{ beneficiary.registered_by.get_full_name|default:beneficiary.registered_by.username }}{% else %}&mdash;{% endif %}</div>
+          <div class="text-muted small">{{ beneficiary.created_at|date:"M d, Y H:i" }}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">REPRESENTATIVE</div>
+          {% if beneficiary.has_representative %}
+          <div class="small">
+            {{ beneficiary.rep_first_name }} {{ beneficiary.rep_last_name }}
+            ({{ beneficiary.rep_relationship }})
+          </div>
+          {% else %}
+          <span class="text-muted small">None</span>
+          {% endif %}
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert d-flex gap-2 align-items-start mb-4"
+       style="background:#fef3c7; border:1px solid #fcd34d; font-size:0.85rem;">
+    <i class="bi bi-shield-exclamation text-warning flex-shrink-0 mt-1"></i>
+    <div>
+      <strong>Accountability Notice</strong><br>
+      Approving a registration activates the beneficiary immediately. They will be able to
+      verify and claim stipends. Rejecting marks them as inactive and records your reason.
+      Your name, timestamp, and notes are permanently recorded in the audit log.
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-pencil me-2"></i>Admin Decision
+    </div>
+    <div class="card-body">
+      <form method="POST">
+        {% csrf_token %}
+        <div class="mb-3">
+          <label for="review-notes" class="form-label fw-semibold">
+            Review Notes <span class="text-danger">*</span>
+          </label>
+          <textarea id="review-notes" name="review_notes" class="form-control" rows="3" required
+                    placeholder="State how you verified this registration is legitimate, or the reason for rejection…"></textarea>
+          <div class="form-text">Required. Will appear in the audit log.</div>
+        </div>
+        <div class="d-flex gap-2">
+          <button type="submit" name="action" value="approve"
+                  class="btn btn-success fw-semibold"
+                  onclick="return confirm('Approve registration for {{ beneficiary.full_name }}? They will be immediately active. This action will be recorded in the audit log.')">
+            <i class="bi bi-check-circle me-1"></i> Approve Registration
+          </button>
+          <button type="submit" name="action" value="reject"
+                  class="btn btn-danger fw-semibold"
+                  onclick="return confirm('Reject this registration? The beneficiary will be marked inactive. This action will be recorded in the audit log.')">
+            <i class="bi bi-x-circle me-1"></i> Reject Request
+          </button>
+          <a href="{% url 'verification:registration_review_list' %}" class="btn btn-outline-secondary ms-auto">
+            <i class="bi bi-arrow-left me-1"></i> Back to Queue
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

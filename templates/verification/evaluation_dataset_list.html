@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% block title %}System Evaluation &amp; Research{% endblock %}
+{% block nav_technical %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Technical Administration / System Evaluation &amp; Research
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-clipboard-data me-2"></i>Evaluation Sessions
+    </h4>
+    <p class="text-muted small mb-0">
+      This area is used for controlled testing of FANS-C facial verification. It is not part of
+      normal stipend distribution — no stipend claim or payout is ever created here.
+    </p>
+  </div>
+  {% if request.user.is_admin_it %}
+  <a href="{% url 'verification:evaluation_dataset_create' %}" class="btn btn-primary">
+    <i class="bi bi-plus-circle me-1"></i> New Evaluation Session
+  </a>
+  {% endif %}
+</div>
+
+<div class="alert alert-warning">
+  <strong><i class="bi bi-flask me-1"></i> CONTROLLED EVALUATION — NOT LIVE STIPEND DISTRIBUTION.</strong>
+  This tool collects controlled biometric research trials only. No Accuracy/FAR/FRR results exist yet.
+</div>
+
+<div class="card">
+  <div class="list-group list-group-flush">
+    {% for ds in datasets %}
+    <a href="{% url 'verification:evaluation_dataset_detail' ds.pk %}" class="list-group-item list-group-item-action p-3">
+      <div class="d-flex justify-content-between align-items-start">
+        <div>
+          <div class="fw-semibold">{{ ds.name }}</div>
+          <div class="small text-muted">Protocol {{ ds.protocol_version }} &middot; {{ ds.trials.count }} trial(s)</div>
+        </div>
+        <div class="text-end">
+        <span class="badge
+          {% if ds.status == 'draft' %}bg-secondary
+          {% elif ds.status == 'collecting' %}bg-primary
+          {% elif ds.status == 'completed' and ds.has_post_finalization_amendment %}bg-warning text-dark
+          {% elif ds.status == 'completed' %}bg-success
+          {% elif ds.has_post_finalization_amendment %}bg-warning text-dark
+          {% else %}bg-dark{% endif %}">{{ ds.get_status_display }}{% if ds.has_post_finalization_amendment %} — Amended{% endif %}</span>
+        <span class="badge {% if ds.purpose == 'research_study' %}bg-info text-dark{% elif ds.purpose == 'pilot_calibration' %}bg-warning text-dark{% else %}bg-light text-dark border{% endif %}">{{ ds.get_purpose_display }}</span>
+        </div>
+      </div>
+    </a>
+    {% empty %}
+    <div class="list-group-item p-4 text-center text-muted">No evaluation sessions yet.</div>
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

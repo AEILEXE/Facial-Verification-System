@@ -1,0 +1,38 @@
+================================================================
+ FANS-C  |  Custom Icon — Instructions
+================================================================
+
+To use a branded icon for the FANS-C desktop shortcut:
+
+  1. Place your icon file here, named exactly:
+         logo.ico
+
+     The file must be in .ico format.
+     Recommended size: 256x256 pixels (or a multi-size .ico).
+
+  2. Re-run  Create-Desktop-Shortcut.ps1  from the project root.
+     The desktop shortcut will be updated to use your icon.
+
+
+HOW TO CONVERT A PNG OR JPG TO ICO
+------------------------------------
+Option A — Free online converter:
+  Search "convert PNG to ICO 256x256" and use any free tool.
+  Download the .ico file and rename it to logo.ico.
+
+Option B — Free desktop tools:
+  IrfanView:  File > Save As > choose ICO format
+  GIMP:       File > Export As > type logo.ico
+  Paint.NET:  File > Save As > ICO (requires plugin)
+
+Recommended: export at 256x256 for best appearance in Windows.
+
+
+WHAT HAPPENS WITHOUT A CUSTOM ICON
+------------------------------------
+If no logo.ico is present, the desktop shortcut uses the
+default Windows command prompt icon.
+The system still works exactly the same — this is cosmetic only.
+
+
+================================================================

@@ -1,0 +1,660 @@
+{% extends "base.html" %}
+{% load static %}
+{% load bpa_filters %}
+{% block title %}Analytics — System Evaluation &amp; Research{% endblock %}
+{% block nav_analytics %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Analytics / System Evaluation &amp; Research
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">System Evaluation &amp; Research</h4>
+    <div class="text-muted small mt-1">
+      Controlled evaluation of FANS-C facial verification and security decision performance.
+      These results come from labeled controlled evaluation trials and are separate from live
+      stipend-distribution statistics.
+    </div>
+  </div>
+  <div>
+    <a href="{% url 'verification:evaluation_dataset_list' %}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-clipboard-data me-1"></i>Manage Evaluation Sessions
+    </a>
+  </div>
+</div>
+
+{% include "verification/_analytics_nav.html" with active_tab="biometric" %}
+
+{# ── A. Evaluation Session selector ─────────────────────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Evaluation Session</div>
+  <div class="card-body">
+    {% if invalid_selection %}
+    <div class="alert alert-warning py-2 px-3 small">
+      <i class="bi bi-exclamation-triangle-fill me-1"></i>
+      The requested evaluation session could not be found. Choose one below.
+    </div>
+    {% endif %}
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-auto" style="min-width:320px;">
+        <label for="bpa-dataset-select" class="form-label small mb-0">Evaluation Session</label>
+        <select id="bpa-dataset-select" name="dataset" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">— Select an evaluation session —</option>
+          {% for ds in datasets %}
+          <option value="{{ ds.id }}" {% if selected_dataset and ds.id == selected_dataset.id %}selected{% endif %}>
+            {{ ds.name }} — {{ ds.get_purpose_display }} — Protocol {{ ds.protocol_version }} — {{ ds.get_status_display }} — {{ ds.trials.count }} trial(s)
+          </option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-sm btn-outline-primary">View</button>
+      </div>
+    </form>
+    {% if not datasets %}
+    <div class="text-muted small mt-2">
+      No evaluation sessions exist yet. <a href="{% url 'verification:evaluation_dataset_create' %}">Create one</a>
+      to begin controlled data collection.
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{% if not selected_dataset %}
+<div class="alert alert-secondary">
+  <i class="bi bi-info-circle me-1"></i>
+  No finalized evaluation session is available for final study reporting.
+  Select an evaluation session above to inspect its controlled evaluation results — including
+  an interim session, deliberately, with an obvious INTERIM banner.
+</div>
+{% else %}
+
+{# ── Evaluation Session status banner ───────────────────────────────────────────── #}
+{% if banner_state == 'finalized' and selected_dataset.has_post_finalization_amendment %}
+<div class="alert alert-warning d-flex align-items-center gap-2">
+  <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+  <div>
+    <strong>CONTROLLED EVALUATION RESULTS — FINALIZED EVALUATION SESSION — AMENDED AFTER PARTICIPANT WITHDRAWAL</strong><br>
+    <span class="small">
+      "{{ selected_dataset.name }}" (Protocol {{ selected_dataset.protocol_version }}) was originally
+      finalized {{ selected_dataset.completed_at }}, but at least one participant withdrew a trial
+      afterward (most recently {{ selected_dataset.amended_after_finalization_at }}). The figures
+      below reflect the CURRENT amended evaluation session, not the original finalized result.
+    </span>
+  </div>
+</div>
+{% elif banner_state == 'finalized' %}
+<div class="alert alert-success d-flex align-items-center gap-2">
+  <i class="bi bi-patch-check-fill fs-5"></i>
+  <div>
+    <strong>CONTROLLED EVALUATION RESULTS — FINALIZED EVALUATION SESSION</strong><br>
+    <span class="small">"{{ selected_dataset.name }}" collection is complete (Protocol {{ selected_dataset.protocol_version }}).</span>
+  </div>
+</div>
+{% elif banner_state == 'archived' and selected_dataset.has_post_finalization_amendment %}
+<div class="alert alert-warning d-flex align-items-center gap-2">
+  <i class="bi bi-exclamation-triangle-fill fs-5"></i>
+  <div>
+    <strong>ARCHIVED EVALUATION SESSION — AMENDED AFTER PARTICIPANT WITHDRAWAL</strong><br>
+    <span class="small">
+      "{{ selected_dataset.name }}" (Protocol {{ selected_dataset.protocol_version }}) is retained for
+      record-keeping. It was originally finalized {{ selected_dataset.completed_at }}, but at least one
+      participant withdrew a trial afterward (most recently {{ selected_dataset.amended_after_finalization_at }}).
+    </span>
+  </div>
+</div>
+{% elif banner_state == 'archived' %}
+<div class="alert alert-dark d-flex align-items-center gap-2">
+  <i class="bi bi-archive-fill fs-5"></i>
+  <div>
+    <strong>ARCHIVED EVALUATION SESSION</strong><br>
+    <span class="small">"{{ selected_dataset.name }}" (Protocol {{ selected_dataset.protocol_version }}) is retained for record-keeping and is no longer active.</span>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-warning d-flex align-items-center gap-2">
+  <i class="bi bi-hourglass-split fs-5"></i>
+  <div>
+    <strong>INTERIM CONTROLLED-EVALUATION RESULTS — DATA COLLECTION NOT FINALIZED</strong><br>
+    <span class="small">"{{ selected_dataset.name }}" (Protocol {{ selected_dataset.protocol_version }}, status: {{ selected_dataset.get_status_display }}) is still being collected. Figures below will change.</span>
+  </div>
+</div>
+{% endif %}
+
+{# ── A. Evaluation Session Context summary ──────────────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Evaluation Session Context</div>
+  <div class="card-body">
+    <div class="row g-3 small">
+      <div class="col-6 col-md-3"><div class="text-muted">Evaluation Session</div><div class="fw-semibold">{{ selected_dataset.name }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted">Protocol Version</div><div class="fw-semibold">{{ selected_dataset.protocol_version }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted">Status</div><div class="fw-semibold">{{ selected_dataset.get_status_display }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted">Unique Participants</div><div class="fw-semibold">{{ report.participant_and_trial_counts.unique_participant_count }}</div></div>
+
+      <div class="col-6 col-md-3"><div class="text-muted">Total Trials</div><div class="fw-semibold">{{ report.participant_and_trial_counts.total_trial_count }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted">Completed Trials</div><div class="fw-semibold">{{ report.participant_and_trial_counts.completed_trial_count }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted">Pending Trials</div><div class="fw-semibold">{{ report.participant_and_trial_counts.pending_trial_count }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted">Aborted Trials</div><div class="fw-semibold">{{ report.participant_and_trial_counts.aborted_trial_count }}</div></div>
+
+      <div class="col-6 col-md-3"><div class="text-muted">Eligible Identity Trials</div><div class="fw-semibold">{{ report.participant_and_trial_counts.eligible_identity_trial_count }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted">Genuine Trials</div><div class="fw-semibold">{{ report.participant_and_trial_counts.genuine_trial_count }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted">Impostor Trials</div><div class="fw-semibold">{{ report.participant_and_trial_counts.impostor_trial_count }}</div></div>
+      <div class="col-6 col-md-3"><div class="text-muted">Staged Attack Trials</div><div class="fw-semibold">{{ report.participant_and_trial_counts.attack_trial_count }}</div></div>
+    </div>
+    <div class="small text-muted mt-3">
+      "Participants" (people the trials were run against) and "Trials" (individual verification runs) are
+      distinct counts — one participant may contribute several trials.
+    </div>
+  </div>
+</div>
+
+{# ── B. Final Automated FANS-C Decision Performance ──────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Final Automated FANS-C Decision Performance</div>
+  <div class="card-body">
+    <div class="small text-muted mb-3">
+      Primary system-level identity-performance results — <code>system_decision</code> against independently-recorded
+      ground truth, over the primary bona-fide identity cohort ({{ report.final_system_performance.eligible_identity_trial_count }}
+      eligible trials).
+    </div>
+    <div class="row g-3">
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card stat-card h-100">
+          <div class="card-body p-3">
+            <div class="stat-value text-qc-blue">{{ report.final_system_performance.conditional_automatic_accuracy|rate_pct }}</div>
+            <div class="stat-label">Conditional Automatic Accuracy</div>
+            <div class="small text-muted mt-1">Accuracy among eligible trials for which FANS-C made an automatic Verified or Reject/Denied decision. Manual Review trials remain separate ({{ report.final_system_performance.conditional_automatic_accuracy.numerator }}/{{ report.final_system_performance.conditional_automatic_accuracy.denominator }}).</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card stat-card h-100">
+          <div class="card-body p-3">
+            <div class="stat-value" style="color:#0dcaf0;">{{ report.final_system_performance.coverage|rate_pct }}</div>
+            <div class="stat-label">Automatic Decision Coverage</div>
+            <div class="small text-muted mt-1">Share of eligible trials resolved automatically rather than routed to Manual Review ({{ report.final_system_performance.coverage.numerator }}/{{ report.final_system_performance.coverage.denominator }}).</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card stat-card h-100">
+          <div class="card-body p-3">
+            <div class="stat-value" style="color:#198754;">{{ report.final_system_performance.tar|rate_pct }}</div>
+            <div class="stat-label">True Acceptance Rate (TAR)</div>
+            <div class="small text-muted mt-1">Share of known genuine trials automatically Verified ({{ report.final_system_performance.tar.numerator }}/{{ report.final_system_performance.tar.denominator }}).</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card stat-card h-100">
+          <div class="card-body p-3">
+            <div class="stat-value" style="color:#dc3545;">{{ report.final_system_performance.far|rate_pct }}</div>
+            <div class="stat-label">False Acceptance Rate (FAR)</div>
+            <div class="small text-muted mt-1">Share of known impostor trials automatically Verified ({{ report.final_system_performance.far.numerator }}/{{ report.final_system_performance.far.denominator }}).</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card stat-card h-100">
+          <div class="card-body p-3">
+            <div class="stat-value" style="color:#fd7e14;">{{ report.final_system_performance.frr|rate_pct }}</div>
+            <div class="stat-label">False Rejection Rate (FRR)</div>
+            <div class="small text-muted mt-1">Share of known genuine trials automatically rejected/denied ({{ report.final_system_performance.frr.numerator }}/{{ report.final_system_performance.frr.denominator }}).</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card stat-card h-100">
+          <div class="card-body p-3">
+            <div class="stat-value" style="color:#7c3aed;">{{ report.final_system_performance.gmrr|rate_pct }}</div>
+            <div class="stat-label">Genuine Manual Review Rate</div>
+            <div class="small text-muted mt-1">Share of known genuine trials routed to Manual Review — an intentional safety outcome, not an error ({{ report.final_system_performance.gmrr.numerator }}/{{ report.final_system_performance.gmrr.denominator }}).</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card stat-card h-100">
+          <div class="card-body p-3">
+            <div class="stat-value" style="color:#7c3aed;">{{ report.final_system_performance.imrr|rate_pct }}</div>
+            <div class="stat-label">Impostor Manual Review Rate</div>
+            <div class="small text-muted mt-1">Share of known impostor trials routed to Manual Review ({{ report.final_system_performance.imrr.numerator }}/{{ report.final_system_performance.imrr.denominator }}).</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6 col-lg-3">
+        <div class="card stat-card h-100">
+          <div class="card-body p-3">
+            <div class="stat-value" style="color:#198754;">{{ report.final_system_performance.tnr|rate_pct }}</div>
+            <div class="stat-label">True Negative Rate</div>
+            <div class="small text-muted mt-1">Share of known impostor trials automatically rejected/denied ({{ report.final_system_performance.tnr.numerator }}/{{ report.final_system_performance.tnr.denominator }}).</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── C. Three-Outcome Identity Decision Matrix ───────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Three-Outcome Identity Decision Matrix (Ground Truth × FANS-C Decision)</div>
+  <div class="card-body">
+    <div class="small text-muted mb-2">
+      Manual Review is an intentional safety outcome for uncertain cases — not an error bucket, and never folded
+      into Rejected/Denied.
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-bordered text-center align-middle mb-0">
+        <thead class="table-light">
+          <tr>
+            <th scope="col">Ground Truth</th>
+            <th scope="col">Verified</th>
+            <th scope="col">Manual Review</th>
+            <th scope="col">Reject / Denied</th>
+            <th scope="col">Row Total</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <th scope="row" class="table-light">Genuine</th>
+            <td>{{ report.final_system_performance.matrix.genuine.verified }}</td>
+            <td>{{ report.final_system_performance.matrix.genuine.manual_review }}</td>
+            <td>{{ report.final_system_performance.matrix.genuine.rejected }}</td>
+            <td class="fw-semibold">{{ report.final_system_performance.matrix.genuine.total }}</td>
+          </tr>
+          <tr>
+            <th scope="row" class="table-light">Impostor</th>
+            <td>{{ report.final_system_performance.matrix.impostor.verified }}</td>
+            <td>{{ report.final_system_performance.matrix.impostor.manual_review }}</td>
+            <td>{{ report.final_system_performance.matrix.impostor.rejected }}</td>
+            <td class="fw-semibold">{{ report.final_system_performance.matrix.impostor.total }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ── D. Matcher Performance + Matcher→Final Delta ────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">FaceNet Matcher Performance <span class="badge bg-secondary fw-normal">Secondary</span></div>
+  <div class="card-body">
+    <div class="small text-muted mb-3">
+      Raw <code>matcher_base_decision</code> against ground truth, over matcher-evaluable trials only
+      ({{ report.matcher_performance.eligible_identity_trial_count }} trials) — <strong>excludes FANS-C's post-score
+      safety escalation rules</strong>. Not the final system result.
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light"><tr>
+          <th>TAR</th><th>FAR</th><th>FRR</th><th>GMRR</th><th>IMRR</th><th>Coverage</th><th>Conditional Automatic Accuracy</th>
+        </tr></thead>
+        <tbody><tr>
+          <td>{{ report.matcher_performance.tar|rate_pct }}</td>
+          <td>{{ report.matcher_performance.far|rate_pct }}</td>
+          <td>{{ report.matcher_performance.frr|rate_pct }}</td>
+          <td>{{ report.matcher_performance.gmrr|rate_pct }}</td>
+          <td>{{ report.matcher_performance.imrr|rate_pct }}</td>
+          <td>{{ report.matcher_performance.coverage|rate_pct }}</td>
+          <td>{{ report.matcher_performance.conditional_automatic_accuracy|rate_pct }}</td>
+        </tr></tbody>
+      </table>
+    </div>
+
+    <hr>
+    <div class="fw-semibold mb-2">Matcher → Final FANS-C Decision Transitions</div>
+    <div class="small text-muted mb-2">{{ report.matcher_to_final_delta.note }}</div>
+    <div class="table-responsive mb-3">
+      <table class="table table-sm mb-0">
+        <thead class="table-light"><tr><th>Matcher Decision → Final Decision</th><th>Count</th></tr></thead>
+        <tbody>
+          {% for key, count in report.matcher_to_final_delta.transitions.items %}
+          <tr><td>{{ key|transition_label }}</td><td>{{ count }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="row g-3 small">
+      <div class="col-6 col-md-4"><div class="text-muted">Quality Override Applied</div><div class="fw-semibold">{{ report.matcher_to_final_delta.escalation_reasons.quality_override_applied }}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted">Lookalike Escalation Applied</div><div class="fw-semibold">{{ report.matcher_to_final_delta.escalation_reasons.lookalike_escalation_applied }}</div></div>
+      <div class="col-6 col-md-4"><div class="text-muted">Representative Fallback Blocked</div><div class="fw-semibold">{{ report.matcher_to_final_delta.escalation_reasons.representative_fallback_blocked }}</div></div>
+    </div>
+  </div>
+</div>
+
+{# ── E. Similarity Score Distribution ────────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Genuine vs. Impostor Similarity Score Distribution</div>
+  <div class="card-body">
+    <div class="small text-muted mb-2">
+      Raw cosine similarity, domain {{ report.score_distributions.score_domain.0 }} to {{ report.score_distributions.score_domain.1 }}
+      (not 0–1). Genuine n={{ report.score_distributions.genuine.count }}, Impostor n={{ report.score_distributions.impostor.count }}.
+      Visual separation alone does not prove statistical significance.
+    </div>
+    {% if threshold_snapshot_summary.multiple_policies_represented %}
+    <div class="alert alert-warning py-2 px-3 small">
+      <i class="bi bi-exclamation-triangle-fill me-1"></i>
+      Multiple threshold policies are represented in this evaluation session's trials ({{ threshold_snapshot_summary.distinct_policy_count }}
+      distinct snapshotted pairs) — no single threshold reference line is drawn below to avoid misrepresenting history.
+    </div>
+    {% elif threshold_snapshot_summary.policies %}
+    <div class="small text-muted mb-2">
+      Snapshotted operating thresholds for this evaluation session's trials: Manual Review
+      {{ threshold_snapshot_summary.policies.0.review_threshold_snapshot|decimal_or_na:4 }},
+      Auto-Verify {{ threshold_snapshot_summary.policies.0.auto_verify_threshold_snapshot|decimal_or_na:4 }}
+      (shown as reference lines below).
+    </div>
+    {% endif %}
+    {% if report.score_distributions.genuine.count == 0 and report.score_distributions.impostor.count == 0 %}
+    <div class="text-muted small">Insufficient eligible data — no matcher-evaluable scores recorded for this evaluation session.</div>
+    {% else %}
+    <div style="position:relative; height:320px;">
+      <canvas id="bpaScoreDistributionChart"></canvas>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── F. Threshold Sensitivity Analysis ───────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Threshold Sensitivity Analysis <span class="badge bg-secondary fw-normal">Exploratory</span></div>
+  <div class="card-body">
+    <div class="small text-muted mb-2">{{ report.threshold_sweep.limitation }}</div>
+    <div class="small text-muted mb-3">
+      Candidate policy source: this evaluation session's own snapshotted operating threshold pair(s) plus the current live
+      system configuration — an <strong>Observed Trade-off</strong> for each candidate, never a recommendation.
+    </div>
+    {% if report.threshold_sweep.results %}
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light">
+          <tr>
+            <th>Manual Review Threshold</th><th>Auto-Verify Threshold</th>
+            <th>TAR</th><th>FAR</th><th>FRR</th><th>GMRR</th><th>IMRR</th><th>Coverage</th><th>Conditional Automatic Accuracy</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in report.threshold_sweep.results %}
+          <tr>
+            <td>{{ row.manual_review_threshold|decimal_or_na:4 }}</td>
+            <td>{{ row.auto_verify_threshold|decimal_or_na:4 }}</td>
+            <td>{{ row.tar|rate_pct }}</td>
+            <td>{{ row.far|rate_pct }}</td>
+            <td>{{ row.frr|rate_pct }}</td>
+            <td>{{ row.gmrr|rate_pct }}</td>
+            <td>{{ row.imrr|rate_pct }}</td>
+            <td>{{ row.coverage|rate_pct }}</td>
+            <td>{{ row.conditional_automatic_accuracy|rate_pct }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="text-muted small">Insufficient eligible data for a threshold sweep.</div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── G. ROC / AUC / EER ───────────────────────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">ROC — Matcher Score Characterization</div>
+  <div class="card-body">
+    <div class="small text-muted mb-3">
+      ROC evaluates continuous FaceNet score separability. It does NOT represent the full three-zone FANS-C
+      operating policy — Manual Review is not a third axis here.
+    </div>
+    {% if report.roc.warnings %}
+    <div class="text-muted small mb-3">
+      {% for w in report.roc.warnings %}<div>{{ w }}</div>{% endfor %}
+    </div>
+    {% else %}
+    <div style="position:relative; height:320px;">
+      <canvas id="bpaRocChart"></canvas>
+    </div>
+    <div class="small text-muted mt-2">Genuine n={{ report.roc.n_genuine }}, Impostor n={{ report.roc.n_impostor }}.</div>
+    {% endif %}
+    <div class="row g-3 mt-2">
+      <div class="col-12 col-sm-6">
+        <div class="card stat-card h-100">
+          <div class="card-body p-3">
+            <div class="stat-value text-qc-blue">
+              {% if report.auc.auc is not None %}{{ report.auc.auc|decimal_or_na:4 }}{% else %}Not available — both genuine and impostor score samples are required.{% endif %}
+            </div>
+            <div class="stat-label">AUC</div>
+            <div class="small text-muted mt-1">Area under the matcher ROC curve on this controlled evaluation dataset. Not "System Accuracy".</div>
+          </div>
+        </div>
+      </div>
+      <div class="col-12 col-sm-6">
+        <div class="card stat-card h-100">
+          <div class="card-body p-3">
+            <div class="stat-value" style="color:#fd7e14;">{{ report.eer.eer|frac_pct }}</div>
+            <div class="stat-label">Estimated Equal Error Rate</div>
+            <div class="small text-muted mt-1">
+              Estimated EER Threshold: {{ report.eer.threshold|decimal_or_na:4 }}.
+              Characterizes the raw matcher score trade-off and is NOT automatically the deployed FANS-C threshold.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    {% if report.eer.warnings %}
+    <div class="text-muted small mt-2">{% for w in report.eer.warnings %}<div>{{ w }}</div>{% endfor %}</div>
+    {% endif %}
+  </div>
+</div>
+
+{# ── H. Liveness / PAD Security Gate ─────────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Liveness / PAD Security-Gate Performance</div>
+  <div class="card-body">
+    <div class="small text-muted mb-3">
+      Measures the liveness/anti-spoof/PAD gate itself, from the recorded gate outcome — independent of the
+      final identity decision. {{ report.presentation_attack_gate_metrics.active_challenge_attestation_limitation }}
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-3"><div class="card stat-card h-100"><div class="card-body p-3">
+        <div class="stat-value" style="color:#198754;">{{ report.presentation_attack_gate_metrics.bona_fide.bona_fide_gate_pass_rate|rate_pct }}</div>
+        <div class="stat-label">Bona-Fide Gate Pass Rate</div>
+      </div></div></div>
+      <div class="col-6 col-md-3"><div class="card stat-card h-100"><div class="card-body p-3">
+        <div class="stat-value" style="color:#fd7e14;">{{ report.presentation_attack_gate_metrics.bona_fide.bona_fide_gate_rejection_rate|rate_pct }}</div>
+        <div class="stat-label">Bona-Fide Gate Rejection Rate</div>
+      </div></div></div>
+      <div class="col-6 col-md-3"><div class="card stat-card h-100"><div class="card-body p-3">
+        <div class="stat-value" style="color:#198754;">{{ report.presentation_attack_gate_metrics.overall_attack.attack_gate_block_rate|rate_pct }}</div>
+        <div class="stat-label">Attack Gate Block Rate</div>
+      </div></div></div>
+      <div class="col-6 col-md-3"><div class="card stat-card h-100"><div class="card-body p-3">
+        <div class="stat-value" style="color:#dc3545;">{{ report.presentation_attack_gate_metrics.overall_attack.attack_gate_pass_rate|rate_pct }}</div>
+        <div class="stat-label">Attack Gate Pass Rate</div>
+      </div></div></div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light"><tr><th>Attack Type</th><th>Eligible</th><th>Block Rate</th><th>Pass Rate</th></tr></thead>
+        <tbody>
+          {% for atype, data in report.presentation_attack_gate_metrics.per_attack_type.items %}
+          <tr>
+            <td>{{ attack_type_labels|get_item:atype }}</td>
+            <td>{{ data.eligible_count }}</td>
+            <td>{{ data.attack_gate_block_rate|rate_pct }}</td>
+            <td>{{ data.attack_gate_pass_rate|rate_pct }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <div class="small text-muted mt-2">{{ report.presentation_attack_gate_metrics.naming_note }}</div>
+  </div>
+</div>
+
+{# ── I. End-to-End Attack-Trial Outcome ──────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">End-to-End Attack-Trial Outcome</div>
+  <div class="card-body">
+    <div class="small text-muted mb-3">
+      {{ report.end_to_end_attack_outcome.note }}
+      End-to-end interception may result from liveness/PAD, identity mismatch, lookalike escalation,
+      representative fallback protection, or another final-system safeguard — it is not equivalent to PAD detection.
+    </div>
+    <div class="row g-3 mb-3">
+      <div class="col-6 col-md-4"><div class="card stat-card h-100"><div class="card-body p-3">
+        <div class="stat-value" style="color:#dc3545;">{{ report.end_to_end_attack_outcome.overall.attack_automatic_acceptance_rate|rate_pct }}</div>
+        <div class="stat-label">Attack Automatic Acceptance Rate</div>
+      </div></div></div>
+      <div class="col-6 col-md-4"><div class="card stat-card h-100"><div class="card-body p-3">
+        <div class="stat-value" style="color:#7c3aed;">{{ report.end_to_end_attack_outcome.overall.attack_manual_review_rate|rate_pct }}</div>
+        <div class="stat-label">Attack Manual Review Rate</div>
+      </div></div></div>
+      <div class="col-6 col-md-4"><div class="card stat-card h-100"><div class="card-body p-3">
+        <div class="stat-value" style="color:#198754;">{{ report.end_to_end_attack_outcome.overall.attack_non_acceptance_rate|rate_pct }}</div>
+        <div class="stat-label">Attack Non-Acceptance / Interception Rate</div>
+      </div></div></div>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light"><tr><th>Attack Type</th><th>Total</th><th>Automatic Acceptance</th><th>Manual Review</th><th>Non-Acceptance</th></tr></thead>
+        <tbody>
+          {% for atype, data in report.end_to_end_attack_outcome.per_attack_type.items %}
+          <tr>
+            <td>{{ attack_type_labels|get_item:atype }}</td>
+            <td>{{ data.total }}</td>
+            <td>{{ data.attack_automatic_acceptance_rate|rate_pct }}</td>
+            <td>{{ data.attack_manual_review_rate|rate_pct }}</td>
+            <td>{{ data.attack_non_acceptance_rate|rate_pct }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ── J. Controlled Verification Elapsed Time ─────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Controlled Verification Elapsed Time</div>
+  <div class="card-body">
+    <div class="small text-muted mb-3">
+      Start: {{ report.timing.start_definition }} End: {{ report.timing.end_definition }}
+      Included: {{ report.timing.included_stages }} Excluded: {{ report.timing.excluded_stages }}
+    </div>
+    {% if report.timing.overall.count == 0 %}
+    <div class="text-muted small">Insufficient eligible data — no completed trials with recorded timing.</div>
+    {% else %}
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light"><tr><th>Sample Count</th><th>Mean (s)</th><th>Median (s)</th><th>Min (s)</th><th>Max (s)</th><th>Sample Std. Dev. (s)</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>{{ report.timing.overall.count }}</td>
+            <td>{{ report.timing.overall.mean|ms_to_seconds }}</td>
+            <td>{{ report.timing.overall.median|ms_to_seconds }}</td>
+            <td>{{ report.timing.overall.min|ms_to_seconds }}</td>
+            <td>{{ report.timing.overall.max|ms_to_seconds }}</td>
+            <td>{{ report.timing.overall.sample_stddev|ms_to_seconds }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    {% if report.timing.groups %}
+    <div class="fw-semibold small mt-3 mb-1">By Final Decision</div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light"><tr><th>Decision</th><th>Count</th><th>Mean (s)</th><th>Median (s)</th></tr></thead>
+        <tbody>
+          {% for decision, stats in report.timing.groups.items %}
+          {% if stats.count > 0 %}
+          <tr>
+            <td>{{ decision_labels|get_item:decision }}</td>
+            <td>{{ stats.count }}</td>
+            <td>{{ stats.mean|ms_to_seconds }}</td>
+            <td>{{ stats.median|ms_to_seconds }}</td>
+          </tr>
+          {% endif %}
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+    {% endif %}
+  </div>
+</div>
+
+{# ── K. Beneficiary vs Representative ────────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Beneficiary vs. Representative Subgroups</div>
+  <div class="card-body">
+    <div class="small text-muted mb-3">{{ report.target_type_stratification.note }}</div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0">
+        <thead class="table-light"><tr><th>Target Type</th><th>Eligible Trials</th><th>TAR</th><th>FAR</th><th>FRR</th><th>Conditional Automatic Accuracy</th></tr></thead>
+        <tbody>
+          <tr>
+            <td>Beneficiary</td>
+            <td>{{ report.target_type_stratification.beneficiary.eligible_identity_trial_count }}</td>
+            <td>{{ report.target_type_stratification.beneficiary.tar|rate_pct }}</td>
+            <td>{{ report.target_type_stratification.beneficiary.far|rate_pct }}</td>
+            <td>{{ report.target_type_stratification.beneficiary.frr|rate_pct }}</td>
+            <td>{{ report.target_type_stratification.beneficiary.conditional_automatic_accuracy|rate_pct }}</td>
+          </tr>
+          <tr>
+            <td>Representative</td>
+            <td>{{ report.target_type_stratification.representative.eligible_identity_trial_count }}</td>
+            <td>{{ report.target_type_stratification.representative.tar|rate_pct }}</td>
+            <td>{{ report.target_type_stratification.representative.far|rate_pct }}</td>
+            <td>{{ report.target_type_stratification.representative.frr|rate_pct }}</td>
+            <td>{{ report.target_type_stratification.representative.conditional_automatic_accuracy|rate_pct }}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{# ── Claim Recording Reliability — methodology note only ─────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Claim Recording Reliability</div>
+  <div class="card-body">
+    <div class="alert alert-secondary small mb-0">
+      <i class="bi bi-info-circle me-1"></i>
+      Not retrospectively computable. {{ report.claim_recording_reliability.reason }}
+      {{ report.claim_recording_reliability.recommendation }}
+    </div>
+  </div>
+</div>
+
+{# ── L. Methodology & Limitations ────────────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header fw-semibold">
+    <a class="text-decoration-none text-reset d-flex justify-content-between align-items-center" data-bs-toggle="collapse" href="#bpaLimitationsPanel" role="button" aria-expanded="false" aria-controls="bpaLimitationsPanel">
+      Methodology &amp; Limitations
+      <i class="bi bi-chevron-down"></i>
+    </a>
+  </div>
+  <div class="collapse" id="bpaLimitationsPanel">
+    <div class="card-body small">
+      <ul class="mb-0">
+        <li>This dataset is a controlled labeled evaluation, not live operational traffic.</li>
+        <li>Results are specific to this evaluation session — they are not a claim about nationwide/general-population performance.</li>
+        <li>Manual Review is a deliberate third outcome, not folded into either success or failure.</li>
+        <li>Matcher performance (raw FaceNet decision) and final FANS-C performance (after post-score safety rules) are shown separately — see "Matcher → Final FANS-C Decision Transitions" above.</li>
+        <li>ROC/AUC/EER characterize the matcher's continuous score only, not the deployed three-zone operating policy.</li>
+        <li>{{ report.presentation_attack_gate_metrics.active_challenge_attestation_limitation }}</li>
+        <li>No raw face media (photo/video/frame) is stored by this controlled-evaluation workflow.</li>
+        <li>Claim Recording Reliability is not retrospectively computed from historical records — see the note above.</li>
+        <li>Real production Accuracy/FAR/FRR/PAD performance requires completed human-participant controlled testing; see the evaluation session status banner above for this evaluation session's current collection state.</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+{{ chart_payload|json_script:"bpa-chart-data" }}
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="{% static 'vendor/chartjs-4.4.4/chart.umd.min.js' %}"></script>
+<script src="{% static 'js/analytics_biometric.js' %}"></script>
+{% endblock %}

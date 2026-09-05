@@ -1,0 +1,4 @@
+{% if level == 'HIGH' %}<span class="badge bg-danger">HIGH{% if score is not None %} ({{ score }}/100){% endif %}</span>
+{% elif level == 'MEDIUM' %}<span class="badge bg-warning text-dark">MEDIUM{% if score is not None %} ({{ score }}/100){% endif %}</span>
+{% else %}<span class="badge bg-secondary">LOW{% if score is not None %} ({{ score }}/100){% endif %}</span>
+{% endif %}

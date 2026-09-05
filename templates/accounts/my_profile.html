@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}My Profile{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-8 col-lg-7">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / My Profile
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-4">
+    <i class="bi bi-person-badge me-2"></i>My Profile
+  </h4>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{% if msg.tags == 'error' %}danger{% else %}{{ msg.tags }}{% endif %} mb-3">
+      {{ msg }}
+    </div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="card mb-3">
+    <div class="card-header bg-light fw-semibold">
+      <i class="bi bi-shield-lock me-2"></i>Account (read-only)
+    </div>
+    <div class="card-body">
+      <div class="row g-3">
+        <div class="col-md-4">
+          <div class="text-muted small text-uppercase" style="font-size:0.7rem;letter-spacing:.04em;">Username</div>
+          <div class="fw-semibold">{{ user.username }}</div>
+        </div>
+        <div class="col-md-4">
+          <div class="text-muted small text-uppercase" style="font-size:0.7rem;letter-spacing:.04em;">System Role</div>
+          <div class="fw-semibold">{{ user.get_role_display }}</div>
+        </div>
+        <div class="col-md-4">
+          <div class="text-muted small text-uppercase" style="font-size:0.7rem;letter-spacing:.04em;">Account Status</div>
+          <div class="fw-semibold">{{ user.get_account_status_display }}</div>
+        </div>
+        <div class="col-md-6">
+          <div class="text-muted small text-uppercase" style="font-size:0.7rem;letter-spacing:.04em;">Organizational Position</div>
+          <div class="fw-semibold">{% if officer_assignment %}{{ officer_assignment.position.name }}{% else %}&mdash; Not assigned{% endif %}</div>
+        </div>
+      </div>
+      <div class="form-text mt-2">
+        System Role and Account Status can only be changed by an authorized administrator through User Management —
+        not from this page.
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white fw-semibold">
+      <i class="bi bi-pencil-square me-2"></i>Edit My Details
+    </div>
+    <div class="card-body p-4">
+      <form method="POST" novalidate>
+        {% csrf_token %}
+
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger py-2">
+          {% for error in form.non_field_errors %}{{ error }}<br>{% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="row g-3">
+          {% for field in form %}
+          <div class="{% if field.name in 'first_name,middle_name,last_name' %}col-md-4{% elif field.name == 'suffix' %}col-md-3{% else %}col-12{% endif %}">
+            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">
+              {{ field.label }}
+              {% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+            </label>
+            {{ field }}
+            {% if field.help_text %}
+            <div class="form-text">{{ field.help_text }}</div>
+            {% endif %}
+            {% for error in field.errors %}
+            <div class="text-danger small mt-1">
+              <i class="bi bi-exclamation-circle me-1"></i>{{ error }}
+            </div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" class="btn btn-primary fw-semibold px-4">
+            <i class="bi bi-check-lg me-1"></i>Save Changes
+          </button>
+          <a href="{% url 'accounts:change_password' %}" class="btn btn-outline-secondary">
+            <i class="bi bi-key me-1"></i>Change Password
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}

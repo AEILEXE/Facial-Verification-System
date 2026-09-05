@@ -1,0 +1,289 @@
+{% extends "base.html" %}
+{% block title %}Payout Claims Report{% endblock %}
+{% block nav_distribution %}active{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    Reports / Payout Claims
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-1">
+    <i class="bi bi-file-earmark-bar-graph me-2"></i>Payout Claims Report
+  </h4>
+  <p class="text-muted small mb-3">
+    Master payout/claims list with date range, event, status, and verification-method filters.
+  </p>
+
+  {# ── Quick filter chips ─────────────────────────────────────────────────── #}
+  <div class="mb-3">
+    <a href="?" class="btn btn-sm {% if not quick and not status_f %}btn-primary{% else %}btn-outline-secondary{% endif %} me-1">
+      All
+    </a>
+    <a href="?quick=released" class="btn btn-sm {% if quick == 'released' %}btn-success{% else %}btn-outline-success{% endif %} me-1">
+      Released / Claimed
+    </a>
+    <a href="?quick=pending" class="btn btn-sm {% if quick == 'pending' %}btn-warning{% else %}btn-outline-warning{% endif %} me-1">
+      Pending Approval
+    </a>
+    <a href="?quick=failed" class="btn btn-sm {% if quick == 'failed' %}btn-danger{% else %}btn-outline-danger{% endif %} me-1">
+      Failed
+    </a>
+    <a href="?quick=cancelled" class="btn btn-sm {% if quick == 'cancelled' %}btn-secondary{% else %}btn-outline-secondary{% endif %} me-1">
+      Cancelled
+    </a>
+    <a href="?quick=month" class="btn btn-sm {% if quick == 'month' %}btn-info{% else %}btn-outline-info{% endif %} me-1">
+      This Month
+    </a>
+  </div>
+
+  {# ── Summary totals ─────────────────────────────────────────────────────── #}
+  <div class="row g-2 mb-3">
+    <div class="col-6 col-md-3 col-xl-2">
+      <div class="card h-100 border-success">
+        <div class="card-body p-2 text-center">
+          <div class="small text-muted">Total Distributed</div>
+          <div class="fw-bold text-success">₱ {{ totals.amount_released|default:0|floatformat:2 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+      <div class="card h-100 border-warning">
+        <div class="card-body p-2 text-center">
+          <div class="small text-muted">Records (filter)</div>
+          <div class="fw-bold">{{ totals.total_records|default:0 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+      <div class="card h-100">
+        <div class="card-body p-2 text-center">
+          <div class="small text-muted">Beneficiaries Paid</div>
+          <div class="fw-bold text-success">{{ totals.total_paid|default:0 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+      <div class="card h-100">
+        <div class="card-body p-2 text-center">
+          <div class="small text-muted">Pending</div>
+          <div class="fw-bold text-warning">{{ totals.total_pending|default:0 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+      <div class="card h-100">
+        <div class="card-body p-2 text-center">
+          <div class="small text-muted">Failed / Cancelled</div>
+          <div class="fw-bold text-danger">{{ totals.total_failed|default:0|add:totals.total_cancelled|default:0 }}</div>
+        </div>
+      </div>
+    </div>
+    <div class="col-6 col-md-3 col-xl-2">
+      <div class="card h-100">
+        <div class="card-body p-2 text-center">
+          <div class="small text-muted">Overrides / Manual Verif.</div>
+          <div class="fw-bold text-info">{{ totals.n_overrides|default:0 }} / {{ totals.n_fallback|default:0 }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  {# ── Filters ─────────────────────────────────────────────────────────────── #}
+  <div class="card mb-3">
+    <div class="card-header bg-qc-blue text-white"><i class="bi bi-funnel me-2"></i>Filters</div>
+    <div class="card-body p-3">
+      <form method="get" class="row g-2 align-items-end">
+        <div class="col-sm-6 col-md-2">
+          <label for="filter-date-from" class="form-label fw-semibold small">Date From</label>
+          <input type="date" id="filter-date-from" name="date_from" class="form-control form-control-sm"
+                 value="{{ date_from|date:'Y-m-d'|default:'' }}">
+        </div>
+        <div class="col-sm-6 col-md-2">
+          <label for="filter-date-to" class="form-label fw-semibold small">Date To</label>
+          <input type="date" id="filter-date-to" name="date_to" class="form-control form-control-sm"
+                 value="{{ date_to|date:'Y-m-d'|default:'' }}">
+        </div>
+        <div class="col-sm-6 col-md-3">
+          <label for="filter-event" class="form-label fw-semibold small">Distribution Event</label>
+          <select id="filter-event" name="event" class="form-select form-select-sm">
+            <option value="">All Events</option>
+            {% for ev in events %}
+            <option value="{{ ev.id }}" {% if event_id == ev.id|stringformat:"s" %}selected{% endif %}>
+              {{ ev.title }} ({{ ev.date }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-6 col-md-2">
+          <label for="filter-status" class="form-label fw-semibold small">Status</label>
+          <select id="filter-status" name="status" class="form-select form-select-sm">
+            <option value="">All Statuses</option>
+            {% for val, label in status_choices %}
+            <option value="{{ val }}" {% if status_f == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-6 col-md-2">
+          <label for="filter-method" class="form-label fw-semibold small">Verification Method</label>
+          <select id="filter-method" name="method" class="form-select form-select-sm">
+            <option value="">All Methods</option>
+            {% for val, label in method_choices %}
+            <option value="{{ val }}" {% if method_f == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-6 col-md-2">
+          <label for="filter-claimant" class="form-label fw-semibold small">Claimant</label>
+          <select id="filter-claimant" name="claimant" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for val, label in claimant_choices %}
+            <option value="{{ val }}" {% if claimant_f == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-6 col-md-2">
+          <label for="filter-released-by" class="form-label fw-semibold small">Released By</label>
+          <select id="filter-released-by" name="released_by" class="form-select form-select-sm">
+            <option value="">All</option>
+            {% for u in releasers %}
+            <option value="{{ u.id }}" {% if released_by_f == u.id|stringformat:"s" %}selected{% endif %}>
+              {{ u.get_full_name|default:u.username }} (@{{ u.username }})
+            </option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-sm-6 col-md-2">
+          <label for="filter-barangay" class="form-label fw-semibold small">Barangay</label>
+          <input type="text" id="filter-barangay" name="barangay" class="form-control form-control-sm"
+                 value="{{ barangay_f }}" placeholder="barangay…">
+        </div>
+        <div class="col-12 col-md-1 d-flex gap-1">
+          <button type="submit" class="btn btn-primary btn-sm">
+            <i class="bi bi-search"></i>
+          </button>
+          <a href="{% url 'verification:report_claims' %}" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-x-circle"></i>
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {# ── Export buttons ───────────────────────────────────────────────────────── #}
+  <div class="d-flex gap-2 mb-3 flex-wrap">
+    <span class="text-muted small align-self-center">{{ total }} record{{ total|pluralize }} found</span>
+    <div class="ms-auto d-flex gap-2">
+      <a href="?{{ request.GET.urlencode }}&export=print"
+         target="_blank" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-printer me-1"></i>Print / Save as PDF
+      </a>
+      <a href="?{{ request.GET.urlencode }}&export=csv"
+         class="btn btn-outline-success btn-sm">
+        <i class="bi bi-filetype-csv me-1"></i>Export CSV
+      </a>
+      <a href="?{{ request.GET.urlencode }}&export=excel"
+         class="btn btn-success btn-sm">
+        <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+      </a>
+    </div>
+  </div>
+
+  {# ── Table ───────────────────────────────────────────────────────────────── #}
+  <div class="card">
+    <div class="table-responsive">
+      <table class="table table-hover table-sm mb-0 small">
+        <thead class="table-light">
+          <tr>
+            <th>Reference</th>
+            <th>Beneficiary</th>
+            <th>Age</th>
+            <th>Barangay</th>
+            <th>Event</th>
+            <th class="text-end">Amount</th>
+            <th>Status</th>
+            <th>Method</th>
+            <th>Released By</th>
+            <th>Released At</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for claim in claims %}
+          <tr>
+            <td class="font-monospace">{{ claim.reference_number|default:"—" }}</td>
+            <td>
+              <div class="fw-semibold">{{ claim.beneficiary.full_name }}</div>
+              <div class="text-muted font-mono" style="font-size:0.72rem;">{{ claim.beneficiary.beneficiary_id }}</div>
+            </td>
+            <td>{{ claim.beneficiary.age }}</td>
+            <td>{{ claim.beneficiary.barangay }}</td>
+            <td>
+              {% if claim.stipend_event %}{{ claim.stipend_event.title }}
+              {% else %}<span class="text-muted">(No Event)</span>{% endif %}
+            </td>
+            <td class="text-end font-monospace">₱ {{ claim.amount|floatformat:2 }}</td>
+            <td>
+              {% if claim.status == 'claimed' %}
+                <span class="badge bg-success">Claimed</span>
+              {% elif claim.status == 'pending_approval' %}
+                <span class="badge bg-warning text-dark">Pending</span>
+              {% elif claim.status == 'failed' %}
+                <span class="badge bg-danger">Failed</span>
+              {% elif claim.status == 'cancelled' %}
+                <span class="badge bg-secondary">Cancelled</span>
+              {% elif claim.status == 'rejected' %}
+                <span class="badge bg-danger">Rejected</span>
+              {% else %}
+                <span class="badge bg-secondary">{{ claim.status }}</span>
+              {% endif %}
+              {% if claim.override_by %}<span class="badge bg-info">override</span>{% endif %}
+            </td>
+            <td>
+              {% if claim.verification_method == 'face_recognition' %}<i class="bi bi-camera-video text-success"></i> Face
+              {% elif claim.verification_method == 'manual_review' %}<i class="bi bi-eye text-warning"></i> Manual
+              {% elif claim.verification_method == 'fallback_id' %}<i class="bi bi-card-text text-info"></i> Manual (ID Check)
+              {% elif claim.verification_method == 'admin_override' %}<i class="bi bi-shield-exclamation text-danger"></i> Override
+              {% else %}{{ claim.verification_method }}{% endif %}
+            </td>
+            <td>
+              {% if claim.released_by %}
+                {{ claim.released_by.get_full_name|default:claim.released_by.username }}
+                {% if claim.released_by.get_full_name %}<div class="text-muted" style="font-size:0.72rem;">@{{ claim.released_by.username }}</div>{% endif %}
+              {% else %}—{% endif %}
+            </td>
+            <td class="text-nowrap">
+              {% if claim.released_at %}{{ claim.released_at|date:"Y-m-d H:i" }}{% else %}—{% endif %}
+            </td>
+            <td>
+              <a href="{% url 'verification:payout_detail' claim_id=claim.id %}" class="btn btn-sm btn-outline-secondary">
+                <i class="bi bi-eye"></i>
+              </a>
+            </td>
+          </tr>
+          {% empty %}
+          <tr>
+            <td colspan="11" class="text-center text-muted py-4">No payouts match the selected filters.</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if paginator.num_pages > 1 %}
+    <div class="card-footer d-flex justify-content-between align-items-center py-2">
+      <span class="small text-muted">Page {{ page_obj.number }} of {{ paginator.num_pages }}</span>
+      <div>
+        {% if page_obj.has_previous %}
+          <a class="btn btn-sm btn-outline-secondary" href="?{{ request.GET.urlencode }}&page={{ page_obj.previous_page_number }}">Prev</a>
+        {% endif %}
+        {% if page_obj.has_next %}
+          <a class="btn btn-sm btn-outline-secondary" href="?{{ request.GET.urlencode }}&page={{ page_obj.next_page_number }}">Next</a>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+</div>
+{% endblock %}

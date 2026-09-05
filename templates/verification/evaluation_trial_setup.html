@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}New Controlled Trial{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+      <a href="{% url 'verification:evaluation_dataset_list' %}">System Evaluation &amp; Research</a> /
+      <a href="{% url 'verification:evaluation_dataset_detail' dataset.pk %}">{{ dataset.name }}</a> / New Trial
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0"><i class="bi bi-clipboard-plus me-2"></i>Controlled Trial Setup</h4>
+  </div>
+</div>
+
+<div class="alert alert-warning">
+  <strong><i class="bi bi-flask me-1"></i> CONTROLLED EVALUATION — NOT LIVE STIPEND DISTRIBUTION.</strong>
+  Ground truth entered here is LOCKED once the trial is created and is never derived from the system result.
+</div>
+
+<div class="card">
+  <div class="card-body">
+    <form method="post">
+      {% csrf_token %}
+
+      <h6 class="fw-bold">1. Pseudonymous Identifiers</h6>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Presenter Participant Code</label>
+          <input type="text" name="participant_code" class="form-control" required maxlength="100" placeholder="e.g. P-001">
+          <div class="form-text">A study-assigned pseudonymous code — never a real name/ID.</div>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Target Identity Code</label>
+          <input type="text" name="target_identity_code" class="form-control" required maxlength="100" placeholder="e.g. T-001">
+          <div class="form-text">Pseudonymous label for the identity being compared against.</div>
+        </div>
+      </div>
+
+      <h6 class="fw-bold">2. Target Identity Resolution (required to actually run the trial)</h6>
+      <p class="small text-muted">
+        This search may show real names/IDs so you can pick the correct enrolled record
+        (restricted to admin-tier staff) — but the trial itself only stores the
+        pseudonymous codes above plus a restricted reference, never the name/ID as an
+        analytical field. See methodology doc, "Target identity UI privacy".
+      </p>
+      <div class="btn-group mb-2" role="group" aria-label="Target type">
+        <input type="radio" class="btn-check" name="target_type" id="tt-ben" value="beneficiary" {% if target_type == 'beneficiary' %}checked{% endif %} onchange="this.form.q.focus()">
+        <label class="btn btn-outline-primary" for="tt-ben">Target: Beneficiary</label>
+        <input type="radio" class="btn-check" name="target_type" id="tt-rep" value="representative" {% if target_type == 'representative' %}checked{% endif %}>
+        <label class="btn btn-outline-primary" for="tt-rep">Target: Authorized Representative</label>
+      </div>
+      <div class="row g-2 mb-2">
+        <div class="col-md-8">
+          <input type="text" name="q" class="form-control" value="{{ query }}"
+                 placeholder="{% if target_type == 'representative' %}Search representative or beneficiary name{% else %}Search enrolled beneficiary by name / Beneficiary ID / SC ID{% endif %}">
+        </div>
+        <div class="col-md-4">
+          <button type="submit" class="btn btn-outline-secondary w-100" formnovalidate>Search</button>
+        </div>
+      </div>
+      {% if target_type == 'beneficiary' %}
+        {% if target_candidates %}
+        <div class="list-group mb-3" style="max-height:220px; overflow-y:auto;">
+          {% for b in target_candidates %}
+          <label class="list-group-item">
+            <input type="radio" name="target_beneficiary_id" value="{{ b.pk }}" class="form-check-input me-2">
+            {{ b.full_name }} <span class="text-muted small">({{ b.beneficiary_id }} / SC {{ b.senior_citizen_id }})</span>
+          </label>
+          {% endfor %}
+        </div>
+        {% elif query %}
+        <p class="text-muted small mb-3">No active beneficiaries matched "{{ query }}".</p>
+        {% endif %}
+      {% else %}
+        {% if target_candidates %}
+        <div class="list-group mb-3" style="max-height:220px; overflow-y:auto;">
+          {% for r in target_candidates %}
+          <label class="list-group-item">
+            <input type="radio" name="target_representative_id" value="{{ r.pk }}" class="form-check-input me-2">
+            {{ r.full_name }} <span class="text-muted small">({{ r.relationship }} of {{ r.beneficiary.full_name }} — {{ r.beneficiary.beneficiary_id }})</span>
+            {% if not r.has_face_data %}<span class="badge bg-warning text-dark ms-1">No face data</span>{% endif %}
+          </label>
+          {% endfor %}
+        </div>
+        {% elif query %}
+        <p class="text-muted small mb-3">No active representatives matched "{{ query }}".</p>
+        {% endif %}
+      {% endif %}
+
+      <h6 class="fw-bold">3. Ground Truth (research protocol — set BEFORE any biometric processing)</h6>
+      <div class="row g-3 mb-3">
+        <div class="col-md-6">
+          <label class="form-label">Identity Ground Truth</label>
+          <select name="identity_ground_truth" class="form-select" required>
+            <option value="">— select —</option>
+            {% for val, label in identity_choices %}
+            <option value="{{ val }}">{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-md-6">
+          <label class="form-label">Presentation / Spoof Ground Truth</label>
+          <select name="presentation_ground_truth" class="form-select">
+            {% for val, label in presentation_choices %}
+            <option value="{{ val }}" {% if val == 'not_tested' %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+      </div>
+
+      <div class="mb-3">
+        <label class="form-label">Trial Notes (optional)</label>
+        <textarea name="notes" class="form-control" rows="2"></textarea>
+      </div>
+
+      <button type="submit" name="action" value="create_trial" class="btn btn-primary">Create Trial</button>
+      <a href="{% url 'verification:evaluation_dataset_detail' dataset.pk %}" class="btn btn-outline-secondary">Cancel</a>
+    </form>
+  </div>
+</div>
+{% endblock %}

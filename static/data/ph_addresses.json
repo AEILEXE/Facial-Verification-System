@@ -1,0 +1,105 @@
+{
+  "municipalities": {
+    "Metro Manila (NCR)": [
+      "Caloocan", "Las Pinas", "Makati", "Malabon", "Mandaluyong",
+      "Manila", "Marikina", "Muntinlupa", "Navotas", "Paranaque",
+      "Pasay", "Pasig", "Pateros", "Quezon City", "San Juan",
+      "Taguig", "Valenzuela"
+    ],
+    "Cebu": ["Cebu City", "Lapu-Lapu", "Mandaue", "Talisay", "Danao", "Toledo", "Carcar"],
+    "Davao del Sur": ["Davao City", "Digos", "Mati"],
+    "Laguna": ["San Pablo", "Santa Rosa", "Calamba", "Binan", "Cabuyao", "Los Banos"],
+    "Cavite": ["Bacoor", "Dasmarinas", "Imus", "Kawit", "Tagaytay", "Trece Martires"],
+    "Bulacan": ["Malolos", "Meycauayan", "Marilao", "Calumpit", "Baliuag"],
+    "Rizal": ["Antipolo", "Cainta", "Taytay", "Rodriguez", "San Mateo"],
+    "Batangas": ["Batangas City", "Lipa", "Tanauan", "Nasugbu", "Bauan"],
+    "Pampanga": ["Angeles", "San Fernando", "Mabalacat", "Apalit", "Guagua"],
+    "Negros Occidental": ["Bacolod", "Bago", "Cadiz", "La Carlota", "Sagay", "Silay"],
+    "Iloilo": ["Iloilo City", "Passi", "San Jose", "Pototan", "Leganes"],
+    "Pangasinan": ["Dagupan", "San Carlos", "Alaminos", "Urdaneta", "Lingayen"],
+    "Leyte": ["Tacloban", "Ormoc", "Baybay", "Palo", "Tanauan"],
+    "Zamboanga del Sur": ["Zamboanga City", "Pagadian", "Dipolog", "Dapitan"],
+    "Misamis Oriental": ["Cagayan de Oro", "Gingoog", "Jasaan", "El Salvador"],
+    "Albay": ["Legazpi", "Tabaco", "Ligao", "Polangui", "Guinobatan"],
+    "Isabela": ["Ilagan", "Cauayan", "Santiago", "Roxas", "Tumauini"]
+  },
+  "barangays": {
+    "Quezon City": [
+      "Alicia", "Amihan", "Apolonio Samson", "Aurora", "Baesa",
+      "Bagbag", "Bagong Lipunan ng Crame", "Bagong Pag-asa", "Bagong Silangan",
+      "Bagumbuhay", "Bagumbayan", "Balingasa", "Balintawak", "Banaba", "Banlat",
+      "Batasan Hills", "Bungad", "Camp Aguinaldo", "Capri", "Commonwealth",
+      "Culiat", "Damayang Lagi", "Del Monte", "Dioquino Zobel", "Don Manuel",
+      "Dona Aurora", "Dona Faustina I", "Dona Faustina II", "Dona Imelda",
+      "Dona Josefa", "Duyan-Duyan", "E. Rodriguez", "East Kamias",
+      "Escopa I", "Escopa II", "Escopa III", "Escopa IV", "Fairview",
+      "Greater Lagro", "Gulod", "Holy Spirit", "Horseshoe",
+      "Immaculate Concepcion", "Kalalake", "Kaligayahan", "Kamuning",
+      "Katipunan", "Kaunlaran", "Kristong Hari", "Krus na Ligas",
+      "Laging Handa", "Libis", "Lourdes", "Loyola Heights",
+      "Maharlika", "Malaya", "Mangga", "Manresa", "Mariana",
+      "Masambong", "Matandang Balara", "Milagrosa", "Mr. and Mrs. Cruz",
+      "Nagkaisang Nayon", "New Era", "Novaliches Proper", "Obrero",
+      "Old Capitol Site", "Pag-ibig sa Nayon", "Paliguan", "Paltok",
+      "Pansol", "Pasong Tamo", "Payatas", "Phil-Am", "Pinagkaisahan",
+      "Pinyahan", "Project 6", "Project 7", "Project 8",
+      "Quirino 2-A", "Quirino 2-B", "Quirino 2-C", "Quirino 3-A",
+      "Roxas", "Sacred Heart", "Saint Ignatius", "Saint Peter",
+      "Salvacion", "San Agustin", "San Antonio", "San Bartolome",
+      "San Isidro Galas", "San Isidro Labrador", "San Jose", "San Juan",
+      "San Martin de Porres", "San Roque", "San Vicente",
+      "Santa Cruz", "Santa Lucia", "Santa Monica", "Santa Teresita",
+      "Santo Cristo", "Santo Domingo", "Santo Nino", "Santol",
+      "Sauyo", "Siena", "Sikatuna Village", "Silangan", "Socorro",
+      "South Triangle", "Tagumpay", "Talayan", "Talipapa",
+      "Tandang Sora", "Tatalon", "Teachers Village East", "Teachers Village West",
+      "U.P. Campus", "U.P. Village", "Ugong Norte", "Unang Sigaw",
+      "Valencia", "Vasra", "Veterans Village", "Villa Maria Clara",
+      "West Kamias", "West Triangle", "White Plains"
+    ],
+    "Manila": [
+      "Binondo", "Ermita", "Intramuros", "Malate", "Paco", "Pandacan",
+      "Port Area", "Quiapo", "Sampaloc", "San Andres", "San Miguel",
+      "San Nicolas", "Santa Ana", "Santa Cruz", "Santa Mesa", "Tondo"
+    ],
+    "Makati": [
+      "Bel-Air", "Cembo", "Comembo", "Dasmariñas", "East Rembo",
+      "Forbes Park", "Guadalupe Nuevo", "Guadalupe Viejo", "Kasilawan",
+      "La Paz", "Legazpi Village", "Magallanes", "Olympia", "Palanan",
+      "Pembo", "Pinagkaisahan", "Pio del Pilar", "Pitogo", "Poblacion",
+      "Post Proper Northside", "Post Proper Southside", "Rizal",
+      "Rockwell", "San Antonio", "San Isidro", "San Lorenzo",
+      "Santa Cruz", "South Cembo", "Tejeros", "Urdaneta",
+      "Valero", "West Rembo"
+    ],
+    "Caloocan": [
+      "Bagong Barrio", "Barangay 1", "Barangay 2", "Barangay 15",
+      "EDSA Southside", "Grace Park East", "Grace Park West",
+      "Kaunlaran", "Sangandaan", "Tipas"
+    ],
+    "Pasig": [
+      "Bagong Ilog", "Bagong Katipunan", "Bambang", "Buting",
+      "Caniogan", "Kalawaan", "Kapasigan", "Kapitolyo",
+      "Malinao", "Manggahan", "Maybunga", "Oranbo", "Palatiw",
+      "Pinagbuhatan", "Pineda", "Rosario", "Sagad",
+      "San Antonio", "San Joaquin", "San Jose", "San Miguel",
+      "Santa Cruz", "Santa Lucia", "Santa Rosa", "Santo Tomas",
+      "Santolan", "Sumilang", "Ugong"
+    ],
+    "Cebu City": [
+      "Apas", "Basak Pardo", "Basak San Nicolas", "Bonbon",
+      "Busay", "Calamba", "Capitol Site", "Carreta", "Cogon Ramos",
+      "Day-as", "Duljo-Fatima", "Ermita", "Guadalupe", "Hipodromo",
+      "Inayawan", "Kalubihan", "Kasambagan", "Kinasang-an",
+      "Labangon", "Lahug", "Lorega", "Lusaran", "Luz",
+      "Mabini", "Mabolo", "Malubog", "Mambaling", "Pahina Central",
+      "Pahina San Nicolas", "Pamutan", "Parian", "Paril", "Pasil",
+      "Pit-os", "Poblacion Pardo", "Punta Princesa", "Quiot",
+      "San Antonio", "San Jose", "San Roque", "Santa Cruz",
+      "Santo Nino", "Sapangdaku", "Sirao", "South Road Properties",
+      "Suba", "Sudlon I", "Sudlon II", "T. Padilla",
+      "Talamban", "Taptap", "Tejero", "Tinago", "Tisa",
+      "To-ong Pardo", "Zapatera"
+    ]
+  }
+}

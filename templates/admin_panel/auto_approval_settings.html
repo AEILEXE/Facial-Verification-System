@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% block title %}Auto-Approval Settings{% endblock %}
+{% block nav_admin %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-8 col-xl-7">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    Auto-Approval Settings
+  </div>
+  <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
+    <div>
+      <h4 class="fw-bold text-qc-blue mb-0">
+        <i class="bi bi-toggles me-2"></i>Registration Approval Toggles
+      </h4>
+      <div class="text-muted small mt-1">
+        Control which registration types are automatically approved upon submission.
+      </div>
+    </div>
+    <a href="{% url 'beneficiaries:pending_approvals' %}" class="btn btn-outline-primary btn-sm">
+      <i class="bi bi-hourglass-split me-1"></i>Pending Approvals Queue
+    </a>
+  </div>
+
+  <div class="alert d-flex gap-2 align-items-start mb-4 p-3"
+       style="background:#fefce8; border:1px solid #fde68a; font-size:0.83rem;">
+    <i class="bi bi-shield-check-fill flex-shrink-0 mt-1" style="color:#b45309;"></i>
+    <div style="color:#78350f;">
+      <strong>Auto-Approval does not affect face verification, liveness checks, manual review, or claim security.</strong>
+      It only controls whether new registrations are automatically set to <em>Active</em> or placed in a
+      <em>Pending Review</em> queue for administrator approval. Only enable in a trusted, supervised environment.
+    </div>
+  </div>
+
+  <form method="POST">
+    {% csrf_token %}
+    <div class="card">
+      <div class="card-header bg-qc-blue text-white">
+        <i class="bi bi-gear me-2"></i>Approval Rules
+      </div>
+
+      {% with keys_list=AUTO_APPROVE_KEYS.items %}
+
+      {# Beneficiary registrations #}
+      {% for key, label in keys_list %}
+      {% with is_on=settings_state|dictsort:key %}
+      <div class="p-3 {% if not forloop.last %}border-bottom{% endif %}">
+        <div class="d-flex align-items-start gap-3">
+          <div class="flex-grow-1">
+            <div class="fw-semibold">
+              {% if key == 'auto_approve_beneficiaries' %}
+                <i class="bi bi-person-plus text-primary me-1"></i>Beneficiary Registrations
+              {% elif key == 'auto_approve_representatives' %}
+                <i class="bi bi-people text-info me-1"></i>Representative Additions
+              {% elif key == 'auto_approve_face_enrollments' %}
+                <i class="bi bi-camera text-warning me-1"></i>Face Enrollment Updates
+              {% elif key == 'auto_approve_user_accounts' %}
+                <i class="bi bi-person-gear text-secondary me-1"></i>New Staff Accounts
+              {% else %}
+                <i class="bi bi-gear text-secondary me-1"></i>{{ label }}
+              {% endif %}
+            </div>
+            <div class="small text-muted mt-1">
+              {% if key == 'auto_approve_beneficiaries' %}
+                New beneficiary registrations are immediately activated without admin review.
+              {% elif key == 'auto_approve_representatives' %}
+                New representatives added to a beneficiary profile are immediately activated.
+              {% elif key == 'auto_approve_face_enrollments' %}
+                Face data update requests are applied immediately without admin approval.
+              {% elif key == 'auto_approve_user_accounts' %}
+                New staff accounts become active immediately upon creation.
+              {% endif %}
+            </div>
+            <div class="mt-1" style="font-size:0.73rem;">
+              {% for k, v in settings_state.items %}{% if k == key %}
+                {% if v %}
+                  <span class="badge bg-warning text-dark">
+                    <i class="bi bi-check-circle me-1"></i>ON &mdash; auto-approved
+                  </span>
+                {% else %}
+                  <span class="badge bg-secondary">
+                    <i class="bi bi-hourglass-split me-1"></i>OFF &mdash; requires admin approval
+                  </span>
+                {% endif %}
+              {% endif %}{% endfor %}
+            </div>
+          </div>
+          <div class="flex-shrink-0 pt-1">
+            <div class="form-check form-switch mb-0">
+              <input class="form-check-input" type="checkbox" name="{{ key }}" id="toggle_{{ key }}"
+                     role="switch" style="width:2.5rem; height:1.3rem;"
+                     {% for k, v in settings_state.items %}{% if k == key and v %}checked{% endif %}{% endfor %}>
+              <label class="form-check-label visually-hidden" for="toggle_{{ key }}">{{ label }}</label>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endwith %}
+      {% endfor %}
+      {% endwith %}
+
+      <div class="card-footer bg-light d-flex gap-2 justify-content-between align-items-center">
+        <div class="text-muted small">
+          <i class="bi bi-info-circle me-1"></i>Changes take effect immediately after saving.
+        </div>
+        <div class="d-flex gap-2">
+          <a href="{% url 'beneficiaries:dashboard' %}" class="btn btn-outline-secondary btn-sm">Cancel</a>
+          <button type="submit" class="btn btn-primary btn-sm px-4">
+            <i class="bi bi-save me-1"></i>Save Settings
+          </button>
+        </div>
+      </div>
+    </div>
+  </form>
+
+</div>
+</div>
+{% endblock %}

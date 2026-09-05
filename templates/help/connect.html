@@ -1,0 +1,349 @@
+{% extends "base.html" %}
+{% block title %}How to Connect{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-wifi me-2"></i>How to Connect
+    </h4>
+    <p class="text-muted small mb-0">
+      Step-by-step guide to access FANSC from other devices on the same network.
+    </p>
+  </div>
+  {% if user.is_authenticated %}
+  <a href="{% url 'beneficiaries:dashboard' %}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Back to Dashboard
+  </a>
+  {% endif %}
+</div>
+
+{# ── Two ways to access — comparison table ──────────────────────────────── #}
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center gap-2">
+    <i class="bi bi-signpost-2 me-1 text-qc-blue"></i>Two Ways to Access FANSC
+    {% if request.is_secure %}
+    <span class="ms-auto" style="display:inline-block; padding:2px 8px; border-radius:10px; background:#dcfce7; color:#15803d; border:1px solid #86efac; font-size:0.7rem; font-weight:600;">
+      <i class="bi bi-shield-check me-1"></i>Currently: Secure Access (HTTPS)
+    </span>
+    {% else %}
+    <span class="ms-auto" style="display:inline-block; padding:2px 8px; border-radius:10px; background:#fef3c7; color:#b45309; border:1px solid #fde68a; font-size:0.7rem; font-weight:600;">
+      <i class="bi bi-exclamation-triangle me-1"></i>Currently: Fallback Access (HTTP)
+    </span>
+    {% endif %}
+  </div>
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-bordered mb-0" style="font-size:0.82rem;">
+        <thead class="table-light">
+          <tr>
+            <th class="px-3 py-2" style="width:28%;">Feature</th>
+            <th class="px-3 py-2 text-success" style="width:36%;">
+              <i class="bi bi-shield-check me-1"></i>Secure Access (HTTPS)
+              <span class="badge bg-success ms-1" style="font-size:0.6rem;">Recommended</span>
+            </th>
+            <th class="px-3 py-2" style="width:36%; color:#b45309;">
+              <i class="bi bi-hdd-network me-1"></i>Fallback Access (HTTP)
+              <span style="display:inline-block; padding:1px 5px; border-radius:8px; background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-size:0.6rem; font-weight:600; margin-left:3px;">No Setup Needed</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="px-3 py-2 fw-semibold text-muted">URL</td>
+            <td class="px-3 py-2">
+              <a href="{{ server_domain_url }}" class="font-mono text-success text-decoration-none" style="font-size:0.78rem;">
+                {{ server_domain_url }}
+              </a>
+            </td>
+            <td class="px-3 py-2">
+              {% if server_lan_url %}
+              <a href="{{ server_lan_url }}" class="font-mono text-decoration-none" style="font-size:0.78rem; color:#b45309;">
+                {{ server_lan_url }}
+              </a>
+              {% else %}
+              <span class="text-muted">Not detected</span>
+              {% endif %}
+            </td>
+          </tr>
+          <tr>
+            <td class="px-3 py-2 fw-semibold text-muted">Security</td>
+            <td class="px-3 py-2 text-success"><i class="bi bi-check-circle-fill me-1"></i>Encrypted (HTTPS)</td>
+            <td class="px-3 py-2" style="color:#b45309;"><i class="bi bi-dash-circle me-1"></i>Unencrypted (HTTP)</td>
+          </tr>
+          <tr>
+            <td class="px-3 py-2 fw-semibold text-muted">Camera / Face Scan</td>
+            <td class="px-3 py-2 text-success"><i class="bi bi-check-circle-fill me-1"></i>Enabled</td>
+            <td class="px-3 py-2 text-danger"><i class="bi bi-x-circle-fill me-1"></i>Disabled (requires HTTPS)</td>
+          </tr>
+          <tr>
+            <td class="px-3 py-2 fw-semibold text-muted">Setup required</td>
+            <td class="px-3 py-2 text-muted"><i class="bi bi-dash-circle me-1 text-warning"></i>One-time hosts file per device</td>
+            <td class="px-3 py-2 text-success"><i class="bi bi-check-circle-fill me-1"></i>None — works immediately</td>
+          </tr>
+          <tr>
+            <td class="px-3 py-2 fw-semibold text-muted">Best for</td>
+            <td class="px-3 py-2 text-muted">Full operations: verification, registration, all features</td>
+            <td class="px-3 py-2 text-muted">Quick access, admin tasks, testing (no camera needed)</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+    {% if not request.is_secure %}
+    <div class="p-3 border-top d-flex align-items-start gap-2" style="background:#fff7ed; font-size:0.82rem;">
+      <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1" style="color:#c2410c;"></i>
+      <span>
+        <strong style="color:#c2410c;">You are currently on Fallback Access (HTTP).</strong>
+        Camera-based verification and registration will not work.
+        To enable all features, switch to
+        <a href="{{ server_domain_url }}" class="fw-semibold text-decoration-none" style="color:#c2410c;">
+          {{ server_domain_url }}
+        </a>
+        and follow the connection steps below.
+      </span>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-4">
+
+  {# ── Left column: Access URLs + Troubleshooting ─────────────────────── #}
+  <div class="col-lg-5">
+
+    <div class="card mb-4">
+      <div class="card-header d-flex align-items-center gap-2">
+        <i class="bi bi-link-45deg text-primary"></i>
+        Access URLs
+        <span class="badge bg-success ms-auto fw-normal" style="font-size:0.65rem;">
+          <i class="bi bi-circle-fill me-1" style="font-size:0.4rem;"></i>Server Running
+        </span>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr>
+              <td class="px-3 py-2 text-muted small fw-semibold text-nowrap">This device</td>
+              <td class="px-3 py-2">
+                <a href="{{ server_local_url }}" class="font-mono small text-primary text-decoration-none">
+                  {{ server_local_url }}
+                </a>
+              </td>
+            </tr>
+            {% if server_lan_url %}
+            <tr class="table-success">
+              <td class="px-3 py-2 text-muted small fw-semibold text-nowrap">
+                LAN / Wi-Fi
+                <span class="badge bg-success" style="font-size:0.6rem;">Easiest</span>
+              </td>
+              <td class="px-3 py-2">
+                <a href="{{ server_lan_url }}" class="font-mono small text-success text-decoration-none fw-semibold">
+                  {{ server_lan_url }}
+                </a>
+                <div class="text-muted" style="font-size:0.72rem;">Share this link with other staff devices.</div>
+              </td>
+            </tr>
+            {% endif %}
+            <tr>
+              <td class="px-3 py-2 text-muted small fw-semibold text-nowrap">
+                Domain
+                <span class="badge bg-primary" style="font-size:0.6rem;">HTTPS</span>
+              </td>
+              <td class="px-3 py-2">
+                <a href="{{ server_domain_url }}" class="font-mono small text-primary text-decoration-none">
+                  {{ server_domain_url }}
+                </a>
+                <div class="text-muted" style="font-size:0.72rem;">Enables camera for verification.</div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      {% if not server_lan_url %}
+      <div class="card-footer">
+        <div class="alert alert-warning py-2 px-3 mb-0" style="font-size:0.82rem;">
+          <i class="bi bi-exclamation-triangle me-1"></i>
+          LAN IP could not be detected. Check that this server is connected to the network.
+        </div>
+      </div>
+      {% endif %}
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-tools me-2 text-warning"></i>Troubleshooting
+      </div>
+      <div class="card-body p-3">
+
+        <div class="mb-3 pb-3 border-bottom">
+          <div class="fw-semibold small mb-1">
+            <i class="bi bi-exclamation-circle me-1 text-warning"></i>
+            Domain (fans-barangay.local) not working?
+          </div>
+          <div class="text-muted small">
+            Use the <strong>LAN IP address</strong> instead.
+            {% if server_lan_url %}
+              Copy <code>{{ server_lan_url }}</code> into the browser.
+            {% endif %}
+            The domain requires a one-time hosts file setup on each client device,
+            but the IP address works immediately.
+          </div>
+        </div>
+
+        <div class="mb-3 pb-3 border-bottom">
+          <div class="fw-semibold small mb-1">
+            <i class="bi bi-camera-video-off me-1 text-danger"></i>
+            Camera not working?
+          </div>
+          <div class="text-muted small">
+            Browsers only allow camera access on <strong>https://</strong> or <strong>localhost</strong>.
+            Use <code>{{ server_domain_url }}</code> (HTTPS) from client devices.
+            The plain IP URL (<code>http://</code>) cannot access the camera.
+          </div>
+        </div>
+
+        <div class="mb-0">
+          <div class="fw-semibold small mb-1">
+            <i class="bi bi-wifi-off me-1 text-danger"></i>
+            Cannot reach the server at all?
+          </div>
+          <div class="text-muted small">
+            Make sure all devices are on the <strong>same Wi-Fi or LAN network</strong>.
+            Mobile data (4G/5G) will not work. The server and client must be on the same router.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  {# ── Right column: Step-by-step guide + Domain vs IP ────────────────── #}
+  <div class="col-lg-7">
+
+    <div class="card mb-4">
+      <div class="card-header">
+        <i class="bi bi-list-ol me-2 text-qc-blue"></i>Step-by-Step: Connect from Another Device
+      </div>
+      <div class="card-body p-4">
+
+        <div class="d-flex gap-3 mb-4">
+          <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle fw-bold text-white"
+               style="width:2rem; height:2rem; min-width:2rem; background:var(--qc-blue); font-size:0.9rem;">1</div>
+          <div>
+            <div class="fw-semibold mb-1">Connect to the same Wi-Fi</div>
+            <div class="text-muted small">
+              The client device (tablet or PC) must be on the <strong>same Wi-Fi or LAN network</strong>
+              as the FANSC server. Mobile data will not work.
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-3 mb-4">
+          <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle fw-bold text-white"
+               style="width:2rem; height:2rem; min-width:2rem; background:var(--qc-blue); font-size:0.9rem;">2</div>
+          <div>
+            <div class="fw-semibold mb-1">Open a browser</div>
+            <div class="text-muted small">
+              Open <strong>Google Chrome</strong> or <strong>Microsoft Edge</strong> on the client device.
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-3 mb-4">
+          <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle fw-bold text-white"
+               style="width:2rem; height:2rem; min-width:2rem; background:var(--qc-blue); font-size:0.9rem;">3</div>
+          <div>
+            <div class="fw-semibold mb-1">Type the address in the browser bar</div>
+            <div class="text-muted small mb-2">Use one of the following:</div>
+            <div class="p-2 rounded mb-2" style="background:#f0fdf4; border:1px solid #86efac;">
+              <div class="text-muted mb-1" style="font-size:0.72rem;">
+                <i class="bi bi-shield-check text-success me-1"></i>
+                <strong>Secure Access</strong> &mdash; HTTPS, camera enabled (requires one-time hosts setup):
+              </div>
+              <code class="text-success fw-semibold" style="font-size:0.9rem;">{{ server_domain_url }}</code>
+            </div>
+            {% if server_lan_url %}
+            <div class="p-2 rounded" style="background:#fff7ed; border:1px solid #fed7aa;">
+              <div class="text-muted mb-1" style="font-size:0.72rem;">
+                <i class="bi bi-hdd-network me-1" style="color:#b45309;"></i>
+                <strong>Fallback Access</strong> &mdash; HTTP, no setup needed, camera disabled:
+              </div>
+              <code style="font-size:0.9rem; color:#b45309; font-weight:600;">{{ server_lan_url }}</code>
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <div class="d-flex gap-3 mb-4">
+          <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle fw-bold text-white"
+               style="width:2rem; height:2rem; min-width:2rem; background:var(--qc-blue); font-size:0.9rem;">4</div>
+          <div>
+            <div class="fw-semibold mb-1">Accept the certificate warning (first time only)</div>
+            <div class="text-muted small">
+              When accessing the domain for the first time, the browser may show a security warning.
+              Click <strong>Advanced</strong> &rarr; <strong>Proceed to fans-barangay.local</strong>.
+              This only happens once per device and is expected for local network certificates.
+            </div>
+          </div>
+        </div>
+
+        <div class="d-flex gap-3">
+          <div class="flex-shrink-0 d-flex align-items-center justify-content-center rounded-circle fw-bold text-white"
+               style="width:2rem; height:2rem; min-width:2rem; background:#15803d; font-size:0.9rem;">
+            <i class="bi bi-check-lg"></i>
+          </div>
+          <div>
+            <div class="fw-semibold mb-1">Sign in</div>
+            <div class="text-muted small">
+              The FANSC login page will appear. Sign in with your assigned username and password.
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-info-circle me-2 text-info"></i>Secure Access vs. Fallback Access &mdash; Summary
+      </div>
+      <div class="card-body p-3">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="p-3 rounded h-100" style="background:#f0fdf4; border:1px solid #86efac;">
+              <div class="fw-semibold small mb-2" style="color:#15803d;">
+                <i class="bi bi-shield-check me-1"></i>Secure Access (HTTPS)
+                <span class="badge bg-success ms-1" style="font-size:0.6rem;">Recommended</span>
+              </div>
+              <ul class="small text-muted mb-0 ps-3">
+                <li>Encrypted HTTPS connection</li>
+                <li>Camera enabled for face verification</li>
+                <li>All features available</li>
+                <li>Requires one-time hosts file setup per device</li>
+                <li><code>{{ server_domain_url }}</code></li>
+              </ul>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-3 rounded h-100" style="background:#fff7ed; border:1px solid #fed7aa;">
+              <div class="fw-semibold small mb-2" style="color:#b45309;">
+                <i class="bi bi-hdd-network me-1"></i>Fallback Access (HTTP)
+                <span style="display:inline-block; padding:1px 5px; border-radius:8px; background:#fef3c7; color:#92400e; border:1px solid #fde68a; font-size:0.6rem; font-weight:600; margin-left:3px;">No Setup Needed</span>
+              </div>
+              <ul class="small text-muted mb-0 ps-3">
+                <li>Unencrypted HTTP connection</li>
+                <li>Camera disabled (browser security restriction)</li>
+                <li>Good for admin tasks without verification</li>
+                <li>Works immediately, no hosts file needed</li>
+                <li><code>{{ server_lan_url|default:"http://192.168.x.x:8000" }}</code></li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Create Initial President{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-md-8 col-lg-6">
+
+  <div class="breadcrumb-fans mb-1">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> / Initial Organizational Setup
+  </div>
+  <h4 class="fw-bold text-qc-blue mb-3">
+    <i class="bi bi-person-plus me-2"></i>Create the Initial President Account
+  </h4>
+
+  <div class="alert alert-info small">
+    Initial organizational setup required &mdash; create the authorized President account.
+    This is a one-time step available only while no President account exists. Once created,
+    ordinary officer succession goes through normal User Management.
+  </div>
+
+  {% if messages %}
+    {% for msg in messages %}
+    <div class="alert alert-{% if msg.tags == 'error' %}danger{% else %}{{ msg.tags }}{% endif %} mb-3">{{ msg }}</div>
+    {% endfor %}
+  {% endif %}
+
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white fw-semibold">
+      <i class="bi bi-person me-2"></i>President Account Details
+    </div>
+    <div class="card-body p-4">
+      <form method="POST" novalidate>
+        {% csrf_token %}
+        {% if form.non_field_errors %}
+        <div class="alert alert-danger py-2">
+          {% for error in form.non_field_errors %}{{ error }}<br>{% endfor %}
+        </div>
+        {% endif %}
+
+        <div class="row g-3">
+          {% for field in form %}
+          <div class="col-12">
+            <label class="form-label fw-semibold" for="{{ field.id_for_label }}">
+              {{ field.label }}{% if field.field.required %}<span class="text-danger">*</span>{% endif %}
+            </label>
+            {% if field.field.widget.input_type == 'password' %}
+            <div class="input-group">
+              {{ field }}
+              <button class="btn btn-outline-secondary pw-toggle" type="button"
+                      data-target="{{ field.id_for_label }}" tabindex="-1"
+                      aria-label="Show or hide password"><i class="bi bi-eye"></i></button>
+            </div>
+            {% else %}
+            {{ field }}
+            {% endif %}
+            {% for error in field.errors %}
+            <div class="text-danger small mt-1"><i class="bi bi-exclamation-circle me-1"></i>{{ error }}</div>
+            {% endfor %}
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="d-flex gap-2 mt-4">
+          <button type="submit" class="btn btn-primary fw-semibold px-4">
+            <i class="bi bi-check-lg me-1"></i>Create President Account
+          </button>
+          <a href="{% url 'beneficiaries:dashboard' %}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+</div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.querySelectorAll('.pw-toggle').forEach(function (btn) {
+  btn.addEventListener('click', function () {
+    var inp = document.getElementById(btn.dataset.target);
+    if (!inp) return;
+    var show = inp.type === 'password';
+    inp.type = show ? 'text' : 'password';
+    btn.querySelector('i').className = show ? 'bi bi-eye-slash' : 'bi bi-eye';
+  });
+});
+</script>
+{% endblock %}

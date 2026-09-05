@@ -1,0 +1,65 @@
+<ul class="nav nav-tabs mb-3">
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'executive' %}active{% endif %}" href="{% url 'verification:analytics_executive' %}">
+      <i class="bi bi-speedometer2 me-1"></i>Executive
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'operational' %}active{% endif %}" href="{% url 'verification:analytics_operational' %}">
+      <i class="bi bi-graph-up me-1"></i>Operational
+    </a>
+  </li>
+  {# Technical Administrator only — see templates/base.html's Technical    #}
+  {# Administration dropdown for the matching nav-visibility rationale.    #}
+  {% if user.is_admin_it %}
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'biometric' %}active{% endif %}" href="{% url 'verification:analytics_biometric_performance' %}">
+      <i class="bi bi-fingerprint me-1"></i>System Evaluation &amp; Research
+    </a>
+  </li>
+  {% endif %}
+  <li class="nav-item">
+    <a class="nav-link {% if active_tab == 'security' %}active{% endif %}" href="{% url 'verification:analytics_security' %}">
+      <i class="bi bi-shield-exclamation me-1"></i>Security
+    </a>
+  </li>
+</ul>
+
+{% if server_time %}
+<div class="small text-muted mb-2">
+  <i class="bi bi-clock-history me-1"></i>Data as of {{ server_time|date:"M d, Y g:i:s A" }}
+  <a href="{{ request.path }}{% if request.META.QUERY_STRING %}?{{ request.META.QUERY_STRING }}{% endif %}" class="ms-1">
+    <i class="bi bi-arrow-clockwise"></i> Refresh
+  </a>
+</div>
+{% endif %}
+
+{% if active_tab != 'biometric' %}
+<form method="GET" class="row g-2 align-items-end mb-4">
+  <div class="col-auto">
+    <label for="analytics-date-from" class="form-label small mb-0">From</label>
+    <input type="date" id="analytics-date-from" name="date_from" class="form-control form-control-sm" value="{{ date_from|date:'Y-m-d' }}">
+  </div>
+  <div class="col-auto">
+    <label for="analytics-date-to" class="form-label small mb-0">To</label>
+    <input type="date" id="analytics-date-to" name="date_to" class="form-control form-control-sm" value="{{ date_to|date:'Y-m-d' }}">
+  </div>
+  <div class="col-auto">
+    <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+  </div>
+  <div class="col-auto ms-auto">
+    <a class="btn btn-sm btn-outline-secondary"
+       href="?{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}export=csv">
+      <i class="bi bi-download me-1"></i>Export CSV
+    </a>
+  </div>
+</form>
+
+{% if date_range_invalid %}
+<div class="alert alert-warning py-2 px-3 small mb-3">
+  <i class="bi bi-exclamation-triangle-fill me-1"></i>
+  "From" ({{ date_from|date:'Y-m-d' }}) is after "To" ({{ date_to|date:'Y-m-d' }}) — this range matches no
+  records, so every figure below reads as zero/empty. Adjust the dates above.
+</div>
+{% endif %}
+{% endif %}

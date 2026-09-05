@@ -1,0 +1,519 @@
+{% extends "base.html" %}
+{% block title %}Verification Result{% endblock %}
+{% block nav_verify %}active{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+<div class="col-lg-7 col-xl-6">
+
+  <div class="breadcrumb-fans mb-3">
+    <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+    <a href="{% url 'verification:verify_select' %}">Verify</a> /
+    Result
+  </div>
+
+  {% if mock_denial %}
+  <div class="alert alert-danger d-flex gap-2 align-items-start mb-3">
+    <i class="bi bi-exclamation-octagon-fill flex-shrink-0 mt-1" style="font-size:1.2rem;"></i>
+    <div>
+      <div class="fw-bold mb-1">No real biometric verification was performed.</div>
+      <div class="small">
+        The face recognition model was not loaded when this attempt was recorded.
+        This result does <strong>not</strong> represent a valid identity match.
+        Install <code>keras-facenet</code> and <code>tensorflow-cpu</code> (Python 3.11 required),
+        restart the server, and re-verify the beneficiary before releasing any stipend.
+      </div>
+      {% if model_load_error %}
+      <div class="mt-2 font-mono small text-danger-emphasis">{{ model_load_error }}</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Result Banner -->
+  {% if attempt.decision == 'verified' %}
+  <div class="result-banner {% if attempt.demo_mode_active %}review{% else %}verified{% endif %} mb-4">
+    <i class="bi bi-{% if attempt.demo_mode_active %}exclamation-triangle-fill{% else %}check-circle-fill{% endif %}"></i>
+    <div class="result-text">
+      <div class="result-label">
+        {% if attempt.demo_mode_active %}VERIFIED &mdash; ASSISTED MODE{% else %}VERIFIED{% endif %}
+        <span class="demo-mode-badge ms-2" style="display:none;">ASSISTED</span>
+      </div>
+      <div class="result-sub">
+        <div class="fw-semibold">Face Verification Successful</div>
+        {% if attempt.claimant_type == 'representative' and attempt.representative %}
+          Representative <strong>{{ attempt.representative.full_name }}</strong> identity confirmed &mdash; stipend may be released
+        {% elif attempt.claimant_type == 'representative' %}
+          Representative identity confirmed &mdash; stipend may be released
+        {% else %}
+          Beneficiary identity confirmed &mdash; stipend may be released
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% if attempt.demo_mode_active %}
+  <div class="alert alert-warning d-flex gap-2 align-items-start mb-3">
+    <i class="bi bi-exclamation-triangle-fill flex-shrink-0 mt-1"></i>
+    <div>
+      <div class="fw-bold">Assisted Rollout Mode is active</div>
+      <div class="small">
+        Liveness check results were recorded but <strong>did not block</strong> this verification.
+        This result is valid for identity confirmation only.
+        <strong>Not recommended for full production deployment.</strong>
+        Ask your Technical Administrator to enable Strict Mode (<code>LIVENESS_REQUIRED=True</code>) before live operations.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+  {% elif attempt.decision == 'denied' %}
+  <div class="result-banner denied mb-4">
+    <i class="bi bi-x-circle-fill"></i>
+    <div class="result-text">
+      <div class="result-label">
+        {% if denial_reason_label == 'liveness_failed' %}DENIED &mdash; LIVENESS FAILED
+        {% elif denial_reason_label == 'face_mismatch' %}DENIED &mdash; FACE MISMATCH
+        {% elif denial_reason_label == 'rep_face_mismatch' %}DENIED &mdash; REPRESENTATIVE FACE MISMATCH
+        {% elif denial_reason_label == 'rep_no_face' %}DENIED &mdash; NO REP FACE DATA
+        {% elif denial_reason_label == 'rep_not_active' %}DENIED &mdash; REPRESENTATIVE INACTIVE
+        {% else %}NOT VERIFIED{% endif %}
+        {% if attempt.demo_mode_active %}<span class="demo-mode-badge ms-2">ASSISTED</span>{% endif %}
+      </div>
+      <div class="result-sub">
+        <div class="fw-semibold">Verification Failed</div>
+        {% if denial_reason_label == 'liveness_failed' %}
+          Anti-spoofing or head movement challenge was not passed
+        {% elif denial_reason_label == 'face_mismatch' %}
+          The captured face does not match the registered beneficiary.
+        {% elif denial_reason_label == 'rep_face_mismatch' %}
+          Representative's face did not match their registered biometric data
+        {% elif denial_reason_label == 'rep_no_face' %}
+          Representative has no registered face data &mdash; register their face before verifying
+        {% elif denial_reason_label == 'rep_not_active' %}
+          Representative is no longer active for this beneficiary
+        {% else %}
+          Identity could not be confirmed
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% elif attempt.decision == 'manual_review' %}
+  <div class="result-banner review mb-4">
+    <i class="bi bi-shield-exclamation"></i>
+    <div class="result-text">
+      <div class="result-label">
+        {% if pending_manual_request %}PENDING ADMIN APPROVAL
+        {% else %}MANUAL REVIEW &mdash; RELEASE BLOCKED{% endif %}
+        {% if attempt.demo_mode_active %}<span class="demo-mode-badge ms-2">ASSISTED</span>{% endif %}
+      </div>
+      <div class="result-sub">
+        <div class="fw-semibold">Manual Review Required</div>
+        {% if pending_manual_request %}
+          Manual verification request submitted &mdash; awaiting admin decision
+        {% else %}
+          The face match confidence is below the automatic approval threshold.
+          Stipend release is BLOCKED. An administrator must approve this attempt before any release.
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <!-- v2.1.13 (Issue 3): explicit per-stage breakdown so operators are not -->
+  <!-- misled by a "Liveness PASSED" indicator on a manual-review attempt. -->
+  <div class="alert d-flex flex-column gap-2 mb-4"
+       style="background:#fff7ed; border:1px solid #fdba74; color:#7c2d12;">
+    <div class="fw-bold d-flex align-items-center gap-2">
+      <i class="bi bi-exclamation-triangle-fill"></i>
+      Decision breakdown
+    </div>
+    <div class="small d-flex flex-column gap-1">
+      <div>
+        <strong>Liveness:</strong>
+        {% if attempt.liveness_passed %}
+          <span class="text-success fw-semibold">Passed</span>
+          <span class="text-muted">(live-face gate only &mdash; not an identity match)</span>
+        {% elif attempt.liveness_passed is not None %}
+          <span class="text-danger fw-semibold">Failed</span>
+        {% else %}
+          <span class="text-muted">N/A</span>
+        {% endif %}
+      </div>
+      <div>
+        <strong>Identity match:</strong>
+        <span class="fw-semibold">Manual review required</span>
+        {% if attempt.similarity_score is not None and attempt.threshold_used %}
+          <span class="text-muted">(score {{ attempt.similarity_score|floatformat:3 }}, lower threshold {{ attempt.threshold_used|floatformat:2 }})</span>
+        {% endif %}
+      </div>
+      <div>
+        <strong>Release status:</strong>
+        <span class="text-danger fw-semibold">BLOCKED pending administrator review</span>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="result-banner denied mb-4">
+    <i class="bi bi-question-circle-fill"></i>
+    <div class="result-text">
+      <div class="result-label">{{ attempt.get_decision_display|upper }}</div>
+      <div class="result-sub">&mdash;</div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if claim_record %}
+  <div class="alert d-flex gap-2 align-items-center mb-3"
+       style="background:#f0fdf4; border:1px solid #86efac; font-size:0.875rem;">
+    <i class="bi bi-receipt-cutoff text-success flex-shrink-0" style="font-size:1.2rem;"></i>
+    <div>
+      <span class="fw-semibold">Claim Recorded.</span>
+      {% if claim_record.stipend_event %}
+        Payout claim for <strong>{{ claim_record.stipend_event.title }}</strong> has been logged.
+      {% endif %}
+      {% if claim_record.is_special_additional %}
+        <span class="badge bg-info text-dark ms-1">Additional Claim</span>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- Beneficiary card -->
+  <div class="card mb-3">
+    <div class="card-header bg-qc-blue text-white d-flex justify-content-between align-items-center">
+      <span><i class="bi bi-person me-2"></i>Beneficiary</span>
+      <span class="badge {% if attempt.claimant_type == 'beneficiary' %}bg-success{% else %}bg-primary{% endif %}">
+        {% if attempt.claimant_type == 'representative' %}
+          <i class="bi bi-people me-1"></i>Rep. claimed
+        {% else %}
+          <i class="bi bi-person me-1"></i>Self claimed
+        {% endif %}
+      </span>
+    </div>
+    <div class="card-body">
+      <div class="fw-bold fs-5">{{ attempt.beneficiary.full_name }}</div>
+      <div class="font-mono text-muted small">{{ attempt.beneficiary.beneficiary_id }}</div>
+      <div class="text-muted small">{{ attempt.beneficiary.municipality }}, {{ attempt.beneficiary.province }}</div>
+      {% if attempt.claimant_type == 'representative' and attempt.representative %}
+      <div class="mt-2 small d-flex align-items-center gap-2">
+        <i class="bi bi-person-badge text-primary"></i>
+        <span>
+          <strong>Representative:</strong> {{ attempt.representative.full_name }}
+          <span class="text-muted">({{ attempt.representative.relationship|default:"Representative" }})</span>
+        </span>
+      </div>
+      {% endif %}
+      {% if attempt.stipend_event %}
+      <div class="mt-2 small">
+        <i class="bi bi-calendar-check text-qc-blue me-1"></i>
+        <strong>Payout:</strong> {{ attempt.stipend_event.title }}
+        &mdash; <span class="text-muted">{{ attempt.stipend_event.date|date:"F d, Y" }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Verification Details -->
+  <div class="card mb-3">
+    <div class="card-header bg-qc-blue text-white">
+      <i class="bi bi-bar-chart me-2"></i>Verification Details
+    </div>
+    <div class="card-body">
+
+      <!-- Score meter (v2.1.13: tinted by DECISION, not by raw score vs lower threshold) -->
+      {% if attempt.similarity_score is not None and attempt.threshold_used %}
+      <div class="mb-3">
+        <div class="d-flex justify-content-between align-items-end small mb-1">
+          <span class="fw-semibold">Similarity Score</span>
+          <span class="text-end">
+            <span class="font-mono fw-bold fs-5
+              {% if attempt.decision == 'verified' %}text-success{% elif attempt.decision == 'manual_review' %}text-warning{% else %}text-danger{% endif %}">
+              {{ attempt.similarity_score|floatformat:3 }}
+            </span>
+            <div style="font-size:0.7rem;" class="
+              {% if auto_verify_threshold and attempt.similarity_score >= auto_verify_threshold %}text-success
+              {% elif attempt.similarity_score >= attempt.threshold_used %}text-warning
+              {% else %}text-danger{% endif %}">
+              {% if auto_verify_threshold and attempt.similarity_score >= auto_verify_threshold %}High confidence match
+              {% elif attempt.similarity_score >= attempt.threshold_used %}Moderate confidence &mdash; review band
+              {% else %}Low confidence
+              {% endif %}
+            </div>
+          </span>
+        </div>
+        <div class="position-relative" style="height:14px;">
+          <div class="progress h-100 rounded-3">
+            <div class="progress-bar {% if attempt.decision == 'verified' %}bg-success{% elif attempt.decision == 'manual_review' %}bg-warning{% else %}bg-danger{% endif %}"
+                 role="progressbar"
+                 style="width:{% widthratio attempt.similarity_score 1 100 %}%;">
+            </div>
+          </div>
+          <!-- Lower threshold marker -->
+          <div class="position-absolute top-0 h-100"
+               style="left:{% widthratio attempt.threshold_used 1 100 %}%; width:2px; background:#1d4ed8; z-index:2; border-radius:1px;"
+               title="Lower threshold: {{ attempt.threshold_used }}">
+          </div>
+          <!-- v2.1.13: auto-verify threshold marker (manual-review band ends here) -->
+          {% if auto_verify_threshold %}
+          <div class="position-absolute top-0 h-100"
+               style="left:{% widthratio auto_verify_threshold 1 100 %}%; width:2px; background:#15803d; z-index:2; border-radius:1px;"
+               title="Auto-verify threshold: {{ auto_verify_threshold }}">
+          </div>
+          {% endif %}
+        </div>
+        <div class="d-flex justify-content-between mt-1" style="font-size:0.72rem; color:#94a3b8;">
+          <span>0.0</span>
+          <span>
+            <span class="text-qc-blue fw-semibold">&#9650; Lower {{ attempt.threshold_used }}</span>
+            {% if auto_verify_threshold %}
+            <span class="ms-2 fw-semibold" style="color:#15803d;">&#9650; Auto-verify {{ auto_verify_threshold }}</span>
+            {% endif %}
+          </span>
+          <span>1.0</span>
+        </div>
+      </div>
+      {% endif %}
+
+      <div class="row g-3">
+        {% if attempt.similarity_score is None %}
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">SIMILARITY SCORE</div>
+          <div class="fs-3 fw-bold text-muted">&mdash;</div>
+          <div class="text-muted small">Manual-Review Threshold Recorded: <span class="font-mono">{{ attempt.threshold_used }}</span></div>
+        </div>
+        {% endif %}
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">LIVENESS CHECK <span class="text-secondary fw-normal" style="font-size:0.65rem;">(SERVER)</span></div>
+          <div class="fs-3 fw-bold {% if attempt.liveness_passed %}text-success{% elif attempt.liveness_passed is not None %}text-danger{% else %}text-muted{% endif %}">
+            {% if attempt.liveness_passed %}PASSED
+            {% elif attempt.liveness_passed is not None %}FAILED
+            {% else %}N/A{% endif %}
+          </div>
+          {% if attempt.liveness_score is not None %}
+          <div class="text-muted small">Score: <span class="font-mono">{{ attempt.liveness_score|floatformat:3 }}</span></div>
+          {% endif %}
+          <div class="text-muted" style="font-size:0.65rem;">Authoritative &mdash; server-verified</div>
+        </div>
+        {% if attempt.face_quality_ok is not None %}
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">FACE QUALITY</div>
+          <div class="fw-semibold {% if attempt.face_quality_ok %}text-success{% else %}text-warning{% endif %}">
+            {% if attempt.face_quality_ok %}
+              <i class="bi bi-check-circle-fill me-1"></i>Acceptable
+            {% else %}
+              <i class="bi bi-exclamation-triangle-fill me-1"></i>Low quality
+            {% endif %}
+          </div>
+        </div>
+        {% endif %}
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">VERIFIED BY</div>
+          <div class="fw-semibold small">{% if attempt.performed_by %}{{ attempt.performed_by.get_full_name|default:attempt.performed_by.username }}{% else %}&mdash;{% endif %}</div>
+        </div>
+        <div class="col-6">
+          <div class="text-muted small fw-semibold mb-1">TIMESTAMP</div>
+          <div class="fw-semibold small">{{ attempt.timestamp|date:"M d, Y H:i:s" }}</div>
+        </div>
+      </div>
+
+      {% if attempt.decision_reason %}
+      <hr class="my-3">
+      <div class="small">
+        <span class="text-muted fw-semibold">DECISION REASON: </span>
+        <span>{{ attempt.decision_reason }}</span>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- Debug / Accuracy Panel — IT role only (raw scores, threshold gap, matched templates) -->
+  {% if attempt.similarity_score is not None and user.is_admin_it %}
+  <div class="card mb-3 border-secondary">
+    <div class="card-header d-flex justify-content-between align-items-center"
+         style="background:#f1f5f9; cursor:pointer;"
+         data-bs-toggle="collapse" data-bs-target="#debugPanel" aria-expanded="false">
+      <span class="small fw-semibold text-secondary">
+        <i class="bi bi-bug me-1"></i>Accuracy Debug Info
+      </span>
+      <i class="bi bi-chevron-down small text-secondary"></i>
+    </div>
+    <div class="collapse" id="debugPanel">
+      <div class="card-body p-3"
+           data-score="{{ attempt.similarity_score }}"
+           data-threshold="{{ attempt.threshold_used }}">
+
+        <div class="row g-2 small mb-3">
+          <!-- Zone -->
+          <div class="col-6 col-sm-3">
+            <div class="text-muted fw-semibold mb-1" style="font-size:0.7rem;">ZONE</div>
+            {% if attempt.decision == 'verified' %}
+            <span class="badge bg-success fs-6">PASS</span>
+            {% elif attempt.decision == 'manual_review' %}
+            <span class="badge bg-warning text-dark fs-6">REVIEW</span>
+            {% else %}
+            <span class="badge bg-danger fs-6">FAIL</span>
+            {% endif %}
+          </div>
+          <!-- Gap -->
+          <div class="col-6 col-sm-3">
+            <div class="text-muted fw-semibold mb-1" style="font-size:0.7rem;">GAP FROM THRESHOLD</div>
+            <div class="font-mono fw-bold" id="scoreGap">&mdash;</div>
+          </div>
+          <!-- Threshold -->
+          <div class="col-6 col-sm-3">
+            <div class="text-muted fw-semibold mb-1" style="font-size:0.7rem;">MANUAL-REVIEW THRESHOLD RECORDED</div>
+            <div class="font-mono">{{ attempt.threshold_used }}</div>
+          </div>
+          <!-- Score -->
+          <div class="col-6 col-sm-3">
+            <div class="text-muted fw-semibold mb-1" style="font-size:0.7rem;">RAW SCORE</div>
+            <div class="font-mono">{{ attempt.similarity_score|floatformat:4 }}</div>
+          </div>
+        </div>
+
+        <hr class="my-2">
+
+        <div class="row g-2 small">
+          <!-- Matched template -->
+          <div class="col-6">
+            <div class="text-muted fw-semibold mb-1" style="font-size:0.7rem;">MATCHED TEMPLATE</div>
+            <div class="font-mono">
+              {% if attempt.matched_template %}
+                {{ attempt.matched_template }}
+              {% else %}
+                <span class="text-muted">&mdash;</span>
+              {% endif %}
+            </div>
+          </div>
+          <!-- Templates checked -->
+          <div class="col-6">
+            <div class="text-muted fw-semibold mb-1" style="font-size:0.7rem;">TEMPLATES CHECKED</div>
+            <div class="font-mono">{{ attempt.templates_checked }}</div>
+          </div>
+        </div>
+
+        {% if attempt.templates_checked > 1 %}
+        <div class="mt-3">
+          <div class="text-muted fw-semibold mb-1" style="font-size:0.7rem;">ALL TEMPLATE SCORES</div>
+          <div class="small text-muted fst-italic">
+            (See audit log for full per-template breakdown)
+          </div>
+        </div>
+        {% endif %}
+
+        <div class="mt-3 p-2 rounded" style="background:#f8fafc; font-size:0.72rem; color:#64748b;">
+          <strong>Decision bands (v2.1.13):</strong><br>
+          &bull; <span class="text-success fw-semibold">VERIFIED</span> &mdash;
+          score &ge; <span class="font-mono">{% if auto_verify_threshold %}{{ auto_verify_threshold }}{% else %}0.88{% endif %}</span> (auto-verify)<br>
+          &bull; <span class="text-warning fw-semibold">MANUAL REVIEW</span> &mdash;
+          <span class="font-mono">{{ attempt.threshold_used }}</span>
+          &le; score &lt;
+          <span class="font-mono">{% if auto_verify_threshold %}{{ auto_verify_threshold }}{% else %}0.88{% endif %}</span><br>
+          &bull; <span class="text-warning fw-semibold">MANUAL REVIEW (low band)</span> &mdash;
+          <span class="font-mono" id="reviewMin">&mdash;</span>
+          &le; score &lt;
+          <span class="font-mono">{{ attempt.threshold_used }}</span>
+          (lower threshold &times; 0.85)<br>
+          &bull; <span class="text-danger fw-semibold">DENIED</span> &mdash; below the low band
+        </div>
+      </div>
+    </div>
+  </div>
+  <script>
+  (function () {
+    var panel = document.querySelector('[data-score]');
+    if (!panel) return;
+    var score     = parseFloat(panel.dataset.score);
+    var threshold = parseFloat(panel.dataset.threshold);
+    if (isNaN(score) || isNaN(threshold)) return;
+    var gap = score - threshold;
+    var gapEl = document.getElementById('scoreGap');
+    if (gapEl) {
+      gapEl.textContent = (gap >= 0 ? '+' : '') + gap.toFixed(3);
+      gapEl.style.color = gap >= 0 ? '#16a34a' : '#dc2626';
+    }
+    var revEl = document.getElementById('reviewMin');
+    if (revEl) revEl.textContent = (threshold * 0.85).toFixed(3);
+  })();
+  </script>
+  {% endif %}
+
+  {% if attempt.overridden %}
+  <div class="alert d-flex gap-3 align-items-start mb-3"
+       style="background:#e0f2fe; border:1px solid #7dd3fc;">
+    <i class="bi bi-shield-check text-qc-blue flex-shrink-0 mt-1" style="font-size:1.2rem;"></i>
+    <div>
+      <div class="fw-bold text-qc-blue mb-1">Admin Override Applied</div>
+      <div class="small"><strong>By:</strong> {{ attempt.override_by.get_full_name }}</div>
+      <div class="small"><strong>At:</strong> {{ attempt.override_at|date:"M d, Y H:i" }}</div>
+      <div class="small"><strong>Reason:</strong> {{ attempt.override_reason }}</div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if attempt.fallback_triggered %}
+  <div class="alert d-flex gap-3 align-items-start mb-3"
+       style="background:#fff7ed; border:1px solid #fdba74;">
+    <i class="bi bi-exclamation-triangle-fill text-warning flex-shrink-0 mt-1" style="font-size:1.2rem;"></i>
+    <div>
+      <div class="fw-bold mb-1">Manual Verification (ID Check) Used</div>
+      <div class="small">
+        ID Type: {{ attempt.fallback_id_type|default:"N/A" }} &bull;
+        Result:
+        {% if attempt.fallback_id_verified %}
+          <span class="text-success fw-semibold">Verified</span>
+        {% elif attempt.fallback_id_verified is not None %}
+          <span class="text-danger fw-semibold">Not Verified</span>
+        {% else %}&mdash;{% endif %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  {% if attempt.notes and 'Liveness mismatch' not in attempt.notes %}
+  <div class="text-muted small fst-italic mb-3">{{ attempt.notes }}</div>
+  {% endif %}
+
+  {% if pending_manual_request %}
+  <div class="alert d-flex gap-2 align-items-start mb-3"
+       style="background:#f0fdf4; border:1px solid #86efac; font-size:0.85rem;">
+    <i class="bi bi-hourglass-split text-success flex-shrink-0 mt-1"></i>
+    <div>
+      <div class="fw-semibold">Pending Admin Approval</div>
+      <div class="text-muted">
+        This manual verification request was submitted by
+        {% if pending_manual_request.requested_by %}{{ pending_manual_request.requested_by.get_full_name|default:pending_manual_request.requested_by.username }}{% else %}&mdash;{% endif %}
+        and is awaiting administrator review. The stipend cannot be released until an admin approves.
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <div class="d-flex gap-2 flex-wrap">
+    <a href="{% url 'verification:verify_select' %}" class="btn btn-primary">
+      <i class="bi bi-camera-video me-1"></i> New Verification
+    </a>
+    <a href="{% url 'beneficiaries:beneficiary_detail' attempt.beneficiary.pk %}"
+       class="btn btn-outline-secondary">
+      <i class="bi bi-person me-1"></i> View Beneficiary
+    </a>
+    {% if not attempt.fallback_triggered and attempt.decision != 'verified' and attempt.decision != 'manual_review' and attempt.claimant_type == 'beneficiary' and not attempt.overridden %}
+    <a href="{% url 'verification:verify_fallback' attempt.pk %}" class="btn btn-warning">
+      <i class="bi bi-person-badge me-1"></i> Manual Verification Required
+    </a>
+    {% endif %}
+    {% if user.is_admin and attempt.decision == 'manual_review' and not attempt.overridden %}
+    <a href="{% url 'verification:manual_review' %}" class="btn btn-outline-warning">
+      <i class="bi bi-eye me-1"></i> Admin Review Queue
+    </a>
+    <a href="{% url 'verification:admin_override' attempt.pk %}" class="btn btn-warning">
+      <i class="bi bi-pencil me-1"></i> Override Decision
+    </a>
+    {% endif %}
+    {% if user.is_admin and attempt.overridden and attempt.decision == 'verified' and not claim_record and attempt.stipend_event %}
+    <a href="{% url 'verification:override_release_payout' attempt.pk %}" class="btn btn-success">
+      <i class="bi bi-cash-coin me-1"></i> Release Payout
+    </a>
+    {% endif %}
+  </div>
+
+</div>
+</div>
+{% endblock %}

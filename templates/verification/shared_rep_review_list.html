@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Representative Review Queue{% endblock %}
+{% block nav_verify %}active{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="breadcrumb-fans mb-1">
+      <a href="{% url 'beneficiaries:dashboard' %}">Dashboard</a> /
+      <a href="{% url 'verification:manual_review' %}">Manual Review Queue</a> /
+      Representative Review Queue
+    </div>
+    <h4 class="fw-bold text-qc-blue mb-0">
+      <i class="bi bi-people-fill me-2"></i>Representative Review Queue
+    </h4>
+    <p class="text-muted small mb-0">
+      Representatives flagged because the same face is already enrolled for another
+      beneficiary. One person may legitimately represent multiple seniors &mdash;
+      review each case and approve or reject the shared linkage.
+    </p>
+  </div>
+</div>
+
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="GET" class="d-flex flex-wrap align-items-end gap-2">
+      <div>
+        <label for="filter-status" class="form-label small fw-semibold mb-1">Status</label>
+        <select id="filter-status" name="status" class="form-select form-select-sm">
+          <option value="all" {% if status_filter == 'all' %}selected{% endif %}>All Cases</option>
+          {% for val, label in status_choices %}
+          <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <button type="submit" class="btn btn-primary btn-sm">
+        <i class="bi bi-funnel me-1"></i>Filter
+      </button>
+      <a href="{% url 'verification:shared_rep_review_list' %}" class="btn btn-outline-secondary btn-sm">Reset</a>
+    </form>
+  </div>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead class="table-light">
+        <tr>
+          <th>Flagged At</th>
+          <th>Representative</th>
+          <th>New Beneficiary</th>
+          <th>Matched Beneficiary</th>
+          <th class="text-end">Match Score</th>
+          <th>Status</th>
+          <th>Flagged By</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in reviews %}
+        <tr>
+          <td class="small text-muted text-nowrap">{{ r.flagged_at|date:"Y-m-d H:i" }}</td>
+          <td>
+            <div class="fw-semibold">{{ r.representative.full_name }}</div>
+            <div class="text-muted small">{{ r.representative.relationship|default:"&mdash;" }}</div>
+          </td>
+          <td>
+            <div class="fw-semibold">{{ r.representative.beneficiary.full_name }}</div>
+            <div class="text-muted font-mono small">{{ r.representative.beneficiary.beneficiary_id }}</div>
+          </td>
+          <td>
+            <div class="fw-semibold">{{ r.matched_beneficiary_name|default:"&mdash;" }}</div>
+            <div class="text-muted font-mono small">{{ r.matched_beneficiary_id }}</div>
+          </td>
+          <td class="text-end font-monospace">{{ r.matched_score|floatformat:3 }}</td>
+          <td>
+            {% if r.status == 'pending_review' %}
+              <span class="badge bg-warning text-dark">Pending Review</span>
+            {% elif r.status == 'approved' %}
+              <span class="badge bg-success">Approved</span>
+            {% elif r.status == 'rejected' %}
+              <span class="badge bg-danger">Rejected</span>
+            {% elif r.status == 'docs_required' %}
+              <span class="badge bg-info text-dark">Docs Required</span>
+            {% elif r.status == 'suspicious_blocked' %}
+              <span class="badge bg-dark">Blocked</span>
+            {% else %}
+              <span class="badge bg-secondary">{{ r.get_status_display }}</span>
+            {% endif %}
+          </td>
+          <td class="small">{{ r.flagged_by.username|default:"&mdash;" }}</td>
+          <td class="text-end">
+            <a href="{% url 'verification:shared_rep_review_detail' review_id=r.id %}"
+               class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-eye me-1"></i>View Details
+            </a>
+          </td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="8" class="text-center text-muted py-4">
+            <i class="bi bi-check2-circle fs-3 d-block mb-2 opacity-50"></i>
+            No representative-review cases match the selected filter.
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
