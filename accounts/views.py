@@ -138,7 +138,12 @@ class UserLoginView(LoginView):
         except Exception:
             logger.exception('Failed to write login audit event')
 
-        messages.success(self.request, f'Welcome back, {user.get_full_name() or user.username}!')
+        display_name = user.get_full_name() or user.username
+        messages.success(
+            self.request,
+            f'Welcome back, {display_name} — {user.get_role_display()}',
+            extra_tags='welcome-toast',
+        )
         response = super().form_valid(form)
         if user.must_change_password:
             messages.warning(

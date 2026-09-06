@@ -11,7 +11,19 @@
       Beneficiary Master List
     </div>
     <h4 class="fw-bold text-qc-blue mb-0">Beneficiary Master List</h4>
-    <div class="text-muted small mt-1">{{ total }} record{{ total|pluralize }} match the selected filters.</div>
+    <div class="text-muted small mt-1">
+      {{ total }} record{{ total|pluralize }} match the selected filters &mdash; generated {% now "M d, Y g:i A" %}.
+    </div>
+    {% if status_f or barangay_f or date_from or date_to or age_min or age_max or query %}
+    <div class="text-muted small mt-1">
+      <i class="bi bi-funnel me-1"></i>Filters applied:
+      {% if status_f %}Status: {{ status_f|capfirst }}{% endif %}
+      {% if barangay_f %}{% if status_f %} &middot; {% endif %}Barangay: {{ barangay_f }}{% endif %}
+      {% if date_from or date_to %}{% if status_f or barangay_f %} &middot; {% endif %}Registered: {{ date_from|default:"any" }} to {{ date_to|default:"any" }}{% endif %}
+      {% if age_min or age_max %}{% if status_f or barangay_f or date_from or date_to %} &middot; {% endif %}Age: {{ age_min|default:"any" }}&ndash;{{ age_max|default:"any" }}{% endif %}
+      {% if query %}{% if status_f or barangay_f or date_from or date_to or age_min or age_max %} &middot; {% endif %}Search: &ldquo;{{ query }}&rdquo;{% endif %}
+    </div>
+    {% endif %}
   </div>
   <div class="d-flex gap-2 flex-wrap">
     <a href="?{{ request.GET.urlencode }}&export=csv" class="btn btn-outline-secondary btn-sm">

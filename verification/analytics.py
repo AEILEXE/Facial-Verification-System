@@ -184,6 +184,27 @@ def get_operational_metrics(date_from=None, date_to=None):
 
     decision_breakdown = attempts_qs.values('decision').annotate(n=Count('id')).order_by('-n')
 
+    # Top operational summary — the same decision counts as decision_breakdown,
+    # just pre-aggregated into named fields (and rates) so the template doesn't
+    # have to hunt through a list for one decision's count.
+    outcome_counts = attempts_qs.aggregate(
+        total=Count('id'),
+        verified=Count('id', filter=Q(decision=VerificationAttempt.DECISION_VERIFIED)),
+        manual_review=Count('id', filter=Q(decision=VerificationAttempt.DECISION_MANUAL_REVIEW)),
+        not_verified_denied=Count('id', filter=Q(decision__in=[
+            VerificationAttempt.DECISION_NOT_VERIFIED, VerificationAttempt.DECISION_DENIED,
+        ])),
+    )
+    total_attempts = outcome_counts['total'] or 0
+    summary = {
+        'total': total_attempts,
+        'verified': outcome_counts['verified'],
+        'manual_review': outcome_counts['manual_review'],
+        'not_verified_denied': outcome_counts['not_verified_denied'],
+        'success_rate': round(100 * outcome_counts['verified'] / total_attempts, 1) if total_attempts else None,
+        'manual_review_rate': round(100 * outcome_counts['manual_review'] / total_attempts, 1) if total_attempts else None,
+    }
+
     daily_trend = (
         attempts_qs
         .annotate(day=TruncDate('timestamp'))
@@ -191,6 +212,10 @@ def get_operational_metrics(date_from=None, date_to=None):
         .annotate(
             total=Count('id'),
             verified=Count('id', filter=Q(decision=VerificationAttempt.DECISION_VERIFIED)),
+            manual_review=Count('id', filter=Q(decision=VerificationAttempt.DECISION_MANUAL_REVIEW)),
+            not_verified_denied=Count('id', filter=Q(decision__in=[
+                VerificationAttempt.DECISION_NOT_VERIFIED, VerificationAttempt.DECISION_DENIED,
+            ])),
         )
         .order_by('day')
     )
@@ -204,20 +229,27 @@ def get_operational_metrics(date_from=None, date_to=None):
         .order_by('day')
     )
 
-    daily_trend = _fill_daily_gaps(list(daily_trend), date_from, date_to, 'day', ['total', 'verified'])
+    daily_trend = _fill_daily_gaps(
+        list(daily_trend), date_from, date_to, 'day', ['total', 'verified', 'manual_review', 'not_verified_denied'],
+    )
     registration_trend = _fill_daily_gaps(list(registration_trend), date_from, date_to, 'day', ['n'])
 
-    staff_activity = (
+    staff_activity = list(
         attempts_qs
         .exclude(performed_by__isnull=True)
         .values('performed_by__id', 'performed_by__username', 'performed_by__first_name', 'performed_by__last_name')
-        .annotate(n=Count('id'))
+        .annotate(
+            n=Count('id'),
+            verified=Count('id', filter=Q(decision=VerificationAttempt.DECISION_VERIFIED)),
+            manual_review=Count('id', filter=Q(decision=VerificationAttempt.DECISION_MANUAL_REVIEW)),
+        )
         .order_by('-n')[:10]
     )
 
-    # Distribution summary by barangay — which areas are actually receiving
-    # released stipends over the range, so an admin can spot barangays
-    # falling behind and target outreach/staffing there.
+    # Distribution summary by barangay/staff — which areas are actually
+    # receiving released stipends over the range, and which staff released
+    # them, so an admin can spot barangays falling behind or gauge workload —
+    # not a ranking, see fields chosen below.
     claims_qs = _apply_date_range(
         ClaimRecord.objects.filter(status=ClaimRecord.STATUS_CLAIMED), 'claimed_at', date_from, date_to,
     )
@@ -228,11 +260,23 @@ def get_operational_metrics(date_from=None, date_to=None):
         .order_by('-total_amount')[:15]
     )
 
+    staff_ids = [row['performed_by__id'] for row in staff_activity]
+    claims_released_by_staff = dict(
+        claims_qs
+        .filter(released_by__id__in=staff_ids)
+        .values_list('released_by__id')
+        .annotate(n=Count('id'))
+    )
+    for row in staff_activity:
+        row['claims_released'] = claims_released_by_staff.get(row['performed_by__id'], 0)
+        row['success_rate'] = round(100 * row['verified'] / row['n'], 1) if row['n'] else None
+
     return {
         'decision_breakdown': list(decision_breakdown),
+        'summary': summary,
         'daily_trend': list(daily_trend),
         'registration_trend': list(registration_trend),
-        'staff_activity': list(staff_activity),
+        'staff_activity': staff_activity,
         'barangay_distribution': barangay_distribution,
     }
 
@@ -268,6 +312,54 @@ def get_security_metrics(date_from=None, date_to=None):
     failed_verifications = attempts_qs.filter(
         decision__in=[VerificationAttempt.DECISION_NOT_VERIFIED, VerificationAttempt.DECISION_DENIED],
     ).count()
+
+    # Security Events Over Time — same four range-scoped counts as `counts`/
+    # `failed_verifications` above, just bucketed by day for a trend view.
+    # Only built when both date bounds are supplied (mirrors _fill_daily_gaps'
+    # own bounded-range requirement) so an unbounded/all-time selection never
+    # triggers an unbounded day-by-day query.
+    security_events_trend = []
+    if date_from and date_to:
+        by_day = {}
+        action_field_map = {
+            AuditLog.ACTION_LOGIN_FAILED: 'failed_logins',
+            AuditLog.ACTION_DUPLICATE_FACE: 'duplicate_faces',
+            AuditLog.ACTION_PAYOUT_OVERRIDE: 'payout_overrides',
+        }
+        audit_daily = (
+            audit_qs
+            .filter(action__in=action_field_map.keys())
+            .annotate(day=TruncDate('timestamp'))
+            .values('day', 'action')
+            .annotate(n=Count('id'))
+        )
+        for row in audit_daily:
+            field = action_field_map[row['action']]
+            entry = by_day.setdefault(row['day'], {
+                'day': row['day'], 'failed_logins': 0, 'failed_verifications': 0,
+                'duplicate_faces': 0, 'payout_overrides': 0,
+            })
+            entry[field] = row['n']
+
+        failed_verif_daily = (
+            attempts_qs
+            .filter(decision__in=[VerificationAttempt.DECISION_NOT_VERIFIED, VerificationAttempt.DECISION_DENIED])
+            .annotate(day=TruncDate('timestamp'))
+            .values('day')
+            .annotate(n=Count('id'))
+        )
+        for row in failed_verif_daily:
+            entry = by_day.setdefault(row['day'], {
+                'day': row['day'], 'failed_logins': 0, 'failed_verifications': 0,
+                'duplicate_faces': 0, 'payout_overrides': 0,
+            })
+            entry['failed_verifications'] = row['n']
+
+        security_events_trend = _fill_daily_gaps(
+            sorted(by_day.values(), key=lambda r: r['day']), date_from, date_to, 'day',
+            ['failed_logins', 'failed_verifications', 'duplicate_faces', 'payout_overrides'],
+        )
+
     high_attempt_beneficiaries = (
         attempts_qs
         .values('beneficiary')
@@ -317,4 +409,5 @@ def get_security_metrics(date_from=None, date_to=None):
         'manual_review_pending': manual_review_pending,
         'fraud_risk_counts': fraud_risk_counts,
         'review_cases': review_cases,
+        'security_events_trend': security_events_trend,
     }

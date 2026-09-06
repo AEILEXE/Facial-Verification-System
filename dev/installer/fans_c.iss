@@ -42,7 +42,7 @@
 [Setup]
 
 AppName=FANS-C Verification System
-AppVersion=2.1.16
+AppVersion=2.1.17
 AppPublisher=OLFU Quezon City - College of Computer Studies
 AppPublisherURL=https://github.com/AEILEXE/FANS-C-A-Secure-FaceNet-Based-Facial-Verification-System-for-Senior-Citizen-Stipend-Distribution
 AppSupportURL=https://github.com/AEILEXE/FANS-C-A-Secure-FaceNet-Based-Facial-Verification-System-for-Senior-Citizen-Stipend-Distribution
@@ -62,7 +62,7 @@ PrivilegesRequired=admin
 
 ; Output installer location and filename
 OutputDir=..\..\FANS-C-Installer
-OutputBaseFilename=FANS-C-Setup-v2.1.16
+OutputBaseFilename=FANS-C-Setup-v2.1.17
 
 ; App icon (from project assets folder, bundled into the installer exe)
 SetupIconFile=..\..\assets\logo.ico
@@ -83,11 +83,11 @@ UninstallDisplayName=FANS-C Verification System
 UninstallDisplayIcon={app}\fans_c.exe
 
 ; Version info embedded in the installer binary
-VersionInfoVersion=2.1.16.0
+VersionInfoVersion=2.1.17.0
 VersionInfoCompany=OLFU Quezon City - College of Computer Studies
 VersionInfoDescription=FANS-C Verification System Installer
 VersionInfoProductName=FANS-C Verification System
-VersionInfoProductVersion=2.1.16.0
+VersionInfoProductVersion=2.1.17.0
 
 
 ; ===========================================================================

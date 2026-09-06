@@ -6,11 +6,66 @@ All notable changes to FANS-C are documented here.
 > was tracked internally under the milestone labels "v2.2.0" and "Post-UAT
 > Hardening Pass," seen throughout the entries below. That work was never
 > packaged as a separate v2.2.0 installer — the project's released version
-> line stayed on v2.1.x (see `dev/installer/fans_c.iss`, `AppVersion=2.1.16`,
-> and the current branch `4.0-Final-v2.1.16-hardening`). Everything recorded
-> under the "v2.2.0" label is real, shipped functionality — only the version
-> *number* attached to it was superseded, not the content. See
-> [README.md](README.md#latest-release) for the full explanation.
+> line stayed on v2.1.x (see `dev/installer/fans_c.iss`'s `AppVersion`, now
+> at 2.1.17, and the `main` branch). Everything recorded under the "v2.2.0"
+> label is real, shipped functionality — only the version *number* attached
+> to it was superseded, not the content. See the "Release Information"
+> section of [README.md](README.md) for the current released version.
+
+---
+
+## [2.1.17] — 2026-09-06 (UI and Operational Modernization Release)
+
+A UI/UX modernization and operational-usability pass across authentication,
+dashboard, analytics, and reporting screens, plus filtering improvements on
+several admin list views. No biometric algorithm or threshold changes.
+
+### Added
+
+- **Authentication UI modernization** — reworked `login.html`,
+  `otp_verify.html`, `otp_forgot_password.html`, and `otp_reset_password.html`
+  onto a shared, contained auth-shell layout; the post-login welcome message
+  now also shows the signed-in user's role.
+- **Branded CSRF failure page** (`templates/403_csrf.html`) — Django's default
+  CSRF failure view picks this up automatically by its conventional
+  `CSRF_FAILURE_TEMPLATE_NAME`, replacing the stock technical 403 page with
+  the FANSC-branded "Session or Form Expired" screen (no context processors
+  available at that point, so it's a standalone template, same pattern as
+  the pre-auth pages).
+- **Beneficiary list barangay filter** (`beneficiaries/views.py`) — staff can
+  now filter the beneficiary list by barangay, matching the filter already
+  available on the Master List Report; active-filter count surfaced to the
+  template.
+- **Verification log filters** (`logs/views.py`) — added beneficiary name/ID,
+  performed-by, and date-range (`date_from`/`date_to`) filtering to
+  `verification_log_list`, with active filters preserved across pagination
+  links via a precomputed querystring.
+- **Analytics presentation improvements** (`verification/analytics.py`,
+  `analytics_executive.html`, `analytics_operational.html`,
+  `analytics_security.html`) — new pre-aggregated operational summary
+  (verified/manual-review/not-verified counts and rates), a manual-review and
+  not-verified breakdown added to the daily trend, per-staff claims-released
+  and success-rate figures, and a bounded-range Security Events Over Time
+  trend (failed logins, failed verifications, duplicate faces, payout
+  overrides).
+- **Payout Calendar** (`static/js/analytics.js`, `stipend_list.html`) —
+  month/year calendar grid rendering, with all event fields HTML-escaped
+  before insertion.
+- **Manual Review, org chart, and user list usability refinements**
+  (`manual_review.html`, `org_chart.html`, `user_list.html`,
+  `report_event_summary.html`, `report_event_summary_print.html`,
+  `master_list_report.html`, `dashboard/index.html`, `base.html`) —
+  layout, responsiveness, and navigation polish; shared CSS consolidated in
+  `static/css/main.css`.
+
+### Notes
+
+- `DEMO_MODE` and the production biometric threshold are unchanged by this
+  release (see the v2.1.16 Final Hardening Patch below for the last change
+  to that area).
+- Full test suite: **1435 tests, 0 failures, 0 errors** (592.5s). `manage.py
+  check`: 0 issues. `manage.py makemigrations --check --dry-run`: no changes
+  detected.
 
 ---
 

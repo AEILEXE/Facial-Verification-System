@@ -2,7 +2,11 @@
 Tests for the logs app: AuditLog model and audit log view access.
 """
 
+import datetime
+
 from django.test import TestCase, Client
+from django.utils import timezone
+
 from accounts.models import CustomUser
 from logs.models import AuditLog
 
@@ -314,6 +318,138 @@ class AuditLogHttpsTest(TestCase):
         c.force_login(self.admin)
         resp = c.get('/logs/audit/')
         self.assertEqual(resp.status_code, 200)
+
+
+class VerificationLogDateFilterTest(TestCase):
+    """Verification Logs date filtering — added alongside Decision.
+
+    Uses VerificationAttempt.timestamp (auto_now_add) as the authoritative
+    date, matching the same timestamp__date lookup pattern already used by
+    audit_log_list under USE_TZ=True / TIME_ZONE='Asia/Manila'.
+    """
+
+    def setUp(self):
+        from beneficiaries.models import Beneficiary
+        from verification.models import VerificationAttempt
+        self.VerificationAttempt = VerificationAttempt
+
+        self.admin = CustomUser.objects.create_user(
+            username='vl_admin', password='TestPass123!',
+            role=CustomUser.ROLE_IT, employee_id='EMP-VL-ADMIN',
+        )
+        self.beneficiary = Beneficiary.objects.create(
+            beneficiary_id='BEN-VL-001',
+            first_name='Maria',
+            last_name='Santos',
+            senior_citizen_id='SC-VL-001',
+            date_of_birth='1940-01-01',
+            gender='F',
+            address='123 Main St',
+            barangay='Test Barangay',
+            municipality='Quezon City',
+            province='Metro Manila',
+        )
+        self.client = Client()
+        self.client.force_login(self.admin)
+
+        # Three attempts, pinned to distinct days via direct update() since
+        # `timestamp` is auto_now_add and ignores a value passed to create().
+        today = timezone.localdate()
+        self.attempt_old = VerificationAttempt.objects.create(
+            beneficiary=self.beneficiary, performed_by=self.admin,
+            decision=VerificationAttempt.DECISION_VERIFIED, similarity_score=0.9,
+        )
+        self.attempt_mid = VerificationAttempt.objects.create(
+            beneficiary=self.beneficiary, performed_by=self.admin,
+            decision=VerificationAttempt.DECISION_MANUAL_REVIEW, similarity_score=0.6,
+        )
+        self.attempt_new = VerificationAttempt.objects.create(
+            beneficiary=self.beneficiary, performed_by=self.admin,
+            decision=VerificationAttempt.DECISION_VERIFIED, similarity_score=0.95,
+        )
+        VerificationAttempt.objects.filter(pk=self.attempt_old.pk).update(
+            timestamp=timezone.make_aware(datetime.datetime.combine(
+                today - datetime.timedelta(days=10), datetime.time(12, 0))),
+        )
+        VerificationAttempt.objects.filter(pk=self.attempt_mid.pk).update(
+            timestamp=timezone.make_aware(datetime.datetime.combine(
+                today - datetime.timedelta(days=5), datetime.time(12, 0))),
+        )
+        VerificationAttempt.objects.filter(pk=self.attempt_new.pk).update(
+            timestamp=timezone.make_aware(datetime.datetime.combine(
+                today, datetime.time(12, 0))),
+        )
+        self.today = today
+
+    def _ids(self, resp):
+        return {a.pk for a in resp.context['attempts']}
+
+    def test_date_from_only(self):
+        resp = self.client.get('/logs/verification/', {
+            'date_from': (self.today - datetime.timedelta(days=6)).isoformat(),
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self._ids(resp), {self.attempt_mid.pk, self.attempt_new.pk})
+
+    def test_date_to_only(self):
+        resp = self.client.get('/logs/verification/', {
+            'date_to': (self.today - datetime.timedelta(days=6)).isoformat(),
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self._ids(resp), {self.attempt_old.pk})
+
+    def test_date_from_and_to_boundaries_inclusive(self):
+        resp = self.client.get('/logs/verification/', {
+            'date_from': (self.today - datetime.timedelta(days=10)).isoformat(),
+            'date_to': (self.today - datetime.timedelta(days=5)).isoformat(),
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self._ids(resp), {self.attempt_old.pk, self.attempt_mid.pk})
+
+    def test_decision_and_date_combination(self):
+        resp = self.client.get('/logs/verification/', {
+            'date_from': (self.today - datetime.timedelta(days=10)).isoformat(),
+            'date_to': self.today.isoformat(),
+            'decision': self.VerificationAttempt.DECISION_VERIFIED,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self._ids(resp), {self.attempt_old.pk, self.attempt_new.pk})
+
+    def test_invalid_range_from_after_to_shows_error_and_no_crash(self):
+        resp = self.client.get('/logs/verification/', {
+            'date_from': self.today.isoformat(),
+            'date_to': (self.today - datetime.timedelta(days=10)).isoformat(),
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertIsNotNone(resp.context['date_range_error'])
+
+    def test_no_results_in_range(self):
+        far_future = (self.today + datetime.timedelta(days=365)).isoformat()
+        resp = self.client.get('/logs/verification/', {'date_from': far_future})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['attempts'].paginator.count, 0)
+        self.assertContains(resp, 'No verification records match the selected filters.')
+
+    def test_malformed_date_is_ignored_not_500(self):
+        resp = self.client.get('/logs/verification/', {'date_from': 'not-a-date'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['date_from'], '')
+
+    def test_query_persists_in_pagination_links(self):
+        resp = self.client.get('/logs/verification/', {
+            'date_from': (self.today - datetime.timedelta(days=10)).isoformat(),
+            'decision': self.VerificationAttempt.DECISION_VERIFIED,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertIn('date_from=', resp.context['filter_querystring'])
+        self.assertIn('decision=', resp.context['filter_querystring'])
+
+    def test_beneficiary_and_performed_by_filters_do_not_crash(self):
+        resp = self.client.get('/logs/verification/', {
+            'beneficiary': 'Maria', 'performed_by': 'vl_admin',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self._ids(resp), {self.attempt_old.pk, self.attempt_mid.pk, self.attempt_new.pk})
 
 
 class NotificationTest(TestCase):

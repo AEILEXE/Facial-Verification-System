@@ -27,6 +27,28 @@
   {% endfor %}
 {% endif %}
 
+<div class="card mb-3">
+  <div class="card-body py-3">
+    <form method="GET" class="row g-2 align-items-end">
+      <div class="col-sm-4 col-md-3">
+        <label for="filter-status" class="form-label small fw-semibold mb-1">Account Status</label>
+        <select id="filter-status" name="status" class="form-select">
+          <option value="">All Statuses</option>
+          {% for val, label in STATUS_CHOICES %}
+          <option value="{{ val }}" {% if status_filter == val %}selected{% endif %}>{{ label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-auto">
+        <button type="submit" class="btn btn-primary">
+          <i class="bi bi-funnel me-1"></i>Filter
+        </button>
+        <a href="{% url 'accounts:user_list' %}" class="btn btn-outline-secondary">Clear</a>
+      </div>
+    </form>
+  </div>
+</div>
+
 <div class="card">
   <div class="card-body p-0">
     <div class="table-responsive">
@@ -75,10 +97,10 @@
             <td class="text-end">
               {% if user.is_admin and u != user %}
               <div class="btn-group btn-group-sm">
-                <a href="{% url 'accounts:user_edit' u.pk %}" class="btn btn-outline-primary" title="Edit">
+                <a href="{% url 'accounts:user_edit' u.pk %}" class="btn btn-outline-primary" title="Edit" aria-label="Edit {{ u.username }}">
                   <i class="bi bi-pencil"></i>
                 </a>
-                <a href="{% url 'accounts:user_reset_password_full' u.pk %}" class="btn btn-outline-warning" title="Reset Password">
+                <a href="{% url 'accounts:user_reset_password_full' u.pk %}" class="btn btn-outline-warning" title="Reset Password" aria-label="Reset password for {{ u.username }}">
                   <i class="bi bi-key"></i>
                 </a>
                 {% if u.account_status == 'active' %}
@@ -86,7 +108,7 @@
                   {% csrf_token %}
                   <input type="hidden" name="status" value="inactive">
                   <input type="hidden" name="reason" value="">
-                  <button type="button" class="btn btn-outline-secondary" title="Deactivate"
+                  <button type="button" class="btn btn-outline-secondary" title="Deactivate" aria-label="Deactivate {{ u.username }}"
                           data-bs-toggle="modal" data-bs-target="#statusReasonModal"
                           data-action="deactivate" data-username="{{ u.username }}"
                           data-form-id="deactivate-form-{{ u.pk }}">
@@ -98,7 +120,7 @@
                       onsubmit="return confirm('Reactivate {{ u.username }}? This action will be recorded in the audit log.')">
                   {% csrf_token %}
                   <input type="hidden" name="status" value="active">
-                  <button type="submit" class="btn btn-outline-success" title="Activate">
+                  <button type="submit" class="btn btn-outline-success" title="Activate" aria-label="Activate {{ u.username }}">
                     <i class="bi bi-person-check"></i>
                   </button>
                 </form>
@@ -108,7 +130,7 @@
                   {% csrf_token %}
                   <input type="hidden" name="status" value="suspended">
                   <input type="hidden" name="reason" value="">
-                  <button type="button" class="btn btn-outline-danger" title="Suspend"
+                  <button type="button" class="btn btn-outline-danger" title="Suspend" aria-label="Suspend {{ u.username }}"
                           data-bs-toggle="modal" data-bs-target="#statusReasonModal"
                           data-action="suspend" data-username="{{ u.username }}"
                           data-form-id="suspend-form-{{ u.pk }}">
@@ -122,7 +144,9 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="8" class="text-center text-muted py-4">No users found.</td>
+            <td colspan="8" class="text-center text-muted py-4">
+              {% if status_filter %}No users match the selected status.{% else %}No users found.{% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>

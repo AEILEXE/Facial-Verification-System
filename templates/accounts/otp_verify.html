@@ -12,20 +12,43 @@
   <link rel="stylesheet" href="{% static 'css/main.css' %}">
 </head>
 <body>
-<div class="login-bg p-3">
-  <div class="w-100" style="max-width:440px; margin:0 auto;">
+<div class="auth-page-bg">
+<div class="auth-shell">
 
-    <div class="login-card card">
-      <div class="login-header">
-        <div class="login-logo-ring">
+  <div class="auth-brand">
+    <div class="auth-brand-inner">
+      <div class="auth-logo-row">
+        <div class="auth-logo-ring">
           <img src="{% static 'images/logo.png' %}" alt="FANSC Logo"
-               style="width:52px; height:52px; object-fit:contain; border-radius:4px;">
+               style="width:40px; height:40px; object-fit:contain; border-radius:4px;">
         </div>
-        <h4 class="fw-bold mb-0">FANSC</h4>
-        <p class="mb-0" style="font-size:0.85rem; opacity:0.8;">Enter Verification Code</p>
+        <div>
+          <div class="auth-brand-name">FANSC</div>
+          <div class="auth-brand-city">Barangay Santol, Quezon City</div>
+        </div>
       </div>
 
-      <div class="card-body p-4">
+      <h2 class="auth-headline">Secure Senior Citizen<br>Stipend Verification</h2>
+      <p class="auth-sub">
+        Facial-recognition based identity verification for the barangay's
+        senior citizen stipend distribution program.
+      </p>
+
+      <ul class="auth-points">
+        <li><i class="bi bi-shield-lock-fill" aria-hidden="true"></i> Every sign-in is logged and audited</li>
+        <li><i class="bi bi-person-bounding-box" aria-hidden="true"></i> Biometric identity checks prevent fraud</li>
+        <li><i class="bi bi-lock-fill" aria-hidden="true"></i> Access is restricted to authorized personnel</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="auth-form-panel">
+    <div class="auth-form-inner">
+
+      <div class="mb-4">
+        <h3 class="fw-bold mb-1" style="color:var(--qc-blue-dark);">Enter Verification Code</h3>
+        <p class="text-muted mb-0">Check your registered email for the code</p>
+      </div>
 
         {% if messages %}
           {% for message in messages %}
@@ -86,15 +109,16 @@
             <i class="bi bi-arrow-left"></i> Back to Sign In
           </a>
         </div>
-      </div>
 
-      <div class="card-footer text-center py-3" style="background:#f8fafc; font-size:0.75rem; color:#94a3b8; border-top:1px solid #e2e8f0;">
+      <div class="auth-footer">
         <i class="bi bi-lock-fill me-1"></i>
         Too many wrong attempts will invalidate this code
       </div>
-    </div>
 
+    </div>
   </div>
+
+</div>
 </div>
 <script src="{% static 'vendor/bootstrap-5.3.2/js/bootstrap.bundle.min.js' %}"
         onerror="var s=document.createElement('script');s.src='https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js';document.head.appendChild(s);"></script>

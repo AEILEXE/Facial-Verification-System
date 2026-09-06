@@ -3913,6 +3913,7 @@ def _validate_payout_window(payout_start, payout_end, payout_start_time, payout_
 @login_required
 def stipend_list(request):
     from django.db.models.functions import Coalesce
+    from django.core.paginator import Paginator
     today = timezone.localdate()
     upcoming = (
         StipendEvent.objects
@@ -3921,12 +3922,32 @@ def stipend_list(request):
         .filter(effective_end__gte=today)
         .order_by('date')
     )
-    past = (
+    # Base past queryset (unfiltered) — used both for the years filter list
+    # and for the calendar, which should show everything regardless of the
+    # Past Events search/filter controls below.
+    past_base_qs = (
         StipendEvent.objects
         .annotate(effective_end=Coalesce('payout_end_date', 'date'))
         .filter(effective_end__lt=today)
-        .order_by('-effective_end')[:20]
+        .order_by('-effective_end')
     )
+    past_years = sorted({d.year for d in past_base_qs.dates('date', 'year')}, reverse=True)
+
+    past_query = (request.GET.get('past_q') or '').strip()
+    past_month = (request.GET.get('past_month') or '').strip()
+    past_year = (request.GET.get('past_year') or '').strip()
+    past_filtered_qs = past_base_qs
+    if past_query:
+        past_filtered_qs = past_filtered_qs.filter(title__icontains=past_query)
+    if past_month.isdigit():
+        past_filtered_qs = past_filtered_qs.filter(date__month=int(past_month))
+    if past_year.isdigit():
+        past_filtered_qs = past_filtered_qs.filter(date__year=int(past_year))
+
+    past_paginator = Paginator(past_filtered_qs, 10)
+    past = past_paginator.get_page(request.GET.get('past_page'))
+    past_page_range = list(past_paginator.get_elided_page_range(past.number, on_each_side=1, on_ends=1))
+
     # Inactive events with a future/current schedule — admin-only visibility.
     inactive = (
         StipendEvent.objects
@@ -3942,13 +3963,67 @@ def stipend_list(request):
         .order_by('date')
     )
     active_event = StipendEvent.get_active_event_for_date(today)
+
+    # Calendar view — same events visible in the list sections above (not
+    # affected by the Past Events search/filter controls), serialized for
+    # the client-side month calendar. No new statuses are invented here;
+    # these mirror the badges already used in the list sections.
+    calendar_source = list(upcoming) + list(past_base_qs)
+    if request.user.is_admin:
+        calendar_source += list(inactive) + list(pending_approval)
+    calendar_events = []
+    seen_ids = set()
+    for event in calendar_source:
+        if event.id in seen_ids:
+            continue
+        seen_ids.add(event.id)
+        if event.approval_status == StipendEvent.APPROVAL_REJECTED:
+            status, css_class = 'Rejected', 'danger'
+        elif event.approval_status == StipendEvent.APPROVAL_PENDING:
+            status, css_class = 'Pending Approval', 'warning'
+        elif not event.is_active:
+            status, css_class = 'Inactive', 'secondary'
+        elif event.get_claim_end() < today:
+            status, css_class = 'Completed', 'success'
+        else:
+            status, css_class = 'Upcoming', 'primary'
+        calendar_events.append({
+            'id': str(event.id),
+            'title': event.title,
+            'start': event.get_claim_start().isoformat(),
+            'end': event.get_claim_end().isoformat(),
+            'status': status,
+            'css_class': css_class,
+            'url': reverse('verification:stipend_edit', args=[event.pk]) if request.user.is_admin else '',
+        })
+
+    from urllib.parse import urlencode
+    import calendar as _calendar_mod
+    past_filter_params = {}
+    if past_query:
+        past_filter_params['past_q'] = past_query
+    if past_month.isdigit():
+        past_filter_params['past_month'] = past_month
+    if past_year.isdigit():
+        past_filter_params['past_year'] = past_year
+    past_querystring = urlencode(past_filter_params)
+    month_choices = [(i, _calendar_mod.month_name[i]) for i in range(1, 13)]
+
     return render(request, 'verification/stipend_list.html', {
         'upcoming': upcoming,
         'past': past,
+        'past_query': past_query,
+        'past_month': past_month,
+        'past_year': past_year,
+        'past_years': past_years,
+        'past_page_range': past_page_range,
+        'past_querystring': past_querystring,
+        'month_choices': month_choices,
         'inactive': inactive,
         'pending_approval': pending_approval,
         'today': today,
         'active_event': active_event,
+        'calendar_events': calendar_events,
     })
 
 
@@ -4637,6 +4712,17 @@ def manual_review_list(request):
 
     auto_approval_on = SystemConfig.get_bool('auto_approve_beneficiaries', default=False)
 
+    # Sum of every queue section actually rendered on this page — the header
+    # badge previously only summed 4 of the 7 sections, understating the
+    # true queue size whenever shared-rep, low-score, or no-event-claim
+    # items were pending.
+    total_pending = (
+        pending_verifications.count() + pending_manual_requests.count()
+        + pending_face_requests.count() + pending_special_claims.count()
+        + pending_registrations.count() + pending_no_event_claims.count()
+        + pending_shared_reps.count()
+    )
+
     return render(request, 'verification/manual_review.html', {
         'pending': pending_verifications,
         'pending_manual_requests': pending_manual_requests,
@@ -4646,6 +4732,7 @@ def manual_review_list(request):
         'pending_no_event_claims': pending_no_event_claims,
         'pending_shared_reps': pending_shared_reps,
         'auto_approval_on': auto_approval_on,
+        'total_pending': total_pending,
     })
 
 
@@ -5695,6 +5782,50 @@ def _date_range_invalid(date_from, date_to):
     return bool(date_from and date_to and date_from > date_to)
 
 
+def _analytics_date_presets():
+    """Server-computed (not client-clock-dependent) date ranges for the
+    shared Analytics toolbar presets. Each preset is just a concrete
+    (date_from, date_to) pair that round-trips through the exact same
+    ?date_from=&date_to= query params the existing Custom form already
+    used — the presets are a convenience for producing those two values,
+    not a separate date-filtering code path."""
+    import datetime
+    today = timezone.localdate()
+    return today, {
+        'today': (today, today),
+        'last7': (today - datetime.timedelta(days=6), today),
+        'last30': (today - datetime.timedelta(days=29), today),
+        'this_month': (today.replace(day=1), today),
+    }
+
+
+def _active_analytics_preset(date_from, date_to, presets):
+    """Which preset (if any) the current date_from/date_to already match, so
+    the toolbar can highlight it. 'custom' covers everything else, including
+    the unbounded (both blank) default."""
+    for key, (preset_from, preset_to) in presets.items():
+        if date_from == preset_from and date_to == preset_to:
+            return key
+    return 'custom'
+
+
+def _analytics_toolbar_context(date_from, date_to):
+    """Shared context for the Executive/Operational/Security toolbar
+    (_analytics_nav.html): today's date plus each preset's (from, to) as
+    ISO strings for building plain query-string links, and which preset (if
+    any) the current selection matches."""
+    today, presets = _analytics_date_presets()
+    active_preset = _active_analytics_preset(date_from, date_to, presets)
+    return {
+        'today': today,
+        'date_presets': {
+            key: {'from': preset_from.isoformat(), 'to': preset_to.isoformat()}
+            for key, (preset_from, preset_to) in presets.items()
+        },
+        'active_preset': active_preset,
+    }
+
+
 # ─── Analytics Dashboard (Executive / Operational / Security) ───────────────
 # Read-only tabs built entirely from existing tables — see verification/analytics.py
 # for the aggregation queries. No new models; admin-only, same inline gating
@@ -5784,6 +5915,7 @@ def analytics_executive(request):
         'date_to': date_to,
         'date_range_invalid': _date_range_invalid(date_from, date_to),
         'server_time': timezone.localtime(),
+        **_analytics_toolbar_context(date_from, date_to),
     })
 
 
@@ -5802,7 +5934,10 @@ def analytics_operational(request):
 
     chart_data = {
         'daily_trend': [
-            {'day': row['day'].isoformat(), 'total': row['total'], 'verified': row['verified']}
+            {
+                'day': row['day'].isoformat(), 'total': row['total'], 'verified': row['verified'],
+                'manual_review': row['manual_review'], 'not_verified_denied': row['not_verified_denied'],
+            }
             for row in metrics['daily_trend']
         ],
         'registration_trend': [
@@ -5818,19 +5953,30 @@ def analytics_operational(request):
     }
 
     if request.GET.get('export') == 'csv':
-        rows = [['Decision Breakdown (range)'], ['Decision', 'Count']]
+        summ = metrics['summary']
+        rows = [
+            ['Top Operational Summary (range)'],
+            ['Metric', 'Value'],
+            ['Verification Attempts', summ['total']],
+            ['Verified', summ['verified']],
+            ['Manual Review', summ['manual_review']],
+            ['Not Verified / Denied', summ['not_verified_denied']],
+            ['Success Rate (%)', summ['success_rate']],
+            ['Manual Review Rate (%)', summ['manual_review_rate']],
+        ]
+        rows += [[], ['Decision Breakdown (range)'], ['Decision', 'Count']]
         for row in metrics['decision_breakdown']:
             rows.append([row['decision'] or '(none)', row['n']])
-        rows += [[], ['Daily Verification Trend'], ['Date', 'Total', 'Verified']]
+        rows += [[], ['Daily Verification Trend'], ['Date', 'Total', 'Verified', 'Manual Review', 'Not Verified/Denied']]
         for row in metrics['daily_trend']:
-            rows.append([row['day'].isoformat(), row['total'], row['verified']])
+            rows.append([row['day'].isoformat(), row['total'], row['verified'], row['manual_review'], row['not_verified_denied']])
         rows += [[], ['Daily Registration Trend'], ['Date', 'New Registrations']]
         for row in metrics['registration_trend']:
             rows.append([row['day'].isoformat(), row['n']])
-        rows += [[], ['Top Staff by Verification Volume (range)'], ['Staff', 'Attempts']]
+        rows += [[], ['Top Staff by Verification Volume (range)'], ['Staff', 'Attempts', 'Verified', 'Manual Review', 'Claims Released', 'Success Rate (%)']]
         for row in metrics['staff_activity']:
             name = f"{row['performed_by__first_name']} {row['performed_by__last_name'] or row['performed_by__username']}"
-            rows.append([name, row['n']])
+            rows.append([name, row['n'], row['verified'], row['manual_review'], row['claims_released'], row['success_rate']])
         rows += [[], ['Distribution Summary by Barangay (top 15, range)'], ['Barangay', 'Claims', 'Total Released (PHP)']]
         for row in metrics['barangay_distribution']:
             rows.append([row['beneficiary__barangay'] or '(Unspecified)', row['claims_count'], f"{row['total_amount'] or 0:,.2f}"])
@@ -5843,6 +5989,7 @@ def analytics_operational(request):
         'date_to': date_to,
         'date_range_invalid': _date_range_invalid(date_from, date_to),
         'server_time': timezone.localtime(),
+        **_analytics_toolbar_context(date_from, date_to),
     })
 
 
@@ -5878,7 +6025,17 @@ def analytics_security(request):
         return _export_csv_response('fansc-analytics-security.csv', rows, 'analytics_security', request)
 
     # v2.2.0 Post-UAT Phase 13: Review/Security Cases chart.
-    chart_data = {'review_cases': metrics['review_cases']}
+    chart_data = {
+        'review_cases': metrics['review_cases'],
+        'security_events_trend': [
+            {
+                'day': row['day'].isoformat(), 'failed_logins': row['failed_logins'],
+                'failed_verifications': row['failed_verifications'],
+                'duplicate_faces': row['duplicate_faces'], 'payout_overrides': row['payout_overrides'],
+            }
+            for row in metrics['security_events_trend']
+        ],
+    }
 
     return render(request, 'verification/analytics_security.html', {
         **metrics,
@@ -5887,6 +6044,7 @@ def analytics_security(request):
         'date_to': date_to,
         'date_range_invalid': _date_range_invalid(date_from, date_to),
         'server_time': timezone.localtime(),
+        **_analytics_toolbar_context(date_from, date_to),
     })
 
 
@@ -6627,16 +6785,43 @@ def report_event_summary(request):
     """
     Per-event payout summary: total eligible, claimed, pending, fallback, denied.
     Roles: President, Admin, IT only.
+
+    Date filtering (Date From/To) applies to StipendEvent.date — the event's
+    own reference/schedule date, which is what each summary row is grouped
+    by (same field the Payout Schedule list's Past Events filter already
+    uses). It selects WHICH EVENTS appear in the report; it intentionally
+    does not re-slice each event's claim/attempt counts by a different
+    timestamp, since those totals are per-event lifetime figures and mixing
+    in a second, differently-scoped date field would make the numbers
+    inconsistent with the rest of the app. Both bounds are inclusive;
+    StipendEvent.date is a plain DateField so no timezone conversion applies.
     """
     from django.contrib import messages
-    from django.db.models import Count, Q as Qm
+    from django.db.models import Count, Sum, Q as Qm
 
     if not request.user.is_admin:
         messages.error(request, 'Admin access required.')
         return redirect('beneficiaries:dashboard')
 
     export_fmt = request.GET.get('export', '')
+    date_from = _parse_date(request.GET.get('date_from', ''))
+    date_to = _parse_date(request.GET.get('date_to', ''))
+    event_type_filter = request.GET.get('event_type', '').strip()
+    valid_event_types = {v for v, _ in StipendEvent.EVENT_TYPE_CHOICES}
+    if event_type_filter not in valid_event_types:
+        event_type_filter = ''
+    date_range_invalid = _date_range_invalid(date_from, date_to)
+
     event_qs = StipendEvent.objects.order_by('-date')
+    if date_from:
+        event_qs = event_qs.filter(date__gte=date_from)
+    if date_to:
+        event_qs = event_qs.filter(date__lte=date_to)
+    if event_type_filter:
+        event_qs = event_qs.filter(event_type=event_type_filter)
+    # date_from > date_to combines to an impossible gte/lte pair above, so the
+    # queryset already comes back empty; date_range_invalid only drives the
+    # warning banner (same convention as the analytics tabs).
 
     summaries = []
     for ev in event_qs:
@@ -6656,6 +6841,29 @@ def report_event_summary(request):
             'attempts': total_attempts,
             'fallback': total_fallback,
         })
+
+    # Report-wide KPI cards — aggregated over the same filtered event set and
+    # the same status/field definitions as the per-event rows above, so the
+    # cards can never disagree with the table they summarize.
+    claim_totals = ClaimRecord.objects.filter(stipend_event__in=event_qs).aggregate(
+        claimed=Count('id', filter=Qm(status=ClaimRecord.STATUS_CLAIMED)),
+        pending=Count('id', filter=Qm(status=ClaimRecord.STATUS_PENDING_APPROVAL)),
+        rejected=Count('id', filter=Qm(status=ClaimRecord.STATUS_REJECTED)),
+        released_amount=Sum('amount', filter=Qm(status=ClaimRecord.STATUS_CLAIMED)),
+    )
+    attempt_totals = VerificationAttempt.objects.filter(stipend_event__in=event_qs).aggregate(
+        attempts=Count('id'),
+        fallback=Count('id', filter=Qm(fallback_triggered=True)),
+    )
+    kpi_totals = {
+        'events': len(summaries),
+        'claimed': claim_totals['claimed'] or 0,
+        'pending': claim_totals['pending'] or 0,
+        'rejected': claim_totals['rejected'] or 0,
+        'attempts': attempt_totals['attempts'] or 0,
+        'fallback': attempt_totals['fallback'] or 0,
+        'released_amount': claim_totals['released_amount'] or 0,
+    }
 
     if export_fmt == 'excel':
         from django.http import HttpResponse
@@ -6708,10 +6916,19 @@ def report_event_summary(request):
         )
         return render(request, 'verification/report_event_summary_print.html', {
             'summaries': summaries,
+            'kpi_totals': kpi_totals,
+            'date_from': date_from,
+            'date_to': date_to,
         })
 
     return render(request, 'verification/report_event_summary.html', {
         'summaries': summaries,
+        'kpi_totals': kpi_totals,
+        'date_from': date_from,
+        'date_to': date_to,
+        'event_type_filter': event_type_filter,
+        'event_type_choices': StipendEvent.EVENT_TYPE_CHOICES,
+        'date_range_invalid': date_range_invalid,
     })
 
 

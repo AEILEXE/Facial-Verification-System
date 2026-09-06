@@ -201,6 +201,20 @@ a:hover { color: var(--qc-blue-dark); }
   margin-top: 0.3rem;
 }
 
+/* Consistent width/wrap-safety for the profile dropdown, matching the
+   notification dropdown's protection against long dynamic strings
+   (full name + email are both unbounded fields). */
+.profile-dropdown-menu {
+  width: min(92vw, 300px);
+  min-width: 240px;
+  padding: 0;
+}
+
+.profile-dropdown-header {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
 .navbar-fans .user-badge {
   background: rgba(255,255,255,0.12);
   border: 1px solid rgba(255,255,255,0.2);
@@ -701,6 +715,327 @@ a:hover { color: var(--qc-blue-dark); }
   color: var(--qc-gold);
 }
 
+/* ── Authentication Family Shell (Login / Forgot Password / OTP / Reset) ──
+   Dedicated classes — deliberately NOT reusing .login-bg/.login-card/
+   .login-header/.login-logo-ring, which the password-reset-request and
+   face-verify prompt pages share for a consistent narrow-card look.
+   Repurposing those would have restyled two out-of-scope pages by accident.
+   This is a CONTAINED floating card (not a full-viewport split screen):
+   the page background stays visible on every side of the card. */
+.auth-page-bg {
+  min-height: 100vh;
+  background: linear-gradient(160deg, #eef3fb 0%, #e2eaf7 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 2.5rem 1rem;
+}
+
+.auth-shell {
+  width: 86vw;
+  max-width: 1080px;
+  min-height: 540px;
+  background: #fff;
+  border-radius: 22px;
+  box-shadow: 0 30px 70px rgba(15, 42, 90, 0.18), 0 4px 14px rgba(15, 42, 90, 0.08);
+  overflow: hidden;
+  display: flex;
+}
+
+.auth-brand {
+  flex: 0 0 40%;
+  max-width: 460px;
+  background: linear-gradient(160deg, var(--qc-blue-dark) 0%, var(--qc-blue) 65%, #123a8a 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  position: relative;
+  padding: 3rem;
+}
+
+.auth-brand::after {
+  content: '';
+  position: absolute;
+  top: 0; right: 0; bottom: 0;
+  width: 5px;
+  background: var(--qc-gold);
+}
+
+.auth-brand-inner { max-width: 380px; margin: 0 auto; }
+
+.auth-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 0.85rem;
+  margin-bottom: 2rem;
+}
+
+.auth-logo-ring {
+  width: 56px; height: 56px;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  border: 2px solid var(--qc-gold);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+
+.auth-brand-name {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  line-height: 1.1;
+}
+
+.auth-brand-city {
+  font-size: 0.78rem;
+  opacity: 0.7;
+  margin-top: 0.15rem;
+}
+
+.auth-headline {
+  font-size: 1.55rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin-bottom: 0.9rem;
+}
+
+.auth-sub {
+  font-size: 0.88rem;
+  opacity: 0.82;
+  line-height: 1.5;
+  margin-bottom: 1.75rem;
+}
+
+.auth-points {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+}
+
+.auth-points li {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  font-size: 0.82rem;
+  opacity: 0.9;
+}
+
+.auth-points li i {
+  color: var(--qc-gold);
+  font-size: 1rem;
+  flex-shrink: 0;
+}
+
+.auth-form-panel {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+  padding: 2.5rem 1.5rem;
+  overflow-y: auto;
+}
+
+.auth-form-inner {
+  width: 100%;
+  max-width: 400px;
+}
+
+.auth-secondary { text-align: center; }
+
+.auth-footer {
+  text-align: center;
+  margin-top: 1.75rem;
+  font-size: 0.72rem;
+  color: var(--text-muted);
+}
+
+/* Tablet: balanced compact layout — keep both panels, but the brand panel
+   becomes a shorter horizontal strip so the form is not pushed below the fold. */
+@media (max-width: 991.98px) {
+  .auth-shell { flex-direction: column; width: 92vw; min-height: auto; border-radius: 18px; }
+
+  .auth-brand {
+    flex: 0 0 auto;
+    max-width: none;
+    padding: 1.5rem 2rem;
+  }
+
+  .auth-brand-inner { max-width: none; margin: 0; }
+  .auth-logo-row { margin-bottom: 0; }
+  .auth-headline, .auth-sub, .auth-points { display: none; }
+
+  .auth-form-panel { padding: 2rem 1.5rem; }
+}
+
+/* Mobile: single-column card — brand strip collapses further, form is prioritized. */
+@media (max-width: 575.98px) {
+  .auth-page-bg { padding: 1rem 0.5rem; }
+  .auth-shell { width: 100%; border-radius: 14px; }
+  .auth-brand { padding: 1.1rem 1.25rem; }
+  .auth-logo-ring { width: 44px; height: 44px; }
+  .auth-brand-name { font-size: 1.1rem; }
+  .auth-form-panel { padding: 1.5rem 1rem; }
+}
+
+/* ── Payout Schedule Calendar ──────────────────────────── */
+.calendar-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem 0.75rem;
+}
+
+.calendar-toolbar-nav,
+.calendar-toolbar-goto {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-wrap: wrap;
+}
+
+.calendar-toolbar-select {
+  width: auto;
+  min-width: 6.5rem;
+}
+
+/* Full month names ("September", "November") must not be clipped. */
+#calMonthSelect.calendar-toolbar-select {
+  min-width: 9.5rem;
+}
+
+#calYearSelect.calendar-toolbar-select {
+  min-width: 5.5rem;
+}
+
+.calendar-toolbar-date {
+  width: auto;
+}
+
+@media (max-width: 575.98px) {
+  .calendar-toolbar-nav,
+  .calendar-toolbar-goto { width: 100%; }
+  .calendar-toolbar-select { flex: 1 1 auto; min-width: 0; }
+}
+
+.calendar-legend-dot {
+  display: inline-block;
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  margin-right: 0.3rem;
+  vertical-align: middle;
+}
+
+.calendar-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-bottom: 0.25rem;
+}
+
+.calendar-weekday {
+  text-align: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  padding: 0.35rem 0;
+}
+
+.calendar-cells {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 3px;
+}
+
+.calendar-cell {
+  min-height: 92px;
+  background: #f8fafc;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.3rem;
+  overflow: hidden;
+}
+
+.calendar-cell-empty { background: transparent; border: none; }
+
+.calendar-cell-today {
+  background: var(--qc-blue-light);
+  border-color: var(--qc-blue);
+}
+
+.calendar-cell-date {
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-dark);
+  margin-bottom: 0.2rem;
+}
+
+.calendar-cell-today .calendar-cell-date { color: var(--qc-blue-dark); }
+
+.calendar-event {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.68rem;
+  padding: 0.1rem 0.25rem;
+  border-radius: 4px;
+  margin-bottom: 0.15rem;
+  text-decoration: none;
+  color: var(--text-dark);
+  background: white;
+  border: 1px solid var(--border-color);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+.calendar-event:hover { background: #eef2f7; color: var(--text-dark); }
+
+.calendar-event-primary   { border-left: 3px solid #0d6efd; }
+.calendar-event-success   { border-left: 3px solid #198754; }
+.calendar-event-warning   { border-left: 3px solid #ffc107; }
+.calendar-event-secondary { border-left: 3px solid #6c757d; }
+.calendar-event-danger    { border-left: 3px solid #dc3545; }
+
+.calendar-event-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.calendar-event-dot {
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.calendar-event-more {
+  font-size: 0.66rem;
+  color: var(--text-muted);
+  padding-left: 0.25rem;
+}
+
+@media (max-width: 767.98px) {
+  .calendar-cell { min-height: 64px; font-size: 0.7rem; }
+  .calendar-weekday { font-size: 0.62rem; }
+  .calendar-event-title { max-width: 46px; }
+}
+
+/* ── Welcome-back Toast ────────────────────────────────── */
+.fansc-toast {
+  min-width: 300px;
+  max-width: 380px;
+  border: none;
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+  border-left: 4px solid #22c55e;
+  background: white;
+}
+
 /* ── Pilot Mode Badge ──────────────────────────────────── */
 .demo-mode-badge {
   display: inline-flex;
@@ -812,15 +1147,23 @@ code, .font-mono {
 .verify-tips .tip i { color: var(--qc-blue); flex-shrink: 0; margin-top: 1px; }
 
 /* ── Responsive ────────────────────────────────────────── */
-/* v2.2.0 Post-UAT Phase 10 (revised): at laptop/small-desktop widths — where
-   navbar-expand-lg keeps the full nav bar visible instead of collapsing to
-   the hamburger menu — the brand + 6 top-level nav items + notification bell
-   + user badge did not fit in one row at 100% zoom (measured overflow of the
-   navbar content up to ~190px at 1200-1440px), forcing users to zoom out to
-   see the trailing items (bell, profile, role badge). Tighten spacing across
-   the whole "no room to spare" band; only genuinely wide desktop monitors
-   get the roomier spacing below. */
-@media (min-width: 992px) and (max-width: 1679.98px) {
+/* Navbar breakpoint: the FANSC nav has grown to 8 top-level items (for the
+   Technical Administrator/President role — Dashboard, Beneficiaries, Verify,
+   Distribution, Audit & Logs, Analytics, Technical Administration,
+   Administration) plus the notification bell and user badge. Measured via a
+   headless-Chromium harness (widest role, worst-case labels): that content
+   needs ~1074-1133px, which no longer reliably fits next to the brand block
+   below ~1300-1350px of container width even with tightened spacing — a
+   pixel-squeezed navbar-expand-lg (992px) band was tried previously and
+   still clipped at common laptop widths (1024px, 1366px). Rather than keep
+   shrinking text to chase the content, the collapse breakpoint itself moved
+   to navbar-expand-xxl (1400px, base.html) — see the Bootstrap accordion-
+   style collapse menu below that breakpoint for medium/tablet widths.
+   Genuinely wide desktop monitors (>=1680px) keep the original roomier
+   spacing; 1400-1679.98px gets the same tightened spacing this band used
+   to apply all the way down to 992px, now with headroom instead of a
+   near-zero margin. */
+@media (min-width: 1400px) and (max-width: 1679.98px) {
   .navbar-fans .navbar-brand {
     padding: 0.55rem 0.65rem;
   }
@@ -844,32 +1187,11 @@ code, .font-mono {
   }
 }
 
-/* Narrower part of that band needs every remaining pixel: drop the role
-   pill (name + avatar still identify the signed-in user without it).
-   Upper bound extended from 1279.98 to 1399.98: Technical Administrator/
-   President accounts render one extra top-level nav item (Technical
-   Administration) plus a longer role-pill string ("Technical
-   Administrator"/"President" vs "Staff"/"Admin"), which measurably
-   overflowed the navbar at 1366px — a common laptop width — even though
-   the original 6-item/shorter-label band was fine up to 1280px. */
-@media (min-width: 992px) and (max-width: 1399.98px) {
-  .navbar-fans .role-pill {
-    display: none;
-  }
-}
-
-/* Narrowest part of the band (992-1149.98px): measured via a headless-
-   Chromium harness that the full navbar (brand + 6 nav items + bell +
-   user badge) needs 1126px of content width with the system-identity
-   line shown — so it only overflows below ~1126px, not across the whole
-   992-1679.98px band. Hiding the system-identity line here (leaving
-   FANSC + Quezon City) is the one remaining gap; everything from
-   1150px up shows all three tiers. */
-@media (min-width: 992px) and (max-width: 1149.98px) {
-  .navbar-fans .navbar-brand .brand-sub-system {
-    display: none;
-  }
-}
+/* Below the 1400px collapse breakpoint the nav renders as Bootstrap's
+   vertical collapse menu (full width, no horizontal competition for
+   space), so the role pill, brand subtitle lines, and full-size user badge
+   can all stay visible there — no squeezing needed once the row isn't
+   horizontal. */
 
 @media (max-width: 768px) {
   .page-wrapper { padding: 1rem; }
@@ -892,4 +1214,75 @@ code, .font-mono {
   /* On very small screens make login card fully visible without clipping */
   .login-bg { padding: 1rem 0.5rem; }
   .login-card { border-radius: 10px; }
+}
+
+/* ── Analytics Toolbar & KPI Hierarchy (Executive/Operational/Security) ── */
+.analytics-presets .btn.active {
+  background: var(--qc-blue);
+  border-color: var(--qc-blue);
+  color: #fff;
+}
+
+.analytics-group-card {
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+  box-shadow: var(--shadow-sm);
+  background: var(--qc-white);
+  padding: 1rem 1.1rem;
+  height: 100%;
+}
+
+.analytics-group-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--qc-blue);
+  margin-bottom: 0.7rem;
+}
+
+.analytics-group-body { display: flex; flex-direction: column; gap: 0.65rem; }
+
+.analytics-metric-value { font-weight: 800; line-height: 1.15; color: var(--qc-blue-dark); }
+.analytics-metric.hero .analytics-metric-value { font-size: 1.85rem; }
+.analytics-metric.secondary .analytics-metric-value { font-size: 1.05rem; }
+
+.analytics-metric-label { font-size: 0.74rem; color: var(--text-muted); font-weight: 600; }
+.analytics-metric-context { font-size: 0.7rem; color: var(--text-muted); }
+
+.analytics-metric-bar { height: 5px; border-radius: 3px; background: #e2e8f0; overflow: hidden; margin-top: 0.3rem; }
+.analytics-metric-bar-fill { height: 100%; border-radius: 3px; }
+
+/* Compact horizontal-bar rows — Beneficiary Status, Barangay distribution, Top Staff */
+.hbar-row { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.55rem; }
+.hbar-row:last-child { margin-bottom: 0; }
+.hbar-label {
+  flex: 0 0 140px;
+  font-size: 0.8rem;
+  color: var(--text-dark);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hbar-track { flex: 1 1 auto; height: 10px; border-radius: 5px; background: #eef2f7; overflow: hidden; }
+.hbar-fill { height: 100%; border-radius: 5px; }
+.hbar-value { flex: 0 0 auto; font-size: 0.8rem; font-weight: 700; color: var(--qc-blue-dark); min-width: 48px; text-align: right; }
+
+/* Security status banner — same HIGH/MEDIUM counts as the cards below, just a one-glance summary */
+.security-status-banner {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.9rem 1.1rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--border-color);
+}
+.security-status-banner.secure { background: #f0fdf4; border-color: #bbf7d0; }
+.security-status-banner.attention { background: #fef2f2; border-color: #fecaca; }
+.security-status-dot { width: 12px; height: 12px; border-radius: 50%; flex: 0 0 auto; }
+
+@media (max-width: 576px) {
+  .hbar-label { flex-basis: 92px; }
+  .analytics-metric.hero .analytics-metric-value { font-size: 1.55rem; }
 }

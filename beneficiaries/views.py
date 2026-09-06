@@ -198,6 +198,7 @@ def beneficiary_list(request):
     from django.core.paginator import Paginator
     query = request.GET.get('q', '')
     status_filter = request.GET.get('status', '')
+    barangay_filter = request.GET.get('barangay', '').strip()
     beneficiaries = Beneficiary.objects.all()
     if query:
         beneficiaries = (
@@ -208,10 +209,21 @@ def beneficiary_list(request):
         ).distinct()
     if status_filter:
         beneficiaries = beneficiaries.filter(status=status_filter)
+    if barangay_filter:
+        beneficiaries = beneficiaries.filter(barangay=barangay_filter)
     beneficiaries = beneficiaries.order_by('last_name', 'first_name')
+
+    # Same field the Master List Report's barangay filter already uses —
+    # exposing it here too since staff commonly work one barangay at a time.
+    barangays = (
+        Beneficiary.objects.exclude(barangay='')
+        .order_by('barangay').values_list('barangay', flat=True).distinct()
+    )
 
     paginator = Paginator(beneficiaries, 50)
     page_obj = paginator.get_page(request.GET.get('page', 1))
+
+    active_filter_count = sum(1 for v in (query, status_filter, barangay_filter) if v)
 
     return render(request, 'beneficiaries/list.html', {
         'beneficiaries': page_obj,
@@ -219,6 +231,9 @@ def beneficiary_list(request):
         'paginator': paginator,
         'query': query,
         'status_filter': status_filter,
+        'barangay_filter': barangay_filter,
+        'barangays': barangays,
+        'active_filter_count': active_filter_count,
     })
 
 

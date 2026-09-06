@@ -333,7 +333,7 @@ This project is developed for academic research and controlled deployment purpos
 Current Version:
 
 ```
-FANSC v2.1.16 Official Release
+FANSC v2.1.17 Official Release
 ```
 
 Status:

@@ -60,6 +60,7 @@
     </a>
     {% endif %}
     {% if user.is_admin %}
+      <span class="vr mx-1 d-none d-md-inline" style="opacity:0.25;"></span>
       {% if beneficiary.status == 'active' or beneficiary.status == 'pending' %}
       <a href="{% url 'beneficiaries:beneficiary_deactivate' beneficiary.pk %}" class="btn btn-outline-danger">
         <i class="bi bi-person-x me-1"></i> Deactivate

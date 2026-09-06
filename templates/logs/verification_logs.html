@@ -16,8 +16,21 @@
 
 <div class="card mb-3">
   <div class="card-body py-3">
+    {% if date_range_error %}
+    <div class="alert alert-danger py-2 small d-flex align-items-center gap-2 mb-3">
+      <i class="bi bi-exclamation-triangle-fill flex-shrink-0"></i>{{ date_range_error }}
+    </div>
+    {% endif %}
     <form method="GET" class="row g-2 align-items-end">
-      <div class="col-md-4">
+      <div class="col-6 col-md-2">
+        <label for="filter-date-from" class="form-label small fw-semibold mb-1">Date From</label>
+        <input type="date" id="filter-date-from" name="date_from" value="{{ date_from }}" class="form-control form-control-sm">
+      </div>
+      <div class="col-6 col-md-2">
+        <label for="filter-date-to" class="form-label small fw-semibold mb-1">Date To</label>
+        <input type="date" id="filter-date-to" name="date_to" value="{{ date_to }}" class="form-control form-control-sm">
+      </div>
+      <div class="col-md-2">
         <label for="filter-decision" class="form-label small fw-semibold mb-1">Decision</label>
         <select id="filter-decision" name="decision" class="form-select form-select-sm">
           <option value="">All Decisions</option>
@@ -25,6 +38,14 @@
           <option value="{{ val }}" {% if decision_filter == val %}selected{% endif %}>{{ label }}</option>
           {% endfor %}
         </select>
+      </div>
+      <div class="col-md-3">
+        <label for="filter-beneficiary" class="form-label small fw-semibold mb-1">Beneficiary</label>
+        <input type="text" id="filter-beneficiary" name="beneficiary" value="{{ beneficiary_filter }}" class="form-control form-control-sm" placeholder="Name or Beneficiary ID">
+      </div>
+      <div class="col-md-2">
+        <label for="filter-performed-by" class="form-label small fw-semibold mb-1">Performed By</label>
+        <input type="text" id="filter-performed-by" name="performed_by" value="{{ performed_by_filter }}" class="form-control form-control-sm" placeholder="Username">
       </div>
       <div class="col-auto">
         <button type="submit" class="btn btn-primary btn-sm">
@@ -97,7 +118,11 @@
         <tr>
           <td colspan="9" class="text-center text-muted py-5">
             <i class="bi bi-camera-video-off fs-1 d-block mb-2 opacity-25"></i>
-            No verification logs found.
+            {% if decision_filter or beneficiary_filter or performed_by_filter or date_from or date_to %}
+              No verification records match the selected filters.
+            {% else %}
+              No verification logs found.
+            {% endif %}
           </td>
         </tr>
         {% endfor %}
@@ -111,7 +136,7 @@
       <ul class="pagination pagination-sm mb-0 justify-content-center">
         {% if attempts.has_previous %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ attempts.previous_page_number }}&decision={{ decision_filter }}">
+          <a class="page-link" href="?{% if filter_querystring %}{{ filter_querystring }}&amp;{% endif %}page={{ attempts.previous_page_number }}">
             <i class="bi bi-chevron-left"></i> Prev
           </a>
         </li>
@@ -121,7 +146,7 @@
         </li>
         {% if attempts.has_next %}
         <li class="page-item">
-          <a class="page-link" href="?page={{ attempts.next_page_number }}&decision={{ decision_filter }}">
+          <a class="page-link" href="?{% if filter_querystring %}{{ filter_querystring }}&amp;{% endif %}page={{ attempts.next_page_number }}">
             Next <i class="bi bi-chevron-right"></i>
           </a>
         </li>

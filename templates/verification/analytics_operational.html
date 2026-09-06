@@ -11,13 +11,59 @@
     </div>
     <h4 class="fw-bold text-qc-blue mb-0">Analytics — Operational</h4>
     <div class="text-muted small mt-1">
-      Daily verification volume, outcome distribution, registration activity, and staff verification
-      workload for the selected date range — trends over time, not a list of individual records.
+      What is happening operationally, and where the bottlenecks are, for the selected date range —
+      trends over time, not a list of individual records.
     </div>
   </div>
 </div>
 
 {% include "verification/_analytics_nav.html" with active_tab="operational" %}
+
+<div class="card mb-4">
+  <div class="card-header fw-semibold">Top Operational Summary (selected range)</div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-6 col-md-2">
+        <div class="analytics-metric hero">
+          <div class="analytics-metric-value"><span class="js-countup" data-countup="{{ summary.total }}">{{ summary.total }}</span></div>
+          <div class="analytics-metric-label">Attempts</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="analytics-metric hero">
+          <div class="analytics-metric-value" style="color:#15803d;"><span class="js-countup" data-countup="{{ summary.verified }}">{{ summary.verified }}</span></div>
+          <div class="analytics-metric-label">Verified</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="analytics-metric hero">
+          <div class="analytics-metric-value" style="color:#7c3aed;"><span class="js-countup" data-countup="{{ summary.manual_review }}">{{ summary.manual_review }}</span></div>
+          <div class="analytics-metric-label">Manual Review</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="analytics-metric hero">
+          <div class="analytics-metric-value" style="color:#dc3545;"><span class="js-countup" data-countup="{{ summary.not_verified_denied }}">{{ summary.not_verified_denied }}</span></div>
+          <div class="analytics-metric-label">Not Verified / Denied</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="analytics-metric hero">
+          <div class="analytics-metric-value">{% if summary.success_rate is not None %}{{ summary.success_rate }}%{% else %}&mdash;{% endif %}</div>
+          <div class="analytics-metric-label">Success Rate</div>
+          <div class="analytics-metric-context">{{ summary.verified }} of {{ summary.total }}</div>
+        </div>
+      </div>
+      <div class="col-6 col-md-2">
+        <div class="analytics-metric hero">
+          <div class="analytics-metric-value">{% if summary.manual_review_rate is not None %}{{ summary.manual_review_rate }}%{% else %}&mdash;{% endif %}</div>
+          <div class="analytics-metric-label">Manual Review Rate</div>
+          <div class="analytics-metric-context">{{ summary.manual_review }} of {{ summary.total }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
 
 <div class="row g-3 mb-4">
   <div class="col-12 col-lg-7">
@@ -61,19 +107,35 @@
     <div class="card h-100">
       <div class="card-header fw-semibold">Top Staff by Verification Volume (range)</div>
       <div class="card-body p-0">
-        <table class="table table-sm mb-0">
-          <thead class="table-light"><tr><th>Staff</th><th class="text-end">Attempts</th></tr></thead>
-          <tbody>
-            {% for row in staff_activity %}
-            <tr>
-              <td>{{ row.performed_by__first_name }} {{ row.performed_by__last_name|default:row.performed_by__username }}</td>
-              <td class="text-end">{{ row.n }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="2" class="text-center text-muted py-3">No data in range.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+        <div class="table-responsive">
+          <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Staff</th>
+                <th class="text-end">Attempts</th>
+                <th class="text-end">Verified</th>
+                <th class="text-end">Manual Review</th>
+                <th class="text-end">Claims Released</th>
+                <th class="text-end">Success Rate</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for row in staff_activity %}
+              <tr>
+                <td>{{ row.performed_by__first_name }} {{ row.performed_by__last_name|default:row.performed_by__username }}</td>
+                <td class="text-end">{{ row.n }}</td>
+                <td class="text-end">{{ row.verified }}</td>
+                <td class="text-end">{{ row.manual_review }}</td>
+                <td class="text-end">{{ row.claims_released }}</td>
+                <td class="text-end">{% if row.success_rate is not None %}{{ row.success_rate }}%{% else %}&mdash;{% endif %}</td>
+              </tr>
+              {% empty %}
+              <tr><td colspan="6" class="text-center text-muted py-3">No data in range.</td></tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        <div class="small text-muted px-3 pb-2">Workload reporting only — not a performance or productivity ranking.</div>
       </div>
     </div>
   </div>
@@ -83,21 +145,21 @@
   <div class="col-12">
     <div class="card h-100">
       <div class="card-header fw-semibold">Distribution Summary by Barangay (top 15, range)</div>
-      <div class="card-body p-0">
-        <table class="table table-sm mb-0">
-          <thead class="table-light"><tr><th>Barangay</th><th class="text-end">Claims</th><th class="text-end">Total Released (PHP)</th></tr></thead>
-          <tbody>
-            {% for row in barangay_distribution %}
-            <tr>
-              <td>{{ row.beneficiary__barangay|default:"(Unspecified)" }}</td>
-              <td class="text-end">{{ row.claims_count }}</td>
-              <td class="text-end">&#8369;{{ row.total_amount|floatformat:2 }}</td>
-            </tr>
-            {% empty %}
-            <tr><td colspan="3" class="text-center text-muted py-3">No released claims in range.</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+      <div class="card-body">
+        {% if barangay_distribution %}
+        {% with max_amount=barangay_distribution.0.total_amount %}
+        {% for row in barangay_distribution %}
+        <div class="hbar-row">
+          <span class="hbar-label" title="{{ row.beneficiary__barangay|default:'(Unspecified)' }}">{{ row.beneficiary__barangay|default:"(Unspecified)" }}</span>
+          <div class="hbar-track"><div class="hbar-fill" style="background:var(--qc-blue); width:{% widthratio row.total_amount max_amount 100 %}%;"></div></div>
+          <span class="hbar-value">&#8369;{{ row.total_amount|floatformat:2 }}</span>
+          <span class="text-muted small ms-2" style="min-width:70px; text-align:right;">{{ row.claims_count }} claim{{ row.claims_count|pluralize }}</span>
+        </div>
+        {% endfor %}
+        {% endwith %}
+        {% else %}
+        <div class="text-center text-muted py-3">No released claims in range.</div>
+        {% endif %}
       </div>
     </div>
   </div>

@@ -3028,3 +3028,23 @@ class PresidentDjangoAdminHardeningTest(TestCase):
         }, follow=True)
         self.assertIn(resp.status_code, (200, 403))
         self.assertTrue(CustomUser.objects.filter(pk=self.president_user.pk).exists())
+
+
+class CsrfFailurePageTest(TestCase):
+    """A CSRF failure must show the FANSC-branded 403_csrf.html page (safe
+    actions, friendly wording) rather than Django's raw technical fallback,
+    with no CSRF weakening involved — enforce_csrf_checks=True below is only
+    what's needed to *trigger* a real failure for the test itself."""
+
+    def test_csrf_failure_renders_branded_page(self):
+        client = Client(enforce_csrf_checks=True)
+        resp = client.post(reverse('accounts:login'), {'username': 'nobody', 'password': 'wrong'})
+        self.assertEqual(resp.status_code, 403)
+        self.assertContains(resp, 'FANSC', status_code=403)
+        self.assertContains(resp, 'Session or Form Expired', status_code=403)
+        self.assertContains(resp, 'Return to Login', status_code=403)
+
+    def test_csrf_failure_does_not_leak_django_debug_wording(self):
+        client = Client(enforce_csrf_checks=True)
+        resp = client.post(reverse('accounts:login'), {'username': 'nobody', 'password': 'wrong'})
+        self.assertNotContains(resp, 'CSRF verification failed. Request aborted.', status_code=403)

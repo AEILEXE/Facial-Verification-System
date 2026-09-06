@@ -71,31 +71,51 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var trendCanvas = document.getElementById('verificationTrendChart');
   if (trendCanvas && data.daily_trend && data.daily_trend.length) {
+    var hasOutcomeSeries = data.daily_trend.some(function (r) {
+      return r.manual_review !== undefined && r.not_verified_denied !== undefined;
+    });
+    var trendDatasets = [
+      {
+        label: 'Attempts',
+        data: data.daily_trend.map(function (r) { return r.total; }),
+        borderColor: '#0d6efd',
+        backgroundColor: 'rgba(13,110,253,0.1)',
+        tension: 0.2,
+      },
+      {
+        label: 'Verified',
+        data: data.daily_trend.map(function (r) { return r.verified; }),
+        borderColor: '#198754',
+        backgroundColor: 'rgba(25,135,84,0.1)',
+        tension: 0.2,
+      },
+    ];
+    if (hasOutcomeSeries) {
+      trendDatasets.push({
+        label: 'Manual Review',
+        data: data.daily_trend.map(function (r) { return r.manual_review; }),
+        borderColor: '#7c3aed',
+        backgroundColor: 'rgba(124,58,237,0.1)',
+        tension: 0.2,
+      });
+      trendDatasets.push({
+        label: 'Not Verified / Denied',
+        data: data.daily_trend.map(function (r) { return r.not_verified_denied; }),
+        borderColor: '#dc3545',
+        backgroundColor: 'rgba(220,53,69,0.1)',
+        tension: 0.2,
+      });
+    }
     new Chart(trendCanvas, {
       type: 'line',
       data: {
         labels: data.daily_trend.map(function (r) { return r.day; }),
-        datasets: [
-          {
-            label: 'Total Attempts',
-            data: data.daily_trend.map(function (r) { return r.total; }),
-            borderColor: '#0d6efd',
-            backgroundColor: 'rgba(13,110,253,0.1)',
-            tension: 0.2,
-          },
-          {
-            label: 'Verified',
-            data: data.daily_trend.map(function (r) { return r.verified; }),
-            borderColor: '#198754',
-            backgroundColor: 'rgba(25,135,84,0.1)',
-            tension: 0.2,
-          },
-        ],
+        datasets: trendDatasets,
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom' } },
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
         scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
       },
     });
@@ -277,6 +297,55 @@ document.addEventListener('DOMContentLoaded', function () {
       },
     });
     markChartReady(reviewCasesCanvas);
+  }
+
+  // Security tab — Security Events Over Time. Only rendered when the
+  // server actually built a bounded-range daily series (both From/To set).
+  var securityTrendCanvas = document.getElementById('securityEventsTrendChart');
+  if (securityTrendCanvas && data.security_events_trend && data.security_events_trend.length) {
+    new Chart(securityTrendCanvas, {
+      type: 'line',
+      data: {
+        labels: data.security_events_trend.map(function (r) { return r.day; }),
+        datasets: [
+          {
+            label: 'Failed Login',
+            data: data.security_events_trend.map(function (r) { return r.failed_logins; }),
+            borderColor: '#a16207',
+            backgroundColor: 'rgba(161,98,7,0.1)',
+            tension: 0.2,
+          },
+          {
+            label: 'Failed Verification',
+            data: data.security_events_trend.map(function (r) { return r.failed_verifications; }),
+            borderColor: '#dc3545',
+            backgroundColor: 'rgba(220,53,69,0.1)',
+            tension: 0.2,
+          },
+          {
+            label: 'Duplicate Face',
+            data: data.security_events_trend.map(function (r) { return r.duplicate_faces; }),
+            borderColor: '#7c3aed',
+            backgroundColor: 'rgba(124,58,237,0.1)',
+            tension: 0.2,
+          },
+          {
+            label: 'Payout Override',
+            data: data.security_events_trend.map(function (r) { return r.payout_overrides; }),
+            borderColor: '#0d6efd',
+            backgroundColor: 'rgba(13,110,253,0.1)',
+            tension: 0.2,
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+      },
+    });
+    markChartReady(securityTrendCanvas);
   }
 
   // v2.1.19 UX pass — Dashboard "ONE USEFUL TREND": verifications + released

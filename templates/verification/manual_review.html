@@ -15,7 +15,7 @@
   </div>
   <div class="d-flex gap-2 align-items-center">
     <span class="badge bg-warning text-dark" style="font-size:0.9rem; padding:0.5rem 0.9rem;">
-      {{ pending_manual_requests.count|add:pending_face_requests.count|add:pending_special_claims.count|add:pending_registrations.count }} pending
+      {{ total_pending }} pending
     </span>
     <a href="{% url 'beneficiaries:auto_approval_settings' %}" class="btn btn-sm btn-outline-secondary">
       <i class="bi bi-toggles me-1"></i>Auto-Approval Settings
@@ -24,9 +24,25 @@
   </div>
 </div>
 
+<!-- ── Queue overview — jump to any non-empty section without scrolling ──── -->
+{% if total_pending %}
+<div class="card mb-4">
+  <div class="card-body py-2 px-3 d-flex flex-wrap gap-3 align-items-center">
+    <span class="text-muted small fw-semibold text-uppercase" style="letter-spacing:0.04em;">Queue:</span>
+    {% if pending_shared_reps %}<a href="#q-shared-reps" class="badge bg-warning text-dark text-decoration-none">Representatives {{ pending_shared_reps.count }}</a>{% endif %}
+    {% if pending_registrations %}<a href="#q-registrations" class="badge bg-success text-decoration-none">Registrations {{ pending_registrations.count }}</a>{% endif %}
+    {% if pending_manual_requests %}<a href="#q-manual-verify" class="badge bg-warning text-dark text-decoration-none">Manual Verification {{ pending_manual_requests.count }}</a>{% endif %}
+    {% if pending_face_requests %}<a href="#q-face-updates" class="badge bg-primary text-decoration-none">Face Updates {{ pending_face_requests.count }}</a>{% endif %}
+    {% if pending_special_claims %}<a href="#q-special-claims" class="badge bg-warning text-dark text-decoration-none">Special Claims {{ pending_special_claims.count }}</a>{% endif %}
+    {% if pending %}<a href="#q-low-score" class="badge bg-secondary text-decoration-none">Low-Score Attempts {{ pending.count }}</a>{% endif %}
+    {% if pending_no_event_claims %}<a href="#q-no-event-claims" class="badge bg-warning text-dark text-decoration-none">Claims w/o Event {{ pending_no_event_claims.count }}</a>{% endif %}
+  </div>
+</div>
+{% endif %}
+
 <!-- ── Section 0: Representative Review Queue ─────────────────────────── -->
 {% if pending_shared_reps %}
-<div class="mb-4">
+<div class="mb-4" id="q-shared-reps">
   <div class="d-flex align-items-center gap-2 mb-2">
     <i class="bi bi-people-fill text-warning fs-5"></i>
     <h5 class="fw-bold mb-0">Representative Review Queue</h5>
@@ -56,7 +72,7 @@
         <tbody>
           {% for r in pending_shared_reps %}
           <tr>
-            <td class="small text-muted text-nowrap">{{ r.flagged_at|date:"M d H:i" }}</td>
+            <td class="small text-muted text-nowrap">{{ r.flagged_at|date:"M d H:i" }}<div class="text-muted" style="font-size:0.7rem;">{{ r.flagged_at|timesince }} ago</div></td>
             <td><div class="fw-semibold">{{ r.representative.full_name }}</div></td>
             <td><div class="font-mono small">{{ r.representative.beneficiary.beneficiary_id }}</div></td>
             <td><div class="font-mono small">{{ r.matched_beneficiary_id }}</div></td>
@@ -77,7 +93,7 @@
 {% endif %}
 
 <!-- ── Section 1: Pending Registrations ─────────────────────────────────── -->
-<div class="mb-4">
+<div class="mb-4" id="q-registrations">
   <div class="d-flex align-items-center gap-2 mb-2">
     <i class="bi bi-person-plus-fill text-success fs-5"></i>
     <h5 class="fw-bold mb-0">Pending Registrations</h5>
@@ -104,7 +120,7 @@
         <tbody>
           {% for b in pending_registrations %}
           <tr>
-            <td class="small text-muted" style="white-space:nowrap;">{{ b.created_at|date:"M d, Y H:i" }}</td>
+            <td class="small text-muted" style="white-space:nowrap;">{{ b.created_at|date:"M d, Y H:i" }}<div class="text-muted" style="font-size:0.7rem;">{{ b.created_at|timesince }} ago</div></td>
             <td class="font-mono small">{{ b.beneficiary_id }}</td>
             <td class="fw-semibold">{{ b.full_name }}</td>
             <td class="small text-muted">{{ b.barangay }}</td>
@@ -131,7 +147,7 @@
 </div>
 
 <!-- ── Section 2: Manual Verification Requests ──────────────────────────── -->
-<div class="mb-4">
+<div class="mb-4" id="q-manual-verify">
   <div class="d-flex align-items-center gap-2 mb-2">
     <i class="bi bi-person-badge text-warning fs-5"></i>
     <h5 class="fw-bold mb-0">Manual Verification Requests</h5>
@@ -160,7 +176,7 @@
         <tbody>
           {% for mvr in pending_manual_requests %}
           <tr>
-            <td class="small text-muted" style="white-space:nowrap;">{{ mvr.created_at|date:"M d, Y H:i" }}</td>
+            <td class="small text-muted" style="white-space:nowrap;">{{ mvr.created_at|date:"M d, Y H:i" }}<div class="text-muted" style="font-size:0.7rem;">{{ mvr.created_at|timesince }} ago</div></td>
             <td>
               <div class="fw-semibold">{{ mvr.beneficiary.full_name }}</div>
               <div class="font-mono text-muted small">{{ mvr.beneficiary.beneficiary_id }}</div>
@@ -217,7 +233,7 @@
 </div>
 
 <!-- ── Section 2: Face Update Requests ──────────────────────────────────── -->
-<div class="mb-4">
+<div class="mb-4" id="q-face-updates">
   <div class="d-flex align-items-center gap-2 mb-2">
     <i class="bi bi-camera-fill text-primary fs-5"></i>
     <h5 class="fw-bold mb-0">Face Update Requests</h5>
@@ -245,7 +261,7 @@
         <tbody>
           {% for fur in pending_face_requests %}
           <tr>
-            <td class="small text-muted" style="white-space:nowrap;">{{ fur.created_at|date:"M d, Y H:i" }}</td>
+            <td class="small text-muted" style="white-space:nowrap;">{{ fur.created_at|date:"M d, Y H:i" }}<div class="text-muted" style="font-size:0.7rem;">{{ fur.created_at|timesince }} ago</div></td>
             <td>
               <div class="fw-semibold">{{ fur.beneficiary.full_name }}</div>
               <div class="font-mono text-muted small">{{ fur.beneficiary.beneficiary_id }}</div>
@@ -285,7 +301,7 @@
 </div>
 
 <!-- ── Section 3: Special Claim Requests ────────────────────────────────── -->
-<div class="mb-4">
+<div class="mb-4" id="q-special-claims">
   <div class="d-flex align-items-center gap-2 mb-2">
     <i class="bi bi-plus-circle-fill text-warning fs-5"></i>
     <h5 class="fw-bold mb-0">Special Claim Requests</h5>
@@ -312,7 +328,7 @@
         <tbody>
           {% for scr in pending_special_claims %}
           <tr>
-            <td class="small text-muted" style="white-space:nowrap;">{{ scr.created_at|date:"M d, Y H:i" }}</td>
+            <td class="small text-muted" style="white-space:nowrap;">{{ scr.created_at|date:"M d, Y H:i" }}<div class="text-muted" style="font-size:0.7rem;">{{ scr.created_at|timesince }} ago</div></td>
             <td>
               <div class="fw-semibold">{{ scr.beneficiary.full_name }}</div>
               <div class="font-mono text-muted small">{{ scr.beneficiary.beneficiary_id }}</div>
@@ -342,7 +358,7 @@
 </div>
 
 <!-- ── Section 4: Low-score Verifications (legacy manual_review) ─────────── -->
-<div class="mb-4">
+<div class="mb-4" id="q-low-score">
   <div class="d-flex align-items-center gap-2 mb-2">
     <i class="bi bi-bar-chart-fill text-secondary fs-5"></i>
     <h5 class="fw-bold mb-0">Low-Score Verification Attempts</h5>
@@ -370,7 +386,7 @@
         <tbody>
           {% for a in pending %}
           <tr>
-            <td class="small text-muted" style="white-space:nowrap;">{{ a.timestamp|date:"M d, Y H:i" }}</td>
+            <td class="small text-muted" style="white-space:nowrap;">{{ a.timestamp|date:"M d, Y H:i" }}<div class="text-muted" style="font-size:0.7rem;">{{ a.timestamp|timesince }} ago</div></td>
             <td>
               <div class="fw-semibold">{{ a.beneficiary.full_name }}</div>
               <div class="font-mono text-muted small">{{ a.beneficiary.beneficiary_id }}</div>
@@ -418,7 +434,7 @@
 
 <!-- ── Section: Pending Claims (No Active Payout Event) ──────────────────── -->
 {% if pending_no_event_claims %}
-<div class="mb-4">
+<div class="mb-4" id="q-no-event-claims">
   <div class="d-flex align-items-center gap-2 mb-2">
     <i class="bi bi-hourglass-split text-warning fs-5"></i>
     <h5 class="fw-bold mb-0">Pending Claims &mdash; No Active Payout Event</h5>

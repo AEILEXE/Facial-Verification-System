@@ -18,7 +18,7 @@
 <div class="card mb-3">
   <div class="card-body py-3">
     <form method="GET" class="row g-2 align-items-end">
-      <div class="col-md-5">
+      <div class="col-md-4">
         <label for="filter-search" class="form-label small fw-semibold mb-1">Search</label>
         <input type="text" id="filter-search" name="q" value="{{ query }}" class="form-control"
                placeholder="Name, Beneficiary ID, or Senior Citizen ID&hellip;">
@@ -34,11 +34,22 @@
           <option value="disapproved" {% if status_filter == 'disapproved' %}selected{% endif %}>Disapproved</option>
         </select>
       </div>
+      <div class="col-md-3">
+        <label for="filter-barangay" class="form-label small fw-semibold mb-1">Barangay</label>
+        <select id="filter-barangay" name="barangay" class="form-select">
+          <option value="">All Barangays</option>
+          {% for bgy in barangays %}
+          <option value="{{ bgy }}" {% if barangay_filter == bgy %}selected{% endif %}>{{ bgy }}</option>
+          {% endfor %}
+        </select>
+      </div>
       <div class="col-auto">
         <button type="submit" class="btn btn-primary">
           <i class="bi bi-search me-1"></i> Search
         </button>
-        <a href="{% url 'beneficiaries:beneficiary_list' %}" class="btn btn-outline-secondary">Clear</a>
+        <a href="{% url 'beneficiaries:beneficiary_list' %}" class="btn btn-outline-secondary">
+          Clear{% if active_filter_count %} ({{ active_filter_count }}){% endif %}
+        </a>
       </div>
     </form>
   </div>
@@ -48,6 +59,8 @@
 <p class="text-muted small mb-2">
   Showing {{ page_obj.start_index }}&ndash;{{ page_obj.end_index }} of {{ paginator.count }}
   beneficiar{% if paginator.count == 1 %}y{% else %}ies{% endif %}{% if query %} for &ldquo;{{ query }}&rdquo;{% endif %}
+  {% if status_filter %} &middot; status: {{ status_filter|capfirst }}{% endif %}
+  {% if barangay_filter %} &middot; barangay: {{ barangay_filter }}{% endif %}
 </p>
 {% endif %}
 
@@ -57,8 +70,7 @@
       <thead>
         <tr>
           <th style="width:48px;"></th>
-          <th>Beneficiary ID</th>
-          <th>Name</th>
+          <th>Beneficiary</th>
           <th>Location</th>
           <th>Status</th>
           <th>Registered</th>
@@ -80,20 +92,22 @@
             {% endif %}
           </td>
           <td>
-            <span class="font-mono fw-semibold d-block">{{ b.beneficiary_id }}</span>
-            <span class="font-mono text-muted small d-block">
-              {% if b.senior_citizen_id %}SC ID: {{ b.senior_citizen_id }}{% else %}<span class="text-danger">SC ID: not provided</span>{% endif %}
-            </span>
-          </td>
-          <td>
             <div class="fw-semibold">{{ b.full_name }}</div>
+            <div class="font-mono text-muted small">
+              {{ b.beneficiary_id }}
+              {% if b.senior_citizen_id %} &middot; SC ID: {{ b.senior_citizen_id }}
+              {% else %} &middot; <span class="text-danger">SC ID not provided</span>{% endif %}
+            </div>
             {% if b.has_representative %}
-              <span class="badge bg-info bg-opacity-10 text-info border border-info small">
+              <span class="badge bg-info bg-opacity-10 text-info border border-info small mt-1">
                 <i class="bi bi-people me-1"></i>Has Rep.
               </span>
             {% endif %}
           </td>
-          <td class="small text-muted">{{ b.municipality }}, {{ b.province }}</td>
+          <td class="small">
+            <div>{{ b.barangay }}</div>
+            <div class="text-muted">{{ b.municipality }}, {{ b.province }}</div>
+          </td>
           <td>
             <span class="badge
               {% if b.status == 'active' %}bg-success
@@ -110,7 +124,7 @@
             {% endif %}
           </td>
           <td class="small text-muted">{{ b.created_at|date:"M d, Y" }}</td>
-          <td>
+          <td class="text-nowrap">
             <a href="{% url 'beneficiaries:beneficiary_detail' b.pk %}"
                class="btn btn-sm btn-outline-primary me-1">
               <i class="bi bi-eye me-1"></i>View
@@ -125,9 +139,9 @@
         </tr>
         {% empty %}
         <tr>
-          <td colspan="7" class="text-center text-muted py-5">
+          <td colspan="6" class="text-center text-muted py-5">
             <i class="bi bi-people fs-1 d-block mb-2 opacity-25"></i>
-            {% if query %}No beneficiaries found for &ldquo;{{ query }}&rdquo;.
+            {% if query or status_filter or barangay_filter %}No beneficiaries match the current filters.
             {% else %}No beneficiaries registered yet.{% endif %}
           </td>
         </tr>
@@ -142,7 +156,7 @@
   <ul class="pagination justify-content-center">
     {% if page_obj.has_previous %}
     <li class="page-item">
-      <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}">
+      <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}{% if barangay_filter %}&amp;barangay={{ barangay_filter|urlencode }}{% endif %}">
         &laquo; Previous
       </a>
     </li>
@@ -156,7 +170,7 @@
 
     {% if page_obj.has_next %}
     <li class="page-item">
-      <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}">
+      <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if query %}&amp;q={{ query|urlencode }}{% endif %}{% if status_filter %}&amp;status={{ status_filter }}{% endif %}{% if barangay_filter %}&amp;barangay={{ barangay_filter|urlencode }}{% endif %}">
         Next &raquo;
       </a>
     </li>

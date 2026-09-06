@@ -4,8 +4,17 @@
 
 {% block content %}
 <style>
-  .org-tier { display: flex; justify-content: center; flex-wrap: wrap; gap: 1.25rem; position: relative; padding-top: 22px; }
+  /* Tiers deliberately never wrap: the horizontal connector bar and each
+     card's drop-stem below are positioned assuming siblings stay in one
+     row (see .org-tier.multi::before/.org-card-slot::before). Wrapping to
+     multiple rows on a narrow screen would misalign those connectors and
+     make the hierarchy read as broken rather than just narrow, so
+     .org-chart-scroll below scrolls horizontally instead — the page itself
+     never overflows, only this bounded chart area can. */
+  .org-chart-scroll { overflow-x: auto; }
+  .org-tier { display: flex; justify-content: center; flex-wrap: nowrap; gap: 1.25rem; position: relative; padding-top: 22px; width: max-content; margin-left: auto; margin-right: auto; }
   .org-tier:first-child { padding-top: 0; }
+  .org-card-slot { flex-shrink: 0; }
   .org-connector { display: flex; justify-content: center; }
   .org-connector .stem { width: 2px; height: 22px; background: #cbd5e1; }
   /* v2.2.0 Post-UAT Phase 12: a horizontal bar above a tier that has more
@@ -37,6 +46,7 @@
   }
   .org-card {
     width: 220px;
+    flex-shrink: 0;
     border-radius: 0.6rem;
     border: 1px solid #e2e8f0;
     background: #fff;
@@ -96,8 +106,11 @@
   <a href="{% url 'accounts:officer_position_list' %}">Manage positions</a>
 </div>
 {% else %}
+<div id="orgChartScrollHint" class="text-muted small mb-2 d-none">
+  <i class="bi bi-arrow-left-right me-1"></i>This tier is wider than the screen — scroll sideways to see every position.
+</div>
 <div class="card">
-  <div class="card-body py-4">
+  <div class="card-body py-4 org-chart-scroll" id="orgChartScroll">
     {% for tier in chart_tiers %}
       {% if not forloop.first %}
       <div class="org-connector"><div class="stem"></div></div>
@@ -158,4 +171,17 @@
   Showing {{ chart_data|length }} active position{{ chart_data|length|pluralize }}.
   <a href="{% url 'accounts:officer_position_list' %}">Manage positions</a>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+  var scroller = document.getElementById('orgChartScroll');
+  var hint = document.getElementById('orgChartScrollHint');
+  if (!scroller || !hint) return;
+  function updateHint() {
+    hint.classList.toggle('d-none', scroller.scrollWidth <= scroller.clientWidth + 2);
+  }
+  updateHint();
+  window.addEventListener('resize', updateHint);
+});
+</script>
 {% endblock %}

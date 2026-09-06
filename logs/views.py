@@ -1,10 +1,12 @@
 import logging
 import traceback
+from urllib.parse import urlencode
 
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator
+from django.db.models import Q
 from django.views.decorators.http import require_POST
 
 from .models import AuditLog, Notification
@@ -191,6 +193,8 @@ def audit_log_list(request):
 
 @login_required
 def verification_log_list(request):
+    from datetime import datetime
+
     if not request.user.is_admin:
         # Staff see only their own
         attempts = VerificationAttempt.objects.filter(
@@ -200,19 +204,80 @@ def verification_log_list(request):
         attempts = VerificationAttempt.objects.select_related('beneficiary', 'performed_by')
 
     # Filters
-    decision_filter = request.GET.get('decision', '')
+    decision_filter = request.GET.get('decision', '').strip()
+    beneficiary_filter = request.GET.get('beneficiary', '').strip()
+    performed_by_filter = request.GET.get('performed_by', '').strip()
+    date_from = request.GET.get('date_from', '').strip()
+    date_to = request.GET.get('date_to', '').strip()
+    date_range_error = None
+
     if decision_filter:
         attempts = attempts.filter(decision=decision_filter)
+    if beneficiary_filter:
+        needle = beneficiary_filter[:100]
+        attempts = attempts.filter(
+            Q(beneficiary__first_name__icontains=needle)
+            | Q(beneficiary__last_name__icontains=needle)
+            | Q(beneficiary__beneficiary_id__icontains=needle)
+        )
+    if performed_by_filter:
+        attempts = attempts.filter(performed_by__username__icontains=performed_by_filter[:100])
+
+    # Date filtering uses VerificationAttempt.timestamp — the authoritative
+    # record of when the verification attempt occurred. With USE_TZ=True and
+    # TIME_ZONE='Asia/Manila', the __date lookup converts to the application
+    # timezone before truncating, so boundaries line up with what staff see
+    # on screen. Both bounds are inclusive of the whole named day.
+    parsed_from = parsed_to = None
+    if date_from:
+        try:
+            parsed_from = datetime.strptime(date_from, '%Y-%m-%d').date()
+        except ValueError:
+            date_from = ''
+    if date_to:
+        try:
+            parsed_to = datetime.strptime(date_to, '%Y-%m-%d').date()
+        except ValueError:
+            date_to = ''
+
+    if parsed_from and parsed_to and parsed_from > parsed_to:
+        date_range_error = 'Date From must not be after Date To.'
+    else:
+        if parsed_from:
+            attempts = attempts.filter(timestamp__date__gte=parsed_from)
+        if parsed_to:
+            attempts = attempts.filter(timestamp__date__lte=parsed_to)
 
     attempts = attempts.order_by('-timestamp')
     paginator = Paginator(attempts, 50)
     page = request.GET.get('page', 1)
     attempts_page = paginator.get_page(page)
 
+    # Preserve the active filters across pagination links without repeating
+    # them by hand in the template for every ?page= link.
+    filter_params = {}
+    if decision_filter:
+        filter_params['decision'] = decision_filter
+    if beneficiary_filter:
+        filter_params['beneficiary'] = beneficiary_filter
+    if performed_by_filter:
+        filter_params['performed_by'] = performed_by_filter
+    if date_from:
+        filter_params['date_from'] = date_from
+    if date_to:
+        filter_params['date_to'] = date_to
+    filter_querystring = urlencode(filter_params)
+
     return render(request, 'logs/verification_logs.html', {
         'attempts': attempts_page,
         'decision_filter': decision_filter,
+        'beneficiary_filter': beneficiary_filter,
+        'performed_by_filter': performed_by_filter,
+        'date_from': date_from,
+        'date_to': date_to,
+        'date_range_error': date_range_error,
         'decision_choices': VerificationAttempt.DECISION_CHOICES,
+        'filter_querystring': filter_querystring,
     })
 
 

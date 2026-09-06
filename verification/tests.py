@@ -12011,6 +12011,16 @@ class FaceNetMachineCacheTest(TestCase):
         self.assertEqual(as_admin, as_system)
 
     # C — source-mode default is deterministic and does not hardcode C:\FANSC.
+    #
+    # BASE_DIR is deliberately overridden to a synthetic path that is
+    # neither the installer's C:\FANSC nor (unlike an unpatched checkout
+    # such as this repository's own C:\FANSC\Facial-Verification-System
+    # working copy) contains "FANSC" as a substring. This keeps the
+    # assertion a property of get_facenet_cache_dir()'s logic -- it must
+    # derive the cache dir from settings.BASE_DIR rather than hardcoding
+    # the packaged install path -- instead of a property of wherever this
+    # repository happens to be checked out on disk.
+    @override_settings(BASE_DIR=r'C:\SomeOtherRoot\App')
     def test_c_source_default_deterministic_no_hardcoded_fansc(self):
         from verification.face_utils import get_facenet_cache_dir
         os.environ.pop('FANS_FACENET_CACHE_DIR', None)
@@ -12018,9 +12028,6 @@ class FaceNetMachineCacheTest(TestCase):
         expected = str(Path(dj_settings.BASE_DIR) / 'models' / 'keras-facenet')
         result = get_facenet_cache_dir()
         self.assertEqual(result, expected)
-        # In this dev/test environment BASE_DIR is the project checkout, not
-        # the installer's C:\FANSC -- proving the function derives from
-        # BASE_DIR rather than a hardcoded packaged-install path.
         self.assertNotIn('FANSC', result)
 
     # D — explicit safe cache-path environment override works.
@@ -12583,3 +12590,110 @@ class ReportClaimsReleasedByFilterTest(TestCase):
         resp = self.client.get(reverse('verification:report_claims'), {'released_by': 'Exe'})
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(list(resp.context['claims']), [])
+
+
+class DistributionSummaryDateFilterTest(TestCase):
+    """Distribution Summary Report (report_event_summary) date filtering.
+
+    Source model/field: StipendEvent.date (a plain DateField — no timezone
+    conversion applies). The filter selects which events appear in the
+    report; each row's own claim/attempt counts remain unfiltered lifetime
+    totals for that event, same as before this feature was added.
+    """
+
+    def setUp(self):
+        from verification.models import StipendEvent, ClaimRecord
+        self.StipendEvent = StipendEvent
+        self.ClaimRecord = ClaimRecord
+
+        self.admin = CustomUser.objects.create_user(
+            username='ds_admin', password='TestPass123!',
+            role=CustomUser.ROLE_IT, employee_id='EMP-DS-ADMIN',
+        )
+        self.ben = Beneficiary.objects.create(
+            beneficiary_id='BEN-DS-001', first_name='Ana', last_name='Cruz',
+            senior_citizen_id='SC-DS-001', date_of_birth='1945-01-01', gender='F',
+            address='1 St', barangay='Test Barangay', municipality='Quezon City',
+            province='Metro Manila',
+        )
+        self.client = Client()
+        self.client.force_login(self.admin)
+
+        self.event_old = StipendEvent.objects.create(title='January Payout', date='2026-01-10', amount=500)
+        self.event_mid = StipendEvent.objects.create(title='March Payout', date='2026-03-10', amount=500)
+        self.event_new = StipendEvent.objects.create(title='June Payout', date='2026-06-10', amount=500)
+        ClaimRecord.objects.create(
+            beneficiary=self.ben, stipend_event=self.event_mid, amount=500,
+            status=ClaimRecord.STATUS_CLAIMED,
+        )
+
+    def _events(self, resp):
+        return {s['event'].pk for s in resp.context['summaries']}
+
+    def test_date_from_only(self):
+        resp = self.client.get(reverse('verification:report_event_summary'), {'date_from': '2026-02-01'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self._events(resp), {self.event_mid.pk, self.event_new.pk})
+
+    def test_date_to_only(self):
+        resp = self.client.get(reverse('verification:report_event_summary'), {'date_to': '2026-02-01'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self._events(resp), {self.event_old.pk})
+
+    def test_date_from_and_to_boundary_inclusive(self):
+        resp = self.client.get(reverse('verification:report_event_summary'), {
+            'date_from': '2026-01-10', 'date_to': '2026-03-10',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self._events(resp), {self.event_old.pk, self.event_mid.pk})
+
+    def test_invalid_range_shows_warning_and_no_crash(self):
+        resp = self.client.get(reverse('verification:report_event_summary'), {
+            'date_from': '2026-06-10', 'date_to': '2026-01-10',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.context['date_range_invalid'])
+        self.assertEqual(list(resp.context['summaries']), [])
+
+    def test_no_results_in_range(self):
+        resp = self.client.get(reverse('verification:report_event_summary'), {'date_from': '2027-01-01'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(list(resp.context['summaries']), [])
+        self.assertContains(resp, 'No distribution events match the selected filters.')
+
+    def test_kpi_totals_match_filtered_events_only(self):
+        resp = self.client.get(reverse('verification:report_event_summary'), {
+            'date_from': '2026-03-01', 'date_to': '2026-04-01',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['kpi_totals']['events'], 1)
+        self.assertEqual(resp.context['kpi_totals']['claimed'], 1)
+
+    def test_excel_export_matches_filtered_events(self):
+        resp = self.client.get(reverse('verification:report_event_summary'), {
+            'date_from': '2026-02-01', 'export': 'excel',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(
+            resp['Content-Disposition'],
+            'attachment; filename="fansc-distribution-summary.xlsx"',
+        )
+
+    def test_print_export_matches_filtered_events(self):
+        resp = self.client.get(reverse('verification:report_event_summary'), {
+            'date_from': '2026-02-01', 'export': 'print',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(self._events(resp), {self.event_mid.pk, self.event_new.pk})
+
+    def test_event_type_filter(self):
+        resp = self.client.get(reverse('verification:report_event_summary'), {
+            'event_type': self.StipendEvent.EVENT_TYPE_REGULAR,
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(len(resp.context['summaries']), 3)
+
+    def test_invalid_event_type_ignored(self):
+        resp = self.client.get(reverse('verification:report_event_summary'), {'event_type': 'not_a_type'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.context['event_type_filter'], '')

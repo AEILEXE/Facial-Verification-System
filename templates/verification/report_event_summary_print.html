@@ -33,7 +33,11 @@
   <div class="meta" style="margin-bottom:0;">
     <strong>Office:</strong> Barangay Santol Senior Citizen Affairs Office
     &nbsp;|&nbsp;
-    <strong>Coverage Period:</strong> All distribution events on record
+    <strong>Coverage Period:</strong>
+    {% if date_from and date_to %}{{ date_from|date:"M d, Y" }} &ndash; {{ date_to|date:"M d, Y" }}
+    {% elif date_from %}From {{ date_from|date:"M d, Y" }}
+    {% elif date_to %}Through {{ date_to|date:"M d, Y" }}
+    {% else %}All distribution events on record{% endif %}
     &nbsp;|&nbsp;
     <strong>Date Generated:</strong> {% now "Y-m-d H:i" %}
     &nbsp;|&nbsp;

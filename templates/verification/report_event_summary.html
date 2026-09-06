@@ -16,14 +16,95 @@
     Per-event totals: claimed, pending, rejected, verification attempts, and fallback usage.
   </p>
 
-  <div class="d-flex gap-2 mb-3">
-    <div class="ms-auto d-flex gap-2">
-      <a href="?export=print" target="_blank" class="btn btn-outline-secondary btn-sm">
-        <i class="bi bi-printer me-1"></i>Print / Save as PDF
-      </a>
-      <a href="?export=excel" class="btn btn-success btn-sm">
-        <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
-      </a>
+  <div class="card mb-3">
+    <div class="card-body py-3">
+      <form method="GET" class="row g-2 align-items-end">
+        <div class="col-6 col-md-2">
+          <label for="es-date-from" class="form-label small fw-semibold mb-1">Date From</label>
+          <input type="date" id="es-date-from" name="date_from" value="{{ date_from|date:'Y-m-d' }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-6 col-md-2">
+          <label for="es-date-to" class="form-label small fw-semibold mb-1">Date To</label>
+          <input type="date" id="es-date-to" name="date_to" value="{{ date_to|date:'Y-m-d' }}" class="form-control form-control-sm">
+        </div>
+        <div class="col-md-3">
+          <label for="es-event-type" class="form-label small fw-semibold mb-1">Event Type</label>
+          <select id="es-event-type" name="event_type" class="form-select form-select-sm">
+            <option value="">All Types</option>
+            {% for val, label in event_type_choices %}
+            <option value="{{ val }}" {% if event_type_filter == val %}selected{% endif %}>{{ label }}</option>
+            {% endfor %}
+          </select>
+        </div>
+        <div class="col-auto">
+          <button type="submit" class="btn btn-sm btn-primary">
+            <i class="bi bi-funnel me-1"></i>Apply Filters
+          </button>
+          <a href="{% url 'verification:report_event_summary' %}" class="btn btn-sm btn-outline-secondary">Reset</a>
+        </div>
+        <div class="col-auto ms-auto d-flex gap-2">
+          <a href="?{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&amp;{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&amp;{% endif %}{% if event_type_filter %}event_type={{ event_type_filter }}&amp;{% endif %}export=print"
+             target="_blank" class="btn btn-outline-secondary btn-sm">
+            <i class="bi bi-printer me-1"></i>Print / Save as PDF
+          </a>
+          <a href="?{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&amp;{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&amp;{% endif %}{% if event_type_filter %}event_type={{ event_type_filter }}&amp;{% endif %}export=excel"
+             class="btn btn-success btn-sm">
+            <i class="bi bi-file-earmark-excel me-1"></i>Export Excel
+          </a>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  {% if date_range_invalid %}
+  <div class="alert alert-warning py-2 px-3 small mb-3">
+    <i class="bi bi-exclamation-triangle-fill me-1"></i>
+    "Date From" ({{ date_from|date:'Y-m-d' }}) is after "Date To" ({{ date_to|date:'Y-m-d' }}) — this range matches no events. Adjust the dates above.
+  </div>
+  {% endif %}
+
+  <div class="row g-3 mb-3">
+    <div class="col-6 col-md-3 col-lg">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="text-muted small">Events</div>
+        <div class="fs-4 fw-bold text-qc-blue">{{ kpi_totals.events }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-lg">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="text-muted small">Claims</div>
+        <div class="fs-4 fw-bold text-success">{{ kpi_totals.claimed }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-lg">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="text-muted small">Pending</div>
+        <div class="fs-4 fw-bold text-warning">{{ kpi_totals.pending }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-lg">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="text-muted small">Rejected</div>
+        <div class="fs-4 fw-bold text-danger">{{ kpi_totals.rejected }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-lg">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="text-muted small">Verification Attempts</div>
+        <div class="fs-4 fw-bold">{{ kpi_totals.attempts }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-lg">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="text-muted small">Manual Verification</div>
+        <div class="fs-4 fw-bold text-secondary">{{ kpi_totals.fallback }}</div>
+      </div></div>
+    </div>
+    <div class="col-6 col-md-3 col-lg">
+      <div class="card h-100"><div class="card-body py-3">
+        <div class="text-muted small">Total Released</div>
+        <div class="fs-4 fw-bold text-qc-blue">&#8369; {{ kpi_totals.released_amount|floatformat:2 }}</div>
+      </div></div>
     </div>
   </div>
 
@@ -56,7 +137,13 @@
           </tr>
           {% empty %}
           <tr>
-            <td colspan="8" class="text-center text-muted py-4">No distribution events recorded yet.</td>
+            <td colspan="8" class="text-center text-muted py-4">
+              {% if date_from or date_to or event_type_filter %}
+                No distribution events match the selected filters.
+              {% else %}
+                No distribution events recorded yet.
+              {% endif %}
+            </td>
           </tr>
           {% endfor %}
         </tbody>

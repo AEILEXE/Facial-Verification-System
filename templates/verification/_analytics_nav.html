@@ -25,35 +25,68 @@
   </li>
 </ul>
 
-{% if server_time %}
-<div class="small text-muted mb-2">
-  <i class="bi bi-clock-history me-1"></i>Data as of {{ server_time|date:"M d, Y g:i:s A" }}
-  <a href="{{ request.path }}{% if request.META.QUERY_STRING %}?{{ request.META.QUERY_STRING }}{% endif %}" class="ms-1">
-    <i class="bi bi-arrow-clockwise"></i> Refresh
-  </a>
-</div>
-{% endif %}
-
 {% if active_tab != 'biometric' %}
-<form method="GET" class="row g-2 align-items-end mb-4">
-  <div class="col-auto">
-    <label for="analytics-date-from" class="form-label small mb-0">From</label>
-    <input type="date" id="analytics-date-from" name="date_from" class="form-control form-control-sm" value="{{ date_from|date:'Y-m-d' }}">
-  </div>
-  <div class="col-auto">
-    <label for="analytics-date-to" class="form-label small mb-0">To</label>
-    <input type="date" id="analytics-date-to" name="date_to" class="form-control form-control-sm" value="{{ date_to|date:'Y-m-d' }}">
-  </div>
-  <div class="col-auto">
-    <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
-  </div>
-  <div class="col-auto ms-auto">
-    <a class="btn btn-sm btn-outline-secondary"
-       href="?{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&{% endif %}export=csv">
+<div class="analytics-toolbar mb-3">
+  <div class="d-flex flex-wrap align-items-center gap-2">
+    <div class="btn-group btn-group-sm analytics-presets" role="group" aria-label="Date range presets">
+      <a class="btn btn-outline-secondary {% if active_preset == 'today' %}active{% endif %}"
+         href="?date_from={{ date_presets.today.from }}&amp;date_to={{ date_presets.today.to }}">Today</a>
+      <a class="btn btn-outline-secondary {% if active_preset == 'last7' %}active{% endif %}"
+         href="?date_from={{ date_presets.last7.from }}&amp;date_to={{ date_presets.last7.to }}">Last 7 Days</a>
+      <a class="btn btn-outline-secondary {% if active_preset == 'last30' %}active{% endif %}"
+         href="?date_from={{ date_presets.last30.from }}&amp;date_to={{ date_presets.last30.to }}">Last 30 Days</a>
+      <a class="btn btn-outline-secondary {% if active_preset == 'this_month' %}active{% endif %}"
+         href="?date_from={{ date_presets.this_month.from }}&amp;date_to={{ date_presets.this_month.to }}">This Month</a>
+      <button type="button" id="analytics-custom-toggle"
+              class="btn btn-outline-secondary {% if active_preset == 'custom' %}active{% endif %}"
+              aria-expanded="{% if active_preset == 'custom' %}true{% else %}false{% endif %}"
+              aria-controls="analytics-custom-form">Custom</button>
+    </div>
+
+    <div class="small text-muted ms-2">
+      <i class="bi bi-clock-history me-1"></i>Data as of {{ server_time|date:"M d, Y g:i:s A" }}
+      <a href="{{ request.path }}{% if request.META.QUERY_STRING %}?{{ request.META.QUERY_STRING }}{% endif %}" class="ms-1">
+        <i class="bi bi-arrow-clockwise"></i> Refresh
+      </a>
+    </div>
+
+    <a class="btn btn-sm btn-outline-primary ms-auto"
+       href="?{% if date_from %}date_from={{ date_from|date:'Y-m-d' }}&amp;{% endif %}{% if date_to %}date_to={{ date_to|date:'Y-m-d' }}&amp;{% endif %}export=csv">
       <i class="bi bi-download me-1"></i>Export CSV
     </a>
   </div>
-</form>
+
+  <form method="GET" id="analytics-custom-form"
+        class="row g-2 align-items-end mt-2 {% if active_preset != 'custom' %}d-none{% endif %}">
+    <div class="col-auto">
+      <label for="analytics-date-from" class="form-label small mb-0">From</label>
+      <input type="date" id="analytics-date-from" name="date_from" class="form-control form-control-sm" value="{{ date_from|date:'Y-m-d' }}">
+    </div>
+    <div class="col-auto">
+      <label for="analytics-date-to" class="form-label small mb-0">To</label>
+      <input type="date" id="analytics-date-to" name="date_to" class="form-control form-control-sm" value="{{ date_to|date:'Y-m-d' }}">
+    </div>
+    <div class="col-auto">
+      <button type="submit" class="btn btn-sm btn-outline-primary">Apply</button>
+    </div>
+  </form>
+</div>
+
+<script>
+(function () {
+  var toggle = document.getElementById('analytics-custom-toggle');
+  var form = document.getElementById('analytics-custom-form');
+  if (!toggle || !form) return;
+  toggle.addEventListener('click', function () {
+    var hidden = form.classList.toggle('d-none');
+    toggle.setAttribute('aria-expanded', hidden ? 'false' : 'true');
+    if (!hidden) {
+      var first = document.getElementById('analytics-date-from');
+      if (first) first.focus();
+    }
+  });
+})();
+</script>
 
 {% if date_range_invalid %}
 <div class="alert alert-warning py-2 px-3 small mb-3">

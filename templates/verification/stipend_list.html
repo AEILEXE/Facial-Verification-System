@@ -13,11 +13,21 @@
     </h4>
     <p class="text-muted small mb-0">Manage payout events. Claims are linked to these events for audit purposes.</p>
   </div>
-  {% if user.is_admin %}
-  <a href="{% url 'verification:stipend_create' %}" class="btn btn-primary">
-    <i class="bi bi-plus-circle me-1"></i> Add Event
-  </a>
-  {% endif %}
+  <div class="d-flex align-items-center gap-2">
+    <div class="btn-group" role="group" aria-label="Payout schedule view switcher">
+      <button type="button" id="btnListView" class="btn btn-sm btn-qc-primary" aria-pressed="true">
+        <i class="bi bi-list-ul me-1"></i>List View
+      </button>
+      <button type="button" id="btnCalendarView" class="btn btn-sm btn-outline-primary" aria-pressed="false">
+        <i class="bi bi-calendar3 me-1"></i>Calendar View
+      </button>
+    </div>
+    {% if user.is_admin %}
+    <a href="{% url 'verification:stipend_create' %}" class="btn btn-primary">
+      <i class="bi bi-plus-circle me-1"></i> Add Event
+    </a>
+    {% endif %}
+  </div>
 </div>
 
 {% if messages %}
@@ -27,6 +37,8 @@
   </div>
   {% endfor %}
 {% endif %}
+
+<div id="listView">
 
 {% if user.is_admin and pending_approval %}
 <div class="card border-warning mb-4">
@@ -233,8 +245,40 @@
     {% endif %}
 
     <div class="card">
-      <div class="card-header bg-qc-blue text-white">
-        <i class="bi bi-clock-history me-2"></i>Past Events
+      <div class="card-header bg-qc-blue text-white d-flex justify-content-between align-items-center">
+        <span><i class="bi bi-clock-history me-2"></i>Past Events</span>
+        <span class="badge bg-white text-qc-blue">{{ past.paginator.count }}</span>
+      </div>
+      <div class="p-3 border-bottom bg-light">
+        <form method="get" class="row g-2 align-items-end">
+          <div class="col-12 col-sm-5">
+            <label class="form-label mb-1 small">Search</label>
+            <input type="text" name="past_q" value="{{ past_query }}" class="form-control form-control-sm" placeholder="Event name...">
+          </div>
+          <div class="col-6 col-sm-3">
+            <label class="form-label mb-1 small">Month</label>
+            <select name="past_month" class="form-select form-select-sm">
+              <option value="">All</option>
+              {% for m_num, m_name in month_choices %}
+              <option value="{{ m_num }}" {% if past_month == m_num|stringformat:"s" %}selected{% endif %}>{{ m_name }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-6 col-sm-2">
+            <label class="form-label mb-1 small">Year</label>
+            <select name="past_year" class="form-select form-select-sm">
+              <option value="">All</option>
+              {% for y in past_years %}
+              <option value="{{ y }}" {% if past_year == y|stringformat:"s" %}selected{% endif %}>{{ y }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-12 col-sm-2 d-grid">
+            <button type="submit" class="btn btn-sm btn-outline-primary">
+              <i class="bi bi-funnel me-1"></i>Filter
+            </button>
+          </div>
+        </form>
       </div>
       <div class="list-group list-group-flush">
         {% for event in past %}
@@ -273,10 +317,253 @@
           </div>
         </div>
         {% empty %}
-        <div class="list-group-item text-center text-muted py-4 small">No past events.</div>
+        <div class="list-group-item text-center text-muted py-4 small">No past events matching your filters.</div>
         {% endfor %}
       </div>
+      {% if past.paginator.count %}
+      <div class="card-footer d-flex flex-wrap justify-content-between align-items-center gap-2 small text-muted">
+        <span>Showing {{ past.start_index }}&ndash;{{ past.end_index }} of {{ past.paginator.count }}</span>
+        {% if past.paginator.num_pages > 1 %}
+        <nav aria-label="Past events pagination">
+          <ul class="pagination pagination-sm mb-0">
+            <li class="page-item {% if not past.has_previous %}disabled{% endif %}">
+              <a class="page-link" href="?{% if past_querystring %}{{ past_querystring }}&amp;{% endif %}past_page={{ past.previous_page_number|default:1 }}">Previous</a>
+            </li>
+            {% for page_num in past_page_range %}
+              {% if page_num == past.paginator.ELLIPSIS %}
+              <li class="page-item disabled"><span class="page-link">&hellip;</span></li>
+              {% else %}
+              <li class="page-item {% if page_num == past.number %}active{% endif %}">
+                <a class="page-link" href="?{% if past_querystring %}{{ past_querystring }}&amp;{% endif %}past_page={{ page_num }}">{{ page_num }}</a>
+              </li>
+              {% endif %}
+            {% endfor %}
+            <li class="page-item {% if not past.has_next %}disabled{% endif %}">
+              <a class="page-link" href="?{% if past_querystring %}{{ past_querystring }}&amp;{% endif %}past_page={{ past.next_page_number|default:past.number }}">Next</a>
+            </li>
+          </ul>
+        </nav>
+        {% endif %}
+      </div>
+      {% endif %}
     </div>
   </div>
 </div>
+
+</div><!-- /#listView -->
+
+<div id="calendarView" style="display:none;">
+  <div class="card">
+    <div class="card-header bg-qc-blue text-white calendar-toolbar">
+      <div class="calendar-toolbar-nav">
+        <button type="button" id="calPrevMonth" class="btn btn-sm btn-outline-light" aria-label="Previous month">
+          <i class="bi bi-chevron-left"></i>
+        </button>
+        <label for="calMonthSelect" class="visually-hidden">Month</label>
+        <select id="calMonthSelect" class="form-select form-select-sm calendar-toolbar-select" aria-label="Select month"></select>
+        <label for="calYearSelect" class="visually-hidden">Year</label>
+        <select id="calYearSelect" class="form-select form-select-sm calendar-toolbar-select" aria-label="Select year"></select>
+        <button type="button" id="calNextMonth" class="btn btn-sm btn-outline-light" aria-label="Next month">
+          <i class="bi bi-chevron-right"></i>
+        </button>
+      </div>
+      <div class="calendar-toolbar-goto">
+        <label for="calGotoDate" class="visually-hidden">Go to date</label>
+        <input type="date" id="calGotoDate" class="form-control form-control-sm calendar-toolbar-date" aria-label="Jump to a specific date">
+        <button type="button" id="calGotoBtn" class="btn btn-sm btn-outline-light">
+          <i class="bi bi-geo-alt me-1"></i>Jump to Date
+        </button>
+        <button type="button" id="calTodayBtn" class="btn btn-sm btn-light">
+          <i class="bi bi-calendar-check me-1"></i>Today
+        </button>
+      </div>
+    </div>
+    <div class="card-body p-2 p-md-3">
+      <div class="d-flex flex-wrap gap-3 mb-2 small">
+        <span><span class="calendar-legend-dot bg-primary"></span> Upcoming</span>
+        <span><span class="calendar-legend-dot bg-success"></span> Completed</span>
+        <span><span class="calendar-legend-dot bg-warning"></span> Pending Approval</span>
+        <span><span class="calendar-legend-dot bg-secondary"></span> Inactive</span>
+        <span><span class="calendar-legend-dot bg-danger"></span> Rejected</span>
+      </div>
+      <div id="calendarGrid" class="calendar-grid"></div>
+    </div>
+  </div>
+</div>
+
+{{ calendar_events|json_script:"calendar-events-data" }}
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+(function () {
+  var listView = document.getElementById('listView');
+  var calendarView = document.getElementById('calendarView');
+  var btnList = document.getElementById('btnListView');
+  var btnCal = document.getElementById('btnCalendarView');
+
+  function showList() {
+    listView.style.display = '';
+    calendarView.style.display = 'none';
+    btnList.classList.remove('btn-outline-primary'); btnList.classList.add('btn-qc-primary');
+    btnCal.classList.remove('btn-qc-primary'); btnCal.classList.add('btn-outline-primary');
+    btnList.setAttribute('aria-pressed', 'true');
+    btnCal.setAttribute('aria-pressed', 'false');
+  }
+  function showCalendar() {
+    listView.style.display = 'none';
+    calendarView.style.display = '';
+    btnCal.classList.remove('btn-outline-primary'); btnCal.classList.add('btn-qc-primary');
+    btnList.classList.remove('btn-qc-primary'); btnList.classList.add('btn-outline-primary');
+    btnCal.setAttribute('aria-pressed', 'true');
+    btnList.setAttribute('aria-pressed', 'false');
+    renderCalendar();
+  }
+  btnList.addEventListener('click', showList);
+  btnCal.addEventListener('click', showCalendar);
+
+  var eventsDataEl = document.getElementById('calendar-events-data');
+  var events = eventsDataEl ? JSON.parse(eventsDataEl.textContent) : [];
+
+  var today = new Date();
+  var viewYear = today.getFullYear();
+  var viewMonth = today.getMonth(); // 0-indexed
+
+  var monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  var dayNames = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+
+  var monthSelect = document.getElementById('calMonthSelect');
+  var yearSelect = document.getElementById('calYearSelect');
+  var gotoDateInput = document.getElementById('calGotoDate');
+
+  monthNames.forEach(function (name, idx) {
+    var opt = document.createElement('option');
+    opt.value = idx;
+    opt.textContent = name;
+    monthSelect.appendChild(opt);
+  });
+
+  // Year range covers every year referenced by an actual event plus a
+  // small buffer around today, so any real event stays reachable via the
+  // dropdown without listing decades of empty years.
+  var eventYears = [];
+  events.forEach(function (ev) {
+    eventYears.push(parseISO(ev.start).getFullYear());
+    eventYears.push(parseISO(ev.end).getFullYear());
+  });
+  var minYear = Math.min(today.getFullYear() - 2, eventYears.length ? Math.min.apply(null, eventYears) : today.getFullYear());
+  var maxYear = Math.max(today.getFullYear() + 2, eventYears.length ? Math.max.apply(null, eventYears) : today.getFullYear());
+  for (var y = minYear; y <= maxYear; y++) {
+    var yOpt = document.createElement('option');
+    yOpt.value = y;
+    yOpt.textContent = y;
+    yearSelect.appendChild(yOpt);
+  }
+
+  function syncToolbarInputs() {
+    monthSelect.value = String(viewMonth);
+    yearSelect.value = String(viewYear);
+  }
+
+  function toDateOnly(d) { return new Date(d.getFullYear(), d.getMonth(), d.getDate()); }
+  function parseISO(s) {
+    var parts = s.split('-');
+    return new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+  }
+  function escapeHtml(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+
+  function renderCalendar() {
+    var grid = document.getElementById('calendarGrid');
+    syncToolbarInputs();
+
+    var firstOfMonth = new Date(viewYear, viewMonth, 1);
+    var startWeekday = firstOfMonth.getDay();
+    var daysInMonth = new Date(viewYear, viewMonth + 1, 0).getDate();
+    var todayOnly = toDateOnly(today);
+
+    var html = '<div class="calendar-weekdays">';
+    dayNames.forEach(function (d) { html += '<div class="calendar-weekday">' + d + '</div>'; });
+    html += '</div><div class="calendar-cells">';
+
+    for (var i = 0; i < startWeekday; i++) {
+      html += '<div class="calendar-cell calendar-cell-empty"></div>';
+    }
+
+    for (var day = 1; day <= daysInMonth; day++) {
+      var cellDate = new Date(viewYear, viewMonth, day);
+      var isToday = cellDate.getTime() === todayOnly.getTime();
+      var dayEvents = events.filter(function (ev) {
+        var start = parseISO(ev.start);
+        var end = parseISO(ev.end);
+        return cellDate >= start && cellDate <= end;
+      });
+
+      html += '<div class="calendar-cell' + (isToday ? ' calendar-cell-today' : '') + '">';
+      html += '<div class="calendar-cell-date">' + day + '</div>';
+      dayEvents.slice(0, 3).forEach(function (ev) {
+        var safeTitle = escapeHtml(ev.title);
+        var safeStatus = escapeHtml(ev.status);
+        var safeClass = escapeHtml(ev.css_class);
+        var inner = '<span class="calendar-event-dot bg-' + safeClass + '"></span>' +
+          '<span class="calendar-event-title">' + safeTitle + '</span>';
+        if (ev.url) {
+          html += '<a href="' + escapeHtml(ev.url) + '" class="calendar-event calendar-event-' + safeClass + '" title="' + safeTitle + ' — ' + safeStatus + '">' + inner + '</a>';
+        } else {
+          html += '<div class="calendar-event calendar-event-' + safeClass + '" title="' + safeTitle + ' — ' + safeStatus + '">' + inner + '</div>';
+        }
+      });
+      if (dayEvents.length > 3) {
+        html += '<div class="calendar-event-more">+' + (dayEvents.length - 3) + ' more</div>';
+      }
+      html += '</div>';
+    }
+
+    grid.innerHTML = html;
+  }
+
+  document.getElementById('calPrevMonth').addEventListener('click', function () {
+    viewMonth -= 1;
+    if (viewMonth < 0) { viewMonth = 11; viewYear -= 1; }
+    renderCalendar();
+  });
+  document.getElementById('calNextMonth').addEventListener('click', function () {
+    viewMonth += 1;
+    if (viewMonth > 11) { viewMonth = 0; viewYear += 1; }
+    renderCalendar();
+  });
+  document.getElementById('calTodayBtn').addEventListener('click', function () {
+    viewYear = today.getFullYear();
+    viewMonth = today.getMonth();
+    renderCalendar();
+  });
+  monthSelect.addEventListener('change', function () {
+    viewMonth = parseInt(monthSelect.value, 10);
+    renderCalendar();
+  });
+  yearSelect.addEventListener('change', function () {
+    viewYear = parseInt(yearSelect.value, 10);
+    renderCalendar();
+  });
+  function goToPickedDate() {
+    if (!gotoDateInput.value) { return; }
+    var picked = parseISO(gotoDateInput.value);
+    viewYear = picked.getFullYear();
+    viewMonth = picked.getMonth();
+    renderCalendar();
+  }
+  document.getElementById('calGotoBtn').addEventListener('click', goToPickedDate);
+  // Picking a date (mouse, keyboard, or native picker) navigates immediately —
+  // the button/Enter path stays only as a fallback for browsers where a
+  // manual edit doesn't reliably fire `change` until blur.
+  gotoDateInput.addEventListener('change', goToPickedDate);
+  gotoDateInput.addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); goToPickedDate(); }
+  });
+})();
+</script>
 {% endblock %}

@@ -11,138 +11,105 @@
     </div>
     <h4 class="fw-bold text-qc-blue mb-0">Analytics — Executive Overview</h4>
     <div class="text-muted small mt-1">
-      Aggregated beneficiary, verification, and distribution totals for the selected date range —
-      an at-a-glance summary for administrators, not a per-record report.
+      How the stipend program is performing for the selected date range — an at-a-glance management
+      summary, not a per-record report.
     </div>
   </div>
 </div>
 
 {% include "verification/_analytics_nav.html" with active_tab="executive" %}
 
-<div class="row g-3 mb-3">
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="card stat-card h-100">
-      <div class="card-body d-flex align-items-center gap-3 p-3">
-        <div class="stat-icon blue"><i class="bi bi-people-fill"></i></div>
-        <div>
-          <div class="stat-value text-qc-blue"><span class="js-countup" data-countup="{{ beneficiary_counts.total }}">{{ beneficiary_counts.total }}</span></div>
-          <div class="stat-label">Total Beneficiaries</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="card stat-card h-100">
-      <div class="card-body d-flex align-items-center gap-3 p-3">
-        <div class="stat-icon green"><i class="bi bi-person-check-fill"></i></div>
-        <div>
-          <div class="stat-value" style="color:#15803d;"><span class="js-countup" data-countup="{{ beneficiary_counts.active }}">{{ beneficiary_counts.active }}</span></div>
-          <div class="stat-label">Active Beneficiaries</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="card stat-card h-100">
-      <div class="card-body d-flex align-items-center gap-3 p-3">
-        <div class="stat-icon purple"><i class="bi bi-person-badge-fill"></i></div>
-        <div>
-          <div class="stat-value" style="color:#7c3aed;"><span class="js-countup" data-countup="{{ user_counts.active }}">{{ user_counts.active }}</span></div>
-          <div class="stat-label">Active Staff/Admin Accounts</div>
-        </div>
-      </div>
-    </div>
-  </div>
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="card stat-card h-100">
-      <div class="card-body d-flex align-items-center gap-3 p-3">
-        <div class="stat-icon amber"><i class="bi bi-calendar3"></i></div>
-        <div>
-          {% if active_event %}
-          <div class="stat-value" style="font-size:1.1rem;">{{ active_event.title }}</div>
-          <div class="stat-label">Active Stipend Event</div>
-          {% elif event_today_outside_window %}
-          <div class="stat-value text-muted" style="font-size:1.1rem;">No Active Event</div>
-          <div class="stat-label">Active Stipend Event</div>
-          <div class="text-muted" style="font-size:0.68rem; margin-top:0.15rem;">A payout is scheduled today, but outside its claiming time window right now</div>
-          {% else %}
-          <div class="stat-value text-muted" style="font-size:1.1rem;">No Active Event</div>
-          <div class="stat-label">Active Stipend Event</div>
-          <div class="text-muted" style="font-size:0.68rem; margin-top:0.15rem;">No payout scheduled today</div>
-          {% endif %}
-        </div>
-      </div>
-    </div>
-  </div>
-</div>
-
 <div class="row g-3 mb-4">
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="card stat-card h-100">
-      <div class="card-body d-flex align-items-center gap-3 p-3">
-        <div class="stat-icon amber"><i class="bi bi-camera-video-fill"></i></div>
-        <div>
-          <div class="stat-value" style="color:#a16207;"><span class="js-countup" data-countup="{{ total_verifications }}">{{ total_verifications }}</span></div>
-          <div class="stat-label">Verification Attempts</div>
-          <div class="text-muted" style="font-size:0.68rem; margin-top:0.15rem;">Selected range</div>
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="analytics-group-card">
+      <div class="analytics-group-label">Program</div>
+      <div class="analytics-group-body">
+        <div class="analytics-metric hero">
+          <div class="analytics-metric-value"><span class="js-countup" data-countup="{{ beneficiary_counts.total }}">{{ beneficiary_counts.total }}</span></div>
+          <div class="analytics-metric-label">Total Beneficiaries</div>
+        </div>
+        <div class="analytics-metric secondary">
+          <div class="analytics-metric-value" style="color:#15803d;"><span class="js-countup" data-countup="{{ beneficiary_counts.active }}">{{ beneficiary_counts.active }}</span></div>
+          <div class="analytics-metric-label">Active Beneficiaries</div>
         </div>
       </div>
     </div>
   </div>
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="card stat-card h-100">
-      <div class="card-body p-3">
-        <div class="d-flex align-items-center gap-2 mb-2">
-          <div class="stat-icon green"><i class="bi bi-patch-check-fill"></i></div>
-          <div class="stat-label mb-0">
-            Verification Outcome
-            <i class="bi bi-info-circle" style="font-size:0.7rem; cursor:help;"
-               title="Verified / Manual Review share of total attempts ({{ total_verifications }}) in the selected range. An operational routing metric, not biometric accuracy — additional liveness/security rules may still affect the outcome."></i>
+
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="analytics-group-card">
+      <div class="analytics-group-label">
+        Verification
+        <i class="bi bi-info-circle" style="font-size:0.7rem; cursor:help; text-transform:none; letter-spacing:0;"
+           title="Verified / Manual Review share of total attempts ({{ total_verifications }}) in the selected range. An operational routing metric, not biometric accuracy."></i>
+      </div>
+      <div class="analytics-group-body">
+        <div class="analytics-metric hero">
+          <div class="analytics-metric-value"><span class="js-countup" data-countup="{{ total_verifications }}">{{ total_verifications }}</span></div>
+          <div class="analytics-metric-label">Attempts, selected range</div>
+        </div>
+        <div class="analytics-metric secondary">
+          <div class="d-flex justify-content-between">
+            <span class="analytics-metric-label mb-0">Verified</span>
+            <span class="analytics-metric-value" style="color:#15803d;">{% if verified_rate is not None %}{{ verified_rate }}%{% else %}&mdash;{% endif %}</span>
           </div>
+          <div class="analytics-metric-context">{{ verified_count }} of {{ total_verifications }}</div>
+          <div class="analytics-metric-bar"><div class="analytics-metric-bar-fill bg-success" style="width:{{ verified_rate|default:0 }}%;"></div></div>
         </div>
-        <div class="d-flex justify-content-between small mb-1">
-          <span>Verified</span>
-          <span class="fw-semibold" style="color:#15803d;">{% if verified_rate is not None %}{{ verified_rate }}%{% else %}&mdash;{% endif %} <span class="text-muted fw-normal">({{ verified_count }})</span></span>
-        </div>
-        <div class="progress mb-2" style="height:6px;">
-          <div class="progress-bar bg-success" role="progressbar" style="width:{{ verified_rate|default:0 }}%;"></div>
-        </div>
-        <div class="d-flex justify-content-between small mb-1">
-          <span>Manual Review</span>
-          {% if total_verifications %}
-          <span class="fw-semibold" style="color:#7c3aed;">{% widthratio manual_review_count total_verifications 100 %}% <span class="text-muted fw-normal">({{ manual_review_count }})</span></span>
-          {% else %}
-          <span class="fw-semibold text-muted">&mdash;</span>
-          {% endif %}
-        </div>
-        <div class="progress" style="height:6px;">
-          <div class="progress-bar" role="progressbar" style="background:#7c3aed; width:{% if total_verifications %}{% widthratio manual_review_count total_verifications 100 %}{% else %}0{% endif %}%;"></div>
-        </div>
-        <div class="text-muted" style="font-size:0.65rem; margin-top:0.4rem;">Selected range</div>
-      </div>
-    </div>
-  </div>
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="card stat-card h-100">
-      <div class="card-body d-flex align-items-center gap-3 p-3">
-        <div class="stat-icon blue"><i class="bi bi-cash-coin"></i></div>
-        <div>
-          <div class="stat-value text-qc-blue">&#8369;{{ claims_amount|floatformat:2 }}</div>
-          <div class="stat-label">Total Released</div>
-          <div class="text-muted" style="font-size:0.68rem; margin-top:0.15rem;">{{ claims_count }} claim{{ claims_count|pluralize }} in selected range</div>
+        <div class="analytics-metric secondary">
+          <div class="d-flex justify-content-between">
+            <span class="analytics-metric-label mb-0">Manual Review</span>
+            <span class="analytics-metric-value" style="color:#7c3aed;">{% if total_verifications %}{% widthratio manual_review_count total_verifications 100 %}%{% else %}&mdash;{% endif %}</span>
+          </div>
+          <div class="analytics-metric-context">{{ manual_review_count }} of {{ total_verifications }}</div>
+          <div class="analytics-metric-bar"><div class="analytics-metric-bar-fill" style="background:#7c3aed; width:{% if total_verifications %}{% widthratio manual_review_count total_verifications 100 %}{% else %}0{% endif %}%;"></div></div>
         </div>
       </div>
     </div>
   </div>
-  <div class="col-12 col-sm-6 col-lg-3">
-    <div class="card stat-card h-100">
-      <div class="card-body d-flex align-items-center gap-3 p-3">
-        <div class="stat-icon amber"><i class="bi bi-hourglass-split"></i></div>
-        <div>
-          <div class="stat-value" style="color:#a16207;"><span class="js-countup" data-countup="{{ pending_claims }}">{{ pending_claims }}</span></div>
-          <div class="stat-label">Pending Claims</div>
-          <div class="text-muted" style="font-size:0.68rem; margin-top:0.15rem;">Awaiting approval, current</div>
+
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="analytics-group-card">
+      <div class="analytics-group-label">Distribution</div>
+      <div class="analytics-group-body">
+        <div class="analytics-metric hero">
+          <div class="analytics-metric-value">&#8369;{{ claims_amount|floatformat:2 }}</div>
+          <div class="analytics-metric-label">Total Released, selected range</div>
         </div>
+        <div class="analytics-metric secondary">
+          <div class="analytics-metric-value">{{ claims_count }}</div>
+          <div class="analytics-metric-label">Claims Released, selected range</div>
+        </div>
+        <div class="analytics-metric secondary">
+          <div class="analytics-metric-value" style="color:#a16207;"><span class="js-countup" data-countup="{{ pending_claims }}">{{ pending_claims }}</span></div>
+          <div class="analytics-metric-label">Pending Claims, current queue</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-md-6 col-lg-3">
+    <div class="analytics-group-card">
+      <div class="analytics-group-label">Current Event</div>
+      <div class="analytics-group-body">
+        {% if active_event %}
+        <div class="analytics-metric hero">
+          <div class="analytics-metric-value" style="font-size:1.25rem;">{{ active_event.title }}</div>
+          <div class="analytics-metric-label">Active Stipend Event</div>
+        </div>
+        {% elif event_today_outside_window %}
+        <div class="analytics-metric hero">
+          <div class="analytics-metric-value text-muted" style="font-size:1.25rem;">No Active Event</div>
+          <div class="analytics-metric-label">Active Stipend Event</div>
+          <div class="analytics-metric-context">A payout is scheduled today, but outside its claiming time window right now.</div>
+        </div>
+        {% else %}
+        <div class="analytics-metric hero">
+          <div class="analytics-metric-value text-muted" style="font-size:1.25rem;">No Active Event</div>
+          <div class="analytics-metric-label">Active Stipend Event</div>
+          <div class="analytics-metric-context">No payout scheduled today.</div>
+        </div>
+        {% endif %}
       </div>
     </div>
   </div>
@@ -197,16 +164,32 @@
 {% endif %}
 
 <div class="card">
+  <div class="card-header fw-semibold">Beneficiary Status Breakdown</div>
   <div class="card-body">
-    <h6 class="fw-semibold mb-2">Beneficiary Status Breakdown</h6>
-    <table class="table table-sm mb-0">
-      <tbody>
-        <tr><td>Active</td><td class="text-end">{{ beneficiary_counts.active }}</td></tr>
-        <tr><td>Pending</td><td class="text-end">{{ beneficiary_counts.pending }}</td></tr>
-        <tr><td>Inactive</td><td class="text-end">{{ beneficiary_counts.inactive }}</td></tr>
-        <tr><td>Deceased</td><td class="text-end">{{ beneficiary_counts.deceased }}</td></tr>
-      </tbody>
-    </table>
+    {% if beneficiary_counts.total %}
+    <div class="hbar-row">
+      <span class="hbar-label">Active</span>
+      <div class="hbar-track"><div class="hbar-fill bg-success" style="width:{% widthratio beneficiary_counts.active beneficiary_counts.total 100 %}%;"></div></div>
+      <span class="hbar-value">{{ beneficiary_counts.active }}</span>
+    </div>
+    <div class="hbar-row">
+      <span class="hbar-label">Pending</span>
+      <div class="hbar-track"><div class="hbar-fill" style="background:#fd7e14; width:{% widthratio beneficiary_counts.pending beneficiary_counts.total 100 %}%;"></div></div>
+      <span class="hbar-value">{{ beneficiary_counts.pending }}</span>
+    </div>
+    <div class="hbar-row">
+      <span class="hbar-label">Inactive</span>
+      <div class="hbar-track"><div class="hbar-fill" style="background:#6c757d; width:{% widthratio beneficiary_counts.inactive beneficiary_counts.total 100 %}%;"></div></div>
+      <span class="hbar-value">{{ beneficiary_counts.inactive }}</span>
+    </div>
+    <div class="hbar-row">
+      <span class="hbar-label">Deceased</span>
+      <div class="hbar-track"><div class="hbar-fill" style="background:#343a40; width:{% widthratio beneficiary_counts.deceased beneficiary_counts.total 100 %}%;"></div></div>
+      <span class="hbar-value">{{ beneficiary_counts.deceased }}</span>
+    </div>
+    {% else %}
+    <div class="text-center text-muted py-3">No beneficiaries registered yet.</div>
+    {% endif %}
   </div>
 </div>
 
