@@ -369,6 +369,13 @@
               <span class="badge bg-secondary small">
                 <i class="bi bi-slash-circle me-1"></i>Representative Deactivated
               </span>
+              {% elif rep.has_face_data and rep.is_blocked_for_review %}
+              <span class="badge bg-warning text-dark small">
+                <i class="bi bi-hourglass-split me-1"></i>Pending Administrator Review
+              </span>
+              <span class="small text-warning ms-1">
+                Cannot claim until an administrator reviews this representative
+              </span>
               {% elif rep.has_face_data %}
               <span class="badge bg-success small">
                 <i class="bi bi-check-circle me-1"></i>Face Registered &mdash; Ready to Verify

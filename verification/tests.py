@@ -3856,6 +3856,197 @@ class LivenessStrictModeTest(TestCase):
             mock_pf.assert_not_called()
 
 
+# ──────────────────────────────────────────────────────────────────────────────
+# FANSC v2.1.17 functional correction pass — regression coverage locking in the
+# retry state machine's ordering: a poor-quality capture on an early attempt
+# must stay in the retry loop (another live capture, same beneficiary, same
+# event) and must NOT itself finalize a claim, mark successful verification,
+# or release a payout. Only once retries are exhausted (or the score lands in
+# the separate manual-review/lookalike band, or a later attempt actually
+# clears the auto-verify threshold) does the existing terminal decision logic
+# apply. These tests exercise the real view end-to-end across a multi-attempt
+# session rather than a single mocked call, so a regression in attempt-number
+# bookkeeping or premature finalization would be caught here.
+# ──────────────────────────────────────────────────────────────────────────────
+
+class VerifySubmitRetryStateTransitionTest(TestCase):
+
+    def setUp(self):
+        from verification.models import StipendEvent, FaceEmbedding
+        from cryptography.fernet import Fernet
+
+        self.staff = _make_staff('retry_sm_staff')
+        self.ben = _make_beneficiary('BEN-RETRYSM-001', 'SC-RETRYSM-001')
+        self.ben.status = Beneficiary.STATUS_ACTIVE
+        self.ben.save()
+
+        self.event = StipendEvent.objects.create(
+            title='Retry State Machine Test Payout',
+            date=datetime.date.today(),
+            amount=500,
+            is_active=True,
+            created_by=self.staff,
+        )
+
+        key = Fernet.generate_key()
+        fake_enc = Fernet(key).encrypt(b'\x00' * 512)
+        FaceEmbedding.objects.create(beneficiary=self.ben, embedding_data=fake_enc)
+
+        self.client = Client()
+        self.client.force_login(self.staff)
+        self.url = reverse('verification:verify_submit')
+
+    def _set_session(self, attempt_number):
+        session = self.client.session
+        session['verification_session'] = {
+            'beneficiary_id': str(self.ben.pk),
+            'attempt_number': attempt_number,
+            'session_id': _FIXED_TEST_SESSION_ID,
+            'claimant_type': 'beneficiary',
+            'stipend_event_id': str(self.event.pk),
+            'challenge': 'right',
+        }
+        session.save()
+
+    def _post(self, attempt_number):
+        self._set_session(attempt_number)
+        tx = _make_liveness_tx(self.ben, self.staff, self.event)
+        payload = json.dumps({
+            'image': DATA_URI_JPEG,
+            'challenge_completed': True,
+            'liveness_score': 0.9,
+            'anti_spoof_score': 0.9,
+            'liveness_passed': True,
+            'face_detected': True,
+            'tx_token': str(tx.token),
+            'session_id': _FIXED_TEST_SESSION_ID,
+        })
+        return self.client.post(
+            self.url, data=payload, content_type='application/json', secure=True,
+        )
+
+    def _mocked_post(self, attempt_number, score):
+        import numpy as np
+        with mock.patch('verification.views.load_image_from_bytes') as mock_load, \
+             mock.patch('verification.views.detect_and_align_face') as mock_detect, \
+             mock.patch('verification.views.check_anti_spoofing') as mock_spoof, \
+             mock.patch('verification.views.process_face_for_verification') as mock_process, \
+             mock.patch('verification.views.compare_with_all_embeddings') as mock_compare:
+            mock_load.return_value = np.zeros((100, 100, 3), dtype=np.uint8)
+            mock_detect.return_value = np.zeros((64, 64, 3), dtype=np.uint8)
+            mock_spoof.return_value = {'passed': True, 'score': 0.9, 'reason': 'Real face.'}
+            mock_process.return_value = {
+                'success': True, 'embedding': np.zeros(128),
+                'quality': {'ok': True, 'score': 0.9, 'reason': ''}, 'using_mock': False,
+            }
+            mock_compare.return_value = {
+                'success': True, 'score': score,
+                'matched_template': 'primary', 'templates_checked': 1, 'all_scores': [],
+            }
+            resp = self._post(attempt_number)
+        return json.loads(resp.content)
+
+    @override_settings(LIVENESS_REQUIRED=True, DEMO_MODE=False, VERIFICATION_THRESHOLD=0.75,
+                        MAX_RETRY_ATTEMPTS=2, DEBUG=True)
+    def test_attempt_1_low_score_retries_without_finalizing_anything(self):
+        """A poor-quality first capture (score well below the review band)
+        must return 'retry' — not verified, not claimed, not manual_review —
+        and must leave the door open for another capture."""
+        from verification.models import ClaimRecord, VerificationAttempt
+        data = self._mocked_post(attempt_number=1, score=0.40)
+
+        self.assertEqual(data.get('decision'), 'retry')
+        self.assertEqual(data.get('attempt_number'), 1)
+        self.assertIn('new_challenge', data)
+        self.assertFalse(
+            ClaimRecord.objects.filter(beneficiary=self.ben).exists(),
+            'A retry decision must not create a ClaimRecord (no payout release)')
+        self.assertFalse(
+            VerificationAttempt.objects.filter(
+                beneficiary=self.ben, decision=VerificationAttempt.DECISION_VERIFIED,
+            ).exists(),
+            'A retry decision must not be recorded as a successful verification')
+
+        # The session must have advanced so the NEXT capture is attempt 2,
+        # not silently reset back to 1 or stuck.
+        session = self.client.session
+        self.assertEqual(session['verification_session']['attempt_number'], 2)
+
+    @override_settings(LIVENESS_REQUIRED=True, DEMO_MODE=False, VERIFICATION_THRESHOLD=0.75,
+                        MAX_RETRY_ATTEMPTS=2, DEBUG=True)
+    def test_retry_then_passing_attempt_verifies_and_claims_exactly_once(self):
+        """attempt 1: low score -> retry (no claim). attempt 2: score clears
+        auto-verify -> verified, exactly one ClaimRecord created. Confirms the
+        retry path does not double-claim once a later attempt succeeds."""
+        from verification.models import ClaimRecord
+
+        first = self._mocked_post(attempt_number=1, score=0.40)
+        self.assertEqual(first.get('decision'), 'retry')
+        self.assertEqual(
+            ClaimRecord.objects.filter(beneficiary=self.ben).count(), 0,
+            'No claim may exist after the first (retry) attempt')
+
+        # Claim finalization additionally requires the global 07:00-20:00
+        # Asia/Manila same-day claiming window (Phase B.5). Patching the
+        # eligibility check directly (rather than mocking
+        # django.utils.timezone.now globally) keeps this test's outcome
+        # dependent only on the retry/decision logic under test — mocking
+        # timezone.now process-wide was observed to intermittently corrupt
+        # the test client's session persistence when this suite runs
+        # alongside many other tests (session write done under the mock
+        # sometimes failed to round-trip), which is exactly the kind of
+        # unrelated flakiness this regression suite must not introduce.
+        from verification.models import StipendEvent as _StipendEvent
+        with mock.patch.object(_StipendEvent, 'check_claim_eligible_now', return_value=(True, '')):
+            second = self._mocked_post(attempt_number=2, score=0.95)
+        self.assertEqual(second.get('decision'), 'verified',
+                         'A later attempt clearing the auto-verify threshold must '
+                         'follow normal decision logic once retries are still available')
+
+        claims = ClaimRecord.objects.filter(beneficiary=self.ben, stipend_event=self.event)
+        self.assertEqual(claims.count(), 1,
+                         'Exactly one ClaimRecord must exist — no duplicate payout from the '
+                         'earlier retry attempt')
+        self.assertEqual(claims.first().status, ClaimRecord.STATUS_CLAIMED)
+
+    @override_settings(LIVENESS_REQUIRED=True, DEMO_MODE=False, VERIFICATION_THRESHOLD=0.75,
+                        MAX_RETRY_ATTEMPTS=1, DEBUG=True)
+    def test_retry_exhaustion_falls_back_not_manual_review_not_verified(self):
+        """With MAX_RETRY_ATTEMPTS=1 (2 total attempts), a low score on the
+        FINAL allowed attempt must exhaust to 'fallback' — the existing
+        terminal policy for retries-exhausted — not silently become
+        manual_review or verified, and must not create a claim."""
+        from verification.models import ClaimRecord, VerificationAttempt
+
+        first = self._mocked_post(attempt_number=1, score=0.40)
+        self.assertEqual(first.get('decision'), 'retry')
+
+        second = self._mocked_post(attempt_number=2, score=0.40)
+        self.assertEqual(second.get('decision'), 'fallback',
+                         'Retry exhaustion must follow the existing fallback policy')
+
+        self.assertFalse(ClaimRecord.objects.filter(beneficiary=self.ben).exists())
+        last_attempt = VerificationAttempt.objects.filter(beneficiary=self.ben).latest('timestamp')
+        self.assertTrue(last_attempt.fallback_triggered)
+
+    @override_settings(LIVENESS_REQUIRED=True, DEMO_MODE=False, VERIFICATION_THRESHOLD=0.75,
+                        MAX_RETRY_ATTEMPTS=2, DEBUG=True)
+    def test_manual_review_band_score_creates_no_claim_even_on_attempt_1(self):
+        """A score in the manual-review band (ambiguous match — look-alike/
+        baby-photo/low-quality risk) is a separate hold state from retry: it
+        must not create a ClaimRecord or release a payout either, on the
+        first attempt or any other."""
+        from verification.models import ClaimRecord
+
+        review_band_score = 0.75 * 0.88  # inside [threshold*0.85, threshold*... ) band
+        data = self._mocked_post(attempt_number=1, score=review_band_score)
+
+        self.assertEqual(data.get('decision'), 'manual_review')
+        self.assertFalse(
+            ClaimRecord.objects.filter(beneficiary=self.ben).exists(),
+            'manual_review must not create a ClaimRecord / release a payout')
+
+
 class VerifySubmitServiceUnavailableTest(TestCase):
     """
     Release-blocker fix: when the real FaceNet model is unavailable,
@@ -8582,6 +8773,105 @@ class RegisterRepFaceSubmitCrossDuplicateTest(TestCase):
         review = SharedRepresentativeReview.objects.get(representative=self.rep2)
         self.assertEqual(review.matched_beneficiary_id, self.ben1.beneficiary_id)
         self.assertIn('representative', review.flag_reason.lower())
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# FANSC v2.1.17 functional correction pass — a representative's face capture
+# that actually belongs to the beneficiary they represent was previously
+# invisible to duplicate detection: register_rep_face_submit() passed
+# exclude_beneficiary_id=<the represented beneficiary> into check_duplicate_face(),
+# which skips exactly the one comparison (rep vs. their own represented
+# beneficiary) that most needed to run. A beneficiary could therefore be
+# enrolled as their own "authorized representative" and the UI would show
+# "Face Registered — Ready to Verify". Fixed with a dedicated same-beneficiary
+# check (compare_with_all_embeddings, the same matcher verify_submit uses)
+# that runs before the existing cross-beneficiary duplicate flow and rejects
+# the enrollment outright — nothing is saved, so has_face_data stays False.
+# ──────────────────────────────────────────────────────────────────────────────
+
+class RegisterRepFaceSubmitSameBeneficiaryTest(TestCase):
+    """A representative's face must not be accepted if it matches the face
+    of the very beneficiary they represent."""
+
+    def setUp(self):
+        from verification.face_utils import encrypt_embedding
+        from verification.models import FaceEmbedding
+        import numpy as np
+        self.staff = _make_staff('rrfs_self_staff')
+        self.client = Client()
+        self.client.force_login(self.staff)
+
+        self.beneficiary_face = np.array([1.0] + [0.0] * 127, dtype=np.float32)
+        self.ben = _make_beneficiary('BEN-SELF-001', 'SC-SELF-001')
+        FaceEmbedding.objects.create(
+            beneficiary=self.ben,
+            embedding_data=encrypt_embedding(self.beneficiary_face),
+        )
+        self.rep = _make_rep(self.ben, self.staff, id_number='SSS-SELF-001')
+        self.url = reverse(
+            'verification:register_rep_face_submit',
+            kwargs={'pk': self.ben.pk, 'rep_pk': self.rep.pk},
+        )
+
+    def _post_capture(self, captured_embedding):
+        with mock.patch('verification.views.process_face_for_registration') as mock_proc, \
+             mock.patch('verification.views.decrypt_embedding') as mock_decrypt:
+            mock_proc.return_value = {
+                'success': True,
+                'encrypted_embedding': b'irrelevant-placeholder',
+            }
+            mock_decrypt.return_value = captured_embedding
+            resp = self.client.post(
+                self.url, data=json.dumps({'image': VALID_BASE64}),
+                content_type='application/json',
+            )
+        return json.loads(resp.content), resp
+
+    def test_representative_face_matching_beneficiary_is_blocked(self):
+        """Confident same-person match (representative == beneficiary) must
+        be rejected outright, not routed to SharedRepresentativeReview."""
+        from beneficiaries.models import SharedRepresentativeReview, Representative
+        import numpy as np
+        data, resp = self._post_capture(np.array(self.beneficiary_face, dtype=np.float32))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(data['success'])
+        self.assertIn('different person', data['error'].lower())
+
+        self.rep.refresh_from_db()
+        self.assertFalse(self.rep.has_face_data,
+                         'Blocked capture must not be saved as the representative face')
+        self.assertEqual(self.rep.shared_review_status, Representative.SHARED_NONE)
+        self.assertFalse(
+            SharedRepresentativeReview.objects.filter(representative=self.rep).exists(),
+            'Same-beneficiary block is a hard reject, not an admin-review case')
+
+    def test_representative_with_clearly_different_face_is_accepted(self):
+        """A genuinely different person must still be able to register as
+        this beneficiary's representative (no over-broad blocking)."""
+        import numpy as np
+        different_face = np.array([0.0, 1.0] + [0.0] * 126, dtype=np.float32)
+        data, resp = self._post_capture(different_face)
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(data['success'])
+        self.assertNotIn('different person', (data.get('error') or '').lower())
+
+        self.rep.refresh_from_db()
+        self.assertTrue(self.rep.has_face_data)
+
+    def test_beneficiary_with_no_face_on_file_skips_self_check(self):
+        """Nothing to compare against yet — must not crash, and must fall
+        through to the normal (cross-beneficiary) registration path."""
+        import numpy as np
+        from verification.models import FaceEmbedding
+        FaceEmbedding.objects.filter(beneficiary=self.ben).delete()
+        data, resp = self._post_capture(np.array(self.beneficiary_face, dtype=np.float32))
+
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(data['success'])
+        self.rep.refresh_from_db()
+        self.assertTrue(self.rep.has_face_data)
 
 
 # ──────────────────────────────────────────────────────────────────────────────

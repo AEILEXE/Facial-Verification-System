@@ -5550,6 +5550,47 @@ def register_rep_face_submit(request, pk, rep_pk):
         shared_review_created = None
         try:
             live_emb = decrypt_embedding(result['encrypted_embedding'])
+
+            # Same-beneficiary hard gate (added 2026-09-07). A beneficiary
+            # cannot serve as their own authorized representative — check the
+            # new capture against the REPRESENTED beneficiary's own stored
+            # face(s) first, using the same canonical matcher verify_submit
+            # uses (compare_with_all_embeddings) and the same "confident
+            # duplicate" bar (dup_threshold) check_duplicate_face already
+            # applies below. Unlike a cross-beneficiary match — which can be
+            # a legitimate shared representative — there is no legitimate
+            # case for this one, so it is rejected outright rather than
+            # routed into SharedRepresentativeReview: nothing is saved, so
+            # `has_face_data` stays False and the existing "No Face Data"
+            # badge (not "Ready to Verify") is what renders.
+            if hasattr(beneficiary, 'face_embedding'):
+                self_match = compare_with_all_embeddings(live_emb, beneficiary)
+                if self_match['success'] and self_match['score'] >= dup_threshold:
+                    AuditLog.log(
+                        action=AuditLog.ACTION_SHARED_REP_FLAGGED,
+                        user=request.user,
+                        target_type='Representative',
+                        target_id=rep.id,
+                        details={
+                            'beneficiary_id': beneficiary.beneficiary_id,
+                            'reason': (
+                                'Representative face enrollment blocked — matches '
+                                'the represented beneficiary\'s own registered face.'
+                            ),
+                            'score': round(self_match['score'], 4),
+                            'threshold': dup_threshold,
+                        },
+                        request=request,
+                    )
+                    return JsonResponse({
+                        'success': False,
+                        'error': (
+                            "Representative face matches the beneficiary's registered "
+                            "face. An authorized representative must be a different "
+                            "person."
+                        ),
+                    })
+
             dup = check_duplicate_face(
                 live_emb,
                 threshold=dup_threshold,

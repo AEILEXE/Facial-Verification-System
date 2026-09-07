@@ -376,6 +376,9 @@
         <button type="button" id="calTodayBtn" class="btn btn-sm btn-light">
           <i class="bi bi-calendar-check me-1"></i>Today
         </button>
+        <span id="calGotoDateWarning" class="small text-warning ms-1" style="display:none;" role="alert">
+          <i class="bi bi-exclamation-triangle me-1"></i>Pick a complete date first.
+        </span>
       </div>
     </div>
     <div class="card-body p-2 p-md-3">
@@ -549,8 +552,18 @@
     viewYear = parseInt(yearSelect.value, 10);
     renderCalendar();
   });
+  var gotoDateWarning = document.getElementById('calGotoDateWarning');
   function goToPickedDate() {
-    if (!gotoDateInput.value) { return; }
+    // A native <input type="date"> reports .value as '' whenever the date is
+    // incomplete (e.g. only day+month typed, year not yet filled) — not just
+    // when it's untouched. Without this check, clicking "Jump to Date" (or
+    // pressing Enter) on a partially-typed date silently did nothing, which
+    // is indistinguishable from the control being broken.
+    if (!gotoDateInput.value) {
+      if (gotoDateWarning) gotoDateWarning.style.display = '';
+      return;
+    }
+    if (gotoDateWarning) gotoDateWarning.style.display = 'none';
     var picked = parseISO(gotoDateInput.value);
     viewYear = picked.getFullYear();
     viewMonth = picked.getMonth();
