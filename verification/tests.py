@@ -12293,12 +12293,15 @@ class TechnicalAdministrationNavVisibilityTest(TestCase):
     def test_technical_administrator_sees_technical_administration_nav(self):
         self.client.force_login(self.ta)
         resp = self.client.get(self.dashboard_url)
-        self.assertContains(resp, 'Technical Administration')
+        # Nav label shortened to "Tech Admin" (v2.1.17 navbar-density polish
+        # pass) — the role itself is still Technical Administrator
+        # everywhere else; this only checks the nav entry point's visibility.
+        self.assertContains(resp, 'Tech Admin')
 
     def test_president_does_not_see_technical_administration_nav(self):
         self.client.force_login(self.president)
         resp = self.client.get(self.dashboard_url)
-        self.assertNotContains(resp, 'Technical Administration')
+        self.assertNotContains(resp, 'Tech Admin')
 
     def test_president_does_not_see_biometric_evaluation_analytics_tab(self):
         """The 'System Evaluation & Research' tab on the Analytics pages

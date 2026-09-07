@@ -283,7 +283,7 @@
 </div>
 
 <div class="row g-3 mb-3">
-  <div class="col-lg-8">
+  <div class="{% if total_beneficiaries > 0 %}col-lg-8{% else %}col-lg-12{% endif %}">
     {# ── One useful operational trend — section 12: not a growth chart. ─── #}
     <div class="card h-100">
       <div class="card-header">
@@ -300,6 +300,9 @@
 
   {# ── Beneficiary Status snapshot — a point-in-time distribution, not a #}
   {# trend, so it belongs on the Dashboard rather than only in Analytics. #}
+  {# Companion card only exists once there is at least one beneficiary —   #}
+  {# the chart column above claims the full row width otherwise so there  #}
+  {# is no reserved-but-empty track next to it. #}
   {% if total_beneficiaries > 0 %}
   <div class="col-lg-4">
     <div class="card h-100">

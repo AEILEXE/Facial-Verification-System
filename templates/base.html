@@ -21,7 +21,7 @@
 <div class="top-accent-bar"></div>
 
 {% if user.is_authenticated %}
-<nav class="navbar navbar-fans navbar-expand-xxl">
+<nav class="navbar navbar-fans navbar-expand-xl">
   <div class="container-fluid px-3">
 
     <a class="navbar-brand" href="{% url 'beneficiaries:dashboard' %}">
@@ -44,7 +44,7 @@
     </button>
 
     <div class="collapse navbar-collapse" id="navMain">
-      <ul class="navbar-nav mx-auto align-items-xxl-stretch">
+      <ul class="navbar-nav mx-auto align-items-xl-stretch">
 
         <li class="nav-item">
           <a class="nav-link {% block nav_dashboard %}{% endblock %}" href="{% url 'beneficiaries:dashboard' %}">
@@ -217,10 +217,13 @@
         {# views stays read-only (see the in-page banners), but the nav entry #}
         {# point is hidden — a role with no write access to this tooling has no #}
         {# reason to be routed into it from ordinary navigation (v2.1.17 QA). #}
+        {# Display label is shortened to "Tech Admin" (v2.1.17 polish pass) —  #}
+        {# navbar-density fix only; the role itself is still Technical         #}
+        {# Administrator everywhere else (badges, role matrix, page titles).  #}
         {% if user.is_admin_it %}
         <li class="nav-item dropdown">
           <a class="nav-link dropdown-toggle {% block nav_technical %}{% endblock %}" href="#" data-bs-toggle="dropdown">
-            <i class="bi bi-cpu me-1"></i>Technical Administration
+            <i class="bi bi-cpu me-1"></i>Tech Admin
           </a>
           <ul class="dropdown-menu">
             <li><h6 class="dropdown-header text-uppercase small">System Evaluation &amp; Research</h6></li>

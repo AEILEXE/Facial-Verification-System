@@ -80,11 +80,10 @@ a:hover { color: var(--qc-blue-dark); }
   opacity: 0.7;
 }
 
-/* System-identity line: shown alongside the city line at every desktop
-   width except the narrow 992-1149.98px sliver where the full nav row
-   (brand + 6 nav items + bell + user badge) doesn't have room for it
-   (measured; see that band's own comment further down), and on
-   collapsed/mobile navbars where the row isn't competing for space. */
+/* System-identity line: shown alongside the city line at every width —
+   nothing currently hides it; collapsed/mobile navbars have no horizontal
+   competition for space, and the tightened 1200-1679.98px band (further
+   down) only compacts nav-link/user-badge sizing, not the brand block. */
 .navbar-fans .navbar-brand .brand-sub-system {
   font-size: 0.6rem;
   opacity: 0.6;
@@ -250,6 +249,7 @@ a:hover { color: var(--qc-blue-dark); }
   border-radius: 10px;
   text-transform: uppercase;
   letter-spacing: 0.5px;
+  white-space: nowrap;
 }
 
 /* ── Page Layout ───────────────────────────────────────── */
@@ -1147,23 +1147,26 @@ code, .font-mono {
 .verify-tips .tip i { color: var(--qc-blue); flex-shrink: 0; margin-top: 1px; }
 
 /* ── Responsive ────────────────────────────────────────── */
-/* Navbar breakpoint: the FANSC nav has grown to 8 top-level items (for the
-   Technical Administrator/President role — Dashboard, Beneficiaries, Verify,
-   Distribution, Audit & Logs, Analytics, Technical Administration,
-   Administration) plus the notification bell and user badge. Measured via a
-   headless-Chromium harness (widest role, worst-case labels): that content
-   needs ~1074-1133px, which no longer reliably fits next to the brand block
-   below ~1300-1350px of container width even with tightened spacing — a
-   pixel-squeezed navbar-expand-lg (992px) band was tried previously and
-   still clipped at common laptop widths (1024px, 1366px). Rather than keep
-   shrinking text to chase the content, the collapse breakpoint itself moved
-   to navbar-expand-xxl (1400px, base.html) — see the Bootstrap accordion-
-   style collapse menu below that breakpoint for medium/tablet widths.
-   Genuinely wide desktop monitors (>=1680px) keep the original roomier
-   spacing; 1400-1679.98px gets the same tightened spacing this band used
-   to apply all the way down to 992px, now with headroom instead of a
-   near-zero margin. */
-@media (min-width: 1400px) and (max-width: 1679.98px) {
+/* Navbar breakpoint: the FANSC nav has grown to 8 top-level items for the
+   Technical Administrator role (Dashboard, Beneficiaries, Verify,
+   Distribution, Audit & Logs, Analytics, Tech Admin, Administration) — the
+   densest of any role, and also the role with the longest role-pill text
+   ("Technical Administrator"). Measured with a real headless-Chromium
+   session (element bounding rects, not document.scrollWidth — html/body
+   both set `overflow-x: hidden` above as a global safety net against
+   accidental horizontal scrollbars, which silently CLIPS any real overflow
+   instead of surfacing it, so scrollWidth alone is not a reliable overflow
+   check on this page): with "Tech Admin" (base.html) and the tightened
+   spacing + role-pill truncation below, the full Technical Administrator
+   navbar needs ~1310-1320px, which fits inside a 1366px viewport but not
+   1280px without either clipping or illegibly small text.
+   Bootstrap's own breakpoints only step 992/1200/1400, none of which land
+   at 1366, so the markup uses navbar-expand-xl (1200px, base.html — needed
+   so 1366/1440/etc. all qualify as "expanded") and the override block
+   further below re-forces the collapsed/hamburger state specifically for
+   1200-1365.98px, where the content does not reliably fit. Net effect: the
+   nav collapses below 1366px instead of below 1200px or 1400px. */
+@media (min-width: 1200px) and (max-width: 1679.98px) {
   .navbar-fans .navbar-brand {
     padding: 0.55rem 0.65rem;
   }
@@ -1184,14 +1187,36 @@ code, .font-mono {
   .role-pill {
     font-size: 0.58rem;
     padding: 0.1rem 0.3rem;
+    max-width: 110px;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
 }
 
-/* Below the 1400px collapse breakpoint the nav renders as Bootstrap's
-   vertical collapse menu (full width, no horizontal competition for
-   space), so the role pill, brand subtitle lines, and full-size user badge
-   can all stay visible there — no squeezing needed once the row isn't
-   horizontal. */
+/* Re-collapse override: navbar-expand-xl (base.html) natively expands at
+   1200px, but the widest role's content doesn't reliably fit until 1366px
+   (see the measurement comment above). This forces the hamburger/vertical
+   menu back on for the 1200-1365.98px sliver Bootstrap would otherwise
+   expand, giving an effective custom breakpoint of 1366px. Bootstrap's
+   collapse JS is untouched — clicking the (now-visible) toggler still adds
+   `.show` to #navMain, which the second rule below still honors. */
+@media (min-width: 1200px) and (max-width: 1365.98px) {
+  .navbar-fans .navbar-collapse {
+    display: none !important;
+  }
+  .navbar-fans .navbar-collapse.show {
+    display: flex !important;
+  }
+  .navbar-fans .navbar-toggler {
+    display: block !important;
+  }
+}
+
+/* Below the effective 1366px collapse breakpoint the nav renders as
+   Bootstrap's vertical collapse menu (full width, no horizontal competition
+   for space), so the role pill, brand subtitle lines, and full-size user
+   badge can all stay visible there — no squeezing needed once the row
+   isn't horizontal. */
 
 @media (max-width: 768px) {
   .page-wrapper { padding: 1rem; }
