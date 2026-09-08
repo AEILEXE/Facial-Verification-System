@@ -8934,6 +8934,82 @@ class RegisterRepFaceSubmitSameBeneficiaryTest(TestCase):
 
 
 # ──────────────────────────────────────────────────────────────────────────────
+# FANSC v2.1.17 biometric-verification audit (2026-09-08) — direct, unmocked
+# invariant coverage for face_utils.cosine_similarity() and
+# compare_with_all_embeddings(). Every existing test that exercises
+# compare_with_all_embeddings does so through a view with the function itself
+# mocked out, so the actual max-of-templates selection and the self-similarity
+# identity had no direct regression test. Pure numpy/model-level checks —
+# no camera, no view, no mocking of the function under test.
+# ──────────────────────────────────────────────────────────────────────────────
+
+class BiometricMatchingInvariantsTest(TestCase):
+
+    def test_self_cosine_similarity_is_one(self):
+        """An embedding compared against itself must be (numerically) exactly
+        1.0 — the FaceNet decision bands assume this identity holds."""
+        from verification.face_utils import cosine_similarity
+        import numpy as np
+        rng = np.random.default_rng(42)
+        emb = rng.standard_normal(512).astype(np.float32)
+        emb = emb / np.linalg.norm(emb)
+        self.assertAlmostEqual(cosine_similarity(emb, emb), 1.0, places=5)
+
+    def test_cosine_similarity_handles_unnormalized_input(self):
+        """cosine_similarity() re-normalizes internally, so a non-unit-length
+        embedding pair still yields the correct value rather than silently
+        scaling the score."""
+        from verification.face_utils import cosine_similarity
+        import numpy as np
+        emb = np.array([3.0, 4.0] + [0.0] * 126, dtype=np.float32)  # norm=5, not unit
+        self.assertAlmostEqual(cosine_similarity(emb, emb), 1.0, places=5)
+
+    def test_compare_with_all_embeddings_selects_maximum_not_first_or_average(self):
+        """Multi-template matching must return the BEST score across primary +
+        additional templates. Deliberately orders the templates so that
+        "first" or "average" would both give a different (wrong) answer than
+        "max" — only a true max-selection implementation passes."""
+        from verification.face_utils import (
+            compare_with_all_embeddings, encrypt_embedding, cosine_similarity,
+        )
+        from verification.models import FaceEmbedding, AdditionalFaceEmbedding
+        import numpy as np
+
+        ben = _make_beneficiary('BEN-MAXSEL-001', 'SC-MAXSEL-001')
+        live = np.array([1.0, 0.0] + [0.0] * 126, dtype=np.float32)
+
+        # Primary: orthogonal to live (score ~0.0) — the worst match, and
+        # also the one a "first-template-only" bug would incorrectly return.
+        primary = np.array([0.0, 1.0] + [0.0] * 126, dtype=np.float32)
+        FaceEmbedding.objects.create(beneficiary=ben, embedding_data=encrypt_embedding(primary))
+
+        # Additional #1: a mediocre match.
+        mediocre = np.array([0.6, 0.8] + [0.0] * 126, dtype=np.float32)
+        AdditionalFaceEmbedding.objects.create(
+            beneficiary=ben, embedding_data=encrypt_embedding(mediocre), label='mediocre',
+        )
+
+        # Additional #2: identical to the live embedding — the true best
+        # match, and the one a correct max-selection must surface.
+        best = np.array([1.0, 0.0] + [0.0] * 126, dtype=np.float32)
+        AdditionalFaceEmbedding.objects.create(
+            beneficiary=ben, embedding_data=encrypt_embedding(best), label='best',
+        )
+
+        result = compare_with_all_embeddings(live, ben)
+
+        self.assertTrue(result['success'])
+        self.assertEqual(result['templates_checked'], 3)
+        self.assertAlmostEqual(result['score'], cosine_similarity(live, best), places=5)
+        self.assertAlmostEqual(result['score'], 1.0, places=5)
+        self.assertEqual(result['matched_template'], 'best')
+        # Sanity: the returned score must be >= every individual template
+        # score reported in all_scores (definition of "maximum").
+        for entry in result['all_scores']:
+            self.assertLessEqual(entry['score'], result['score'] + 1e-6)
+
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Final pre-release verification pass — a SECOND, previously-unexamined
 # duplicate-face path: face RE-ENROLLMENT (FaceUpdateRequest), separate from
 # beneficiary registration. The review template already warned the admin
