@@ -62,6 +62,7 @@ from .models import (
     RepresentativeFaceEmbedding, UserFaceEmbedding,
     LivenessTransaction, LivenessEvidenceReservation,
     EvaluationDataset, EvaluationTrial,
+    parse_payout_amount,
 )
 from beneficiaries.models import Representative
 from .face_utils import (
@@ -281,6 +282,17 @@ def face_verify(request):
             'success': False,
             'score': 0.0,
             'error': 'Missing image upload. Please attach a face photo under the "image" field.',
+        }, status=400)
+
+    # v2.1.17 audit fix: this is a multipart file upload, so DATA_UPLOAD_MAX_MEMORY_SIZE
+    # (which bounds the rest of this app's base64-JSON-body face captures) does not
+    # apply — an unbounded upload here would otherwise be read fully into memory below.
+    _MAX_FACE_IMAGE_BYTES = 10 * 1024 * 1024  # 10MB — generous for a single webcam/selfie frame
+    if image.size > _MAX_FACE_IMAGE_BYTES:
+        return JsonResponse({
+            'success': False,
+            'score': 0.0,
+            'error': 'Image upload is too large (max 10MB).',
         }, status=400)
 
     upload_bytes = image.read()
@@ -3932,6 +3944,7 @@ def stipend_list(request):
         .order_by('-effective_end')
     )
     past_years = sorted({d.year for d in past_base_qs.dates('date', 'year')}, reverse=True)
+    any_past_events_exist = past_base_qs.exists()
 
     past_query = (request.GET.get('past_q') or '').strip()
     past_month = (request.GET.get('past_month') or '').strip()
@@ -4012,6 +4025,7 @@ def stipend_list(request):
     return render(request, 'verification/stipend_list.html', {
         'upcoming': upcoming,
         'past': past,
+        'any_past_events_exist': any_past_events_exist,
         'past_query': past_query,
         'past_month': past_month,
         'past_year': past_year,
@@ -4195,7 +4209,6 @@ def stipend_create(request):
             return render(request, 'verification/stipend_form.html', {'action': 'Create', 'event': _echo})
 
         import datetime
-        from decimal import Decimal, InvalidOperation
         try:
             event_date = datetime.date.fromisoformat(date_str)
             payout_start = datetime.date.fromisoformat(payout_start_str) if payout_start_str else None
@@ -4208,12 +4221,10 @@ def stipend_create(request):
             return render(request, 'verification/stipend_form.html', {'action': 'Create', 'event': _echo})
 
         try:
-            amount = Decimal(amount_str or '0')
-            if amount < 0:
-                raise InvalidOperation
-        except (InvalidOperation, ValueError):
+            amount = parse_payout_amount(amount_str)
+        except ValueError as _amt_err:
             from django.contrib import messages
-            messages.error(request, 'Amount must be a non-negative number.')
+            messages.error(request, str(_amt_err))
             return render(request, 'verification/stipend_form.html', {'action': 'Create', 'event': _echo})
 
         _payout_errors = _validate_payout_window(
@@ -4355,7 +4366,6 @@ def stipend_edit(request, event_id):
             return render(request, 'verification/stipend_form.html', {'action': 'Edit', 'event': event})
 
         import datetime
-        from decimal import Decimal, InvalidOperation
         try:
             event.date = datetime.date.fromisoformat(date_str)
             event.payout_start_date = datetime.date.fromisoformat(payout_start_str) if payout_start_str else None
@@ -4368,12 +4378,10 @@ def stipend_edit(request, event_id):
             return render(request, 'verification/stipend_form.html', {'action': 'Edit', 'event': event})
 
         try:
-            event.amount = Decimal(amount_str or '0')
-            if event.amount < 0:
-                raise InvalidOperation
-        except (InvalidOperation, ValueError):
+            event.amount = parse_payout_amount(amount_str)
+        except ValueError as _amt_err:
             from django.contrib import messages
-            messages.error(request, 'Amount must be a non-negative number.')
+            messages.error(request, str(_amt_err))
             return render(request, 'verification/stipend_form.html', {'action': 'Edit', 'event': event})
 
         _payout_errors = _validate_payout_window(
@@ -5878,11 +5886,12 @@ def _export_csv_response(filename, rows, report_name, request):
     `rows` is a list of (label, value) tuples or ['Section header'] markers."""
     import csv
     from django.http import HttpResponse
+    from fans.report_export import sanitize_export_cell
     response = HttpResponse(content_type='text/csv')
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     writer = csv.writer(response)
     for row in rows:
-        writer.writerow(row)
+        writer.writerow([sanitize_export_cell(v) for v in row])
     AuditLog.log(
         action=AuditLog.ACTION_REPORT_EXPORT,
         user=request.user,
@@ -6468,16 +6477,13 @@ def payout_action(request, claim_id):
             new_reference  = request.POST.get('reference_number', '').strip()
             new_remarks    = request.POST.get('payout_remarks', '').strip()
             if new_amount_str:
-                from decimal import Decimal, InvalidOperation
                 try:
-                    new_amount = Decimal(new_amount_str)
-                    if new_amount < 0:
-                        raise InvalidOperation
+                    new_amount = parse_payout_amount(new_amount_str)
                     log_details['old_amount'] = str(claim.amount)
                     log_details['new_amount'] = str(new_amount)
                     claim.amount = new_amount
-                except (InvalidOperation, ValueError):
-                    messages.error(request, 'Amount must be a non-negative number.')
+                except ValueError as _amt_err:
+                    messages.error(request, str(_amt_err))
                     return redirect('verification:payout_detail', claim_id=claim_id)
             if new_reference and new_reference != claim.reference_number:
                 log_details['old_reference'] = claim.reference_number
@@ -6719,6 +6725,7 @@ def report_claims(request):
     if export_fmt == 'csv':
         import csv
         from django.http import HttpResponse
+        from fans.report_export import sanitize_export_cell
 
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="fansc-detailed-payouts.csv"'
@@ -6731,7 +6738,7 @@ def report_claims(request):
             'Override By', 'Override Reason', 'Remarks', 'Created', 'Updated',
         ])
         for r in qs:
-            writer.writerow([
+            writer.writerow([sanitize_export_cell(v) for v in [
                 r.reference_number,
                 r.beneficiary.beneficiary_id,
                 r.beneficiary.senior_citizen_id,
@@ -6753,7 +6760,7 @@ def report_claims(request):
                 r.payout_remarks,
                 r.claimed_at.astimezone().strftime('%Y-%m-%d %H:%M') if r.claimed_at else '',
                 r.updated_at.astimezone().strftime('%Y-%m-%d %H:%M') if r.updated_at else '',
-            ])
+            ]])
 
         AuditLog.log(
             action=AuditLog.ACTION_REPORT_EXPORT,
@@ -7026,6 +7033,7 @@ def report_staff_performance(request):
     if export_fmt == 'csv':
         import csv
         from django.http import HttpResponse
+        from fans.report_export import sanitize_export_cell
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="fansc-staff-performance.csv"'
         writer = csv.writer(response)
@@ -7037,14 +7045,14 @@ def report_staff_performance(request):
                          'Overrides', 'Manual Verification (ID)', 'Manual Verify', 'Total Records'])
         for r in rows:
             full_name = f"{r['released_by__first_name']} {r['released_by__last_name']}".strip()
-            writer.writerow([
+            writer.writerow([sanitize_export_cell(v) for v in [
                 r['released_by__username'],
                 full_name or r['released_by__username'],
                 role_labels.get(r['released_by__role'], r['released_by__role']),
                 f"{r['total_released'] or 0:,.2f}",
                 r['n_claimed'], r['n_failed'], r['n_cancelled'],
                 r['n_overrides'], r['n_fallback'], r['n_manual'], r['n_total'],
-            ])
+            ]])
         AuditLog.log(
             action=AuditLog.ACTION_REPORT_EXPORT,
             user=request.user,
@@ -7105,6 +7113,7 @@ def report_override_fallback(request):
     if export_fmt == 'csv':
         import csv
         from django.http import HttpResponse
+        from fans.report_export import sanitize_export_cell
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="fansc-override-fallback.csv"'
         writer = csv.writer(response)
@@ -7112,7 +7121,7 @@ def report_override_fallback(request):
                          'Amount', 'Status', 'Verification Method',
                          'Override By', 'Override Reason', 'Released By', 'Released At'])
         for r in qs:
-            writer.writerow([
+            writer.writerow([sanitize_export_cell(v) for v in [
                 r.reference_number,
                 r.beneficiary.beneficiary_id,
                 r.beneficiary.full_name,
@@ -7124,7 +7133,7 @@ def report_override_fallback(request):
                 r.override_reason,
                 r.released_by.username if r.released_by else '',
                 r.released_at.astimezone().strftime('%Y-%m-%d %H:%M') if r.released_at else '',
-            ])
+            ]])
         AuditLog.log(
             action=AuditLog.ACTION_REPORT_EXPORT,
             user=request.user,
@@ -7195,18 +7204,19 @@ def report_suspicious_attempts(request):
     if export_fmt == 'csv':
         import csv
         from django.http import HttpResponse
+        from fans.report_export import sanitize_export_cell
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="fansc-suspicious.csv"'
         writer = csv.writer(response)
         writer.writerow(['Timestamp', 'Action', 'User', 'Beneficiary', 'Details'])
         for entry in audit_qs[:2000]:
-            writer.writerow([
+            writer.writerow([sanitize_export_cell(v) for v in [
                 entry.timestamp.astimezone().strftime('%Y-%m-%d %H:%M:%S'),
                 entry.get_action_display(),
                 entry.user.username if entry.user else '',
                 entry.details.get('beneficiary_id', ''),
                 json.dumps(entry.details, default=str),
-            ])
+            ]])
         AuditLog.log(
             action=AuditLog.ACTION_REPORT_EXPORT,
             user=request.user,
@@ -7288,6 +7298,7 @@ def report_beneficiary_history(request, beneficiary_id):
     if export_fmt == 'csv':
         import csv
         from django.http import HttpResponse
+        from fans.report_export import sanitize_export_cell
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = (
             f'attachment; filename="fansc-history-{beneficiary.beneficiary_id}.csv"'
@@ -7296,7 +7307,7 @@ def report_beneficiary_history(request, beneficiary_id):
         writer.writerow(['Reference', 'Event', 'Amount', 'Status', 'Method',
                          'Released By', 'Released At'])
         for c in claims:
-            writer.writerow([
+            writer.writerow([sanitize_export_cell(v) for v in [
                 c.reference_number,
                 c.stipend_event.title if c.stipend_event else '',
                 f'{c.amount:,.2f}',
@@ -7304,7 +7315,7 @@ def report_beneficiary_history(request, beneficiary_id):
                 c.get_verification_method_display(),
                 c.released_by.username if c.released_by else '',
                 c.released_at.astimezone().strftime('%Y-%m-%d %H:%M') if c.released_at else '',
-            ])
+            ]])
         AuditLog.log(
             action=AuditLog.ACTION_REPORT_EXPORT,
             user=request.user,
@@ -7562,9 +7573,24 @@ def shared_rep_review_detail(request, review_id):
             messages.error(request, 'A decision note (min 5 chars) is required.')
             return redirect('verification:shared_rep_review_detail', review_id=review.id)
 
-        # Optional uploaded authorization document
+        # Optional uploaded authorization document. This write bypasses
+        # ModelForm/full_clean() entirely (direct request.FILES -> model
+        # field assignment), so the FileField's lack of built-in content
+        # validation means nothing else checks this upload — restrict it to
+        # a safe document/image extension allowlist here, server-side, so an
+        # uploaded .html/.svg/executable can never later be served back
+        # (via serve_protected_media) and interpreted as active content in
+        # another admin's browser.
         upload = request.FILES.get('authorization_document')
         if upload:
+            import os as _os
+            _allowed_doc_ext = {'.pdf', '.jpg', '.jpeg', '.png', '.docx'}
+            if _os.path.splitext(upload.name)[1].lower() not in _allowed_doc_ext:
+                messages.error(
+                    request,
+                    'Authorization document must be a PDF, Word document (.docx), or image (JPG/PNG).',
+                )
+                return redirect('verification:shared_rep_review_detail', review_id=review.id)
             review.authorization_document = upload
 
         action_to_status = {

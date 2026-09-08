@@ -317,7 +317,13 @@
           </div>
         </div>
         {% empty %}
-        <div class="list-group-item text-center text-muted py-4 small">No past events matching your filters.</div>
+        <div class="list-group-item text-center text-muted py-4 small">
+          {% if any_past_events_exist %}
+            No past events match these filters.
+          {% else %}
+            No past events exist yet.
+          {% endif %}
+        </div>
         {% endfor %}
       </div>
       {% if past.paginator.count %}

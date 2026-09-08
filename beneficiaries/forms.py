@@ -1,7 +1,7 @@
 import re
 from django import forms
 from .models import Beneficiary
-from .validators import validate_senior_citizen_dob
+from .validators import validate_senior_citizen_dob, representative_uses_beneficiary_identity
 from .qc_barangays import (
     QC_CITY, QC_BARANGAY_SET, QC_BARANGAY_CHOICES,
     QC_BARANGAY_OPTGROUP_CHOICES,
@@ -411,6 +411,14 @@ class BeneficiaryEditForm(forms.ModelForm):
             self.fields['municipality'].choices = _city_choices_with_legacy(
                 self.instance.municipality
             )
+            # Visually reflect the server-side block in clean_date_of_birth:
+            # once reviewed, DOB is only changeable via the dedicated
+            # correction action, not this form.
+            if self.instance.status != Beneficiary.STATUS_PENDING:
+                self.fields['date_of_birth'].widget.attrs['readonly'] = True
+                self.fields['date_of_birth'].widget.attrs['title'] = (
+                    "Use the Correct Date of Birth action to change this."
+                )
 
     def clean_contact_number(self):
         value = self.cleaned_data.get('contact_number', '')
@@ -432,6 +440,24 @@ class BeneficiaryEditForm(forms.ModelForm):
     def clean_date_of_birth(self):
         dob = self.cleaned_data['date_of_birth']
         validate_senior_citizen_dob(dob)
+        # Date of birth drives Birthday Bonus eligibility. Once a beneficiary
+        # has been reviewed (any status other than the pre-approval PENDING
+        # state — including a later-deactivated record, so deactivate/edit/
+        # reactivate cannot be used to route around this), it must not be
+        # mutable through the ordinary edit form: self.instance still holds
+        # the pre-edit value here (ModelForm hasn't run _post_clean() yet),
+        # so this compares old vs. submitted value server-side, not just a
+        # readonly HTML attribute. Use the dedicated, audited DOB correction
+        # action instead.
+        if (
+            self.instance.pk
+            and self.instance.status != Beneficiary.STATUS_PENDING
+            and dob != self.instance.date_of_birth
+        ):
+            raise forms.ValidationError(
+                'Date of birth cannot be changed through the ordinary edit form once a '
+                'beneficiary has been reviewed. Use the Correct Date of Birth action instead.'
+            )
         return dob
 
     def clean_rep_contact(self):
@@ -478,9 +504,22 @@ class BeneficiaryEditForm(forms.ModelForm):
                 'rep_id_type': 'Representative ID type must be selected when a representative is enabled.',
                 'rep_id_number': 'Representative ID number is required when a representative is enabled.',
             }
+            missing = False
             for field, msg in required.items():
                 if not cleaned_data.get(field, '').strip():
                     self.add_error(field, msg)
+                    missing = True
+            if not missing and representative_uses_beneficiary_identity(
+                cleaned_data.get('valid_id_type', ''),
+                cleaned_data.get('valid_id_number', ''),
+                cleaned_data.get('senior_citizen_id', ''),
+                cleaned_data.get('rep_id_type', ''),
+                cleaned_data.get('rep_id_number', ''),
+            ):
+                self.add_error(
+                    'rep_id_number',
+                    "The representative cannot use the beneficiary's own identity document.",
+                )
         return cleaned_data
 
 
@@ -542,9 +581,26 @@ class RepresentativeForm(forms.ModelForm):
                 'rep_id_type': 'Representative ID type must be selected.',
                 'rep_id_number': 'Representative ID number is required.',
             }
+            missing = False
             for field, msg in required.items():
                 if not cleaned_data.get(field, '').strip():
                     self.add_error(field, msg)
+                    missing = True
+            # self.instance carries the represented beneficiary's own ID
+            # fields (populated by the view from the not-yet-saved step1
+            # data) so a representative cannot be registered using the same
+            # identity document as the beneficiary they represent.
+            if not missing and representative_uses_beneficiary_identity(
+                self.instance.valid_id_type,
+                self.instance.valid_id_number,
+                self.instance.senior_citizen_id,
+                cleaned_data.get('rep_id_type', ''),
+                cleaned_data.get('rep_id_number', ''),
+            ):
+                self.add_error(
+                    'rep_id_number',
+                    "The representative cannot use the beneficiary's own identity document.",
+                )
         return cleaned_data
 
 

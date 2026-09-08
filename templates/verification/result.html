@@ -258,15 +258,26 @@
           </div>
           {% endif %}
         </div>
-        <div class="d-flex justify-content-between mt-1" style="font-size:0.72rem; color:#94a3b8;">
+        <div class="d-flex justify-content-between" style="font-size:0.72rem; color:#94a3b8;">
           <span>0.0</span>
-          <span>
-            <span class="text-qc-blue fw-semibold">&#9650; Lower {{ attempt.threshold_used }}</span>
-            {% if auto_verify_threshold %}
-            <span class="ms-2 fw-semibold" style="color:#15803d;">&#9650; Auto-verify {{ auto_verify_threshold }}</span>
-            {% endif %}
-          </span>
           <span>1.0</span>
+        </div>
+        <!-- Marker labels are positioned to match their marker's actual left%
+             (not centered as one crowded text block) and stacked on separate
+             rows so they never overlap each other, however close the two
+             threshold values are — e.g. review floor 0.35 vs auto-verify 0.88
+             (far apart) or the production defaults 0.75 vs 0.88 (close). -->
+        <div class="position-relative" style="height:2.4em; font-size:0.72rem;">
+          <span class="position-absolute text-qc-blue fw-semibold text-nowrap text-center"
+                style="left:{% widthratio attempt.threshold_used 1 100 %}%; top:0; transform:translateX(-50%);">
+            &#9650;<br>Lower {{ attempt.threshold_used }}
+          </span>
+          {% if auto_verify_threshold %}
+          <span class="position-absolute fw-semibold text-nowrap text-center"
+                style="left:{% widthratio auto_verify_threshold 1 100 %}%; top:1.2em; color:#15803d; transform:translateX(-50%);">
+            &#9650;<br>Auto-verify {{ auto_verify_threshold }}
+          </span>
+          {% endif %}
         </div>
       </div>
       {% endif %}

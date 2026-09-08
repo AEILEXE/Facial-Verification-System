@@ -3,9 +3,9 @@ Tests for the QC address addendum — city dropdown, house_no/street fields,
 barangay validation, full_address display, and legacy compatibility.
 """
 import datetime
-from django.test import TestCase
+from django.test import TestCase, override_settings
 
-from .forms import BeneficiaryInfoForm, BeneficiaryEditForm, CITY_CHOICES
+from .forms import BeneficiaryInfoForm, BeneficiaryEditForm, RepresentativeForm, CITY_CHOICES
 from .models import Beneficiary, Representative
 from .qc_barangays import QC_BARANGAY_SET, QC_BARANGAYS, QC_CITY
 
@@ -1370,3 +1370,356 @@ class DashboardApprovalReminderSyncTest(TestCase):
         self.assertFalse(
             Notification.objects.filter(category=Notification.CATEGORY_APPROVAL_REMINDER).exists()
         )
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v2.1.17 audit — SYNC_API_URL must be https:// or sync refuses to run
+# ──────────────────────────────────────────────────────────────────────────────
+
+class SyncRequiresHttpsTest(TestCase):
+    @override_settings(SYNC_API_URL='http://central.fans-c.gov.ph/api', SYNC_API_KEY='k')
+    def test_http_sync_url_is_skipped_not_attempted(self):
+        from unittest import mock
+        from beneficiaries import sync as _sync
+        with mock.patch('requests.post') as mock_post:
+            result = _sync.sync_all()
+        mock_post.assert_not_called()
+        self.assertEqual(result['skipped'], 1)
+        self.assertEqual(result['synced'], 0)
+
+    @override_settings(SYNC_API_URL='https://central.fans-c.gov.ph/api', SYNC_API_KEY='k')
+    def test_https_sync_url_is_not_skipped_for_scheme_reasons(self):
+        """No pending records exist, so this exercises the same code path
+        past the scheme check without needing to mock a live HTTP response."""
+        from beneficiaries import sync as _sync
+        result = _sync.sync_all()
+        self.assertEqual(result, {'synced': 0, 'failed': 0, 'conflicts': 0, 'rejected': 0, 'skipped': 0})
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v2.1.17 member-testing audit — Finding B: representative cannot use the
+# beneficiary's own identity document
+# ──────────────────────────────────────────────────────────────────────────────
+
+class RepresentativeIdentityFormTest(TestCase):
+    """RepresentativeForm (registration wizard step 2) and BeneficiaryEditForm
+    must both block a representative from being registered with the same ID
+    document as the beneficiary they represent."""
+
+    def _rep_data(self, **overrides):
+        data = {
+            'has_representative': True,
+            'rep_first_name': 'Jose',
+            'rep_last_name': 'Rizal',
+            'rep_relationship': 'Son',
+            'rep_contact': '09171234567',
+            'rep_id_type': 'PhilSys',
+            'rep_id_number': 'PSN-0001',
+        }
+        data.update(overrides)
+        return data
+
+    def test_registration_wizard_blocks_same_valid_id(self):
+        instance = Beneficiary(valid_id_type='PhilSys', valid_id_number='PSN-0001', senior_citizen_id='')
+        form = RepresentativeForm(self._rep_data(), instance=instance)
+        self.assertFalse(form.is_valid())
+        self.assertIn('rep_id_number', form.errors)
+        self.assertIn('own identity document', ''.join(form.errors['rep_id_number']))
+
+    def test_registration_wizard_blocks_case_and_whitespace_variants(self):
+        """Normalization must not allow a trivial whitespace/case bypass."""
+        instance = Beneficiary(valid_id_type='PhilSys', valid_id_number='PSN-0001', senior_citizen_id='')
+        form = RepresentativeForm(
+            self._rep_data(rep_id_type='philsys', rep_id_number=' psn-0001 '), instance=instance,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('rep_id_number', form.errors)
+
+    def test_registration_wizard_blocks_senior_citizen_id_match(self):
+        instance = Beneficiary(valid_id_type='', valid_id_number='', senior_citizen_id='SC-2024-77777')
+        form = RepresentativeForm(
+            self._rep_data(rep_id_type='Senior Citizen ID', rep_id_number='SC-2024-77777'),
+            instance=instance,
+        )
+        self.assertFalse(form.is_valid())
+        self.assertIn('rep_id_number', form.errors)
+
+    def test_registration_wizard_allows_distinct_representative(self):
+        instance = Beneficiary(
+            valid_id_type='PhilSys', valid_id_number='PSN-0001', senior_citizen_id='SC-2024-77777',
+        )
+        form = RepresentativeForm(
+            self._rep_data(rep_id_type='Passport', rep_id_number='P1234567'), instance=instance,
+        )
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_edit_form_blocks_same_valid_id(self):
+        beneficiary = _make_beneficiary(
+            senior_citizen_id='SC-EDIT-00001', valid_id_type='PhilSys', valid_id_number='PSN-9999',
+        )
+        data = _edit_data_from(
+            beneficiary,
+            valid_id_type='PhilSys', valid_id_number='PSN-9999',
+            **self._rep_data(rep_id_type='PhilSys', rep_id_number='PSN-9999'),
+        )
+        form = BeneficiaryEditForm(data, instance=beneficiary)
+        self.assertFalse(form.is_valid())
+        self.assertIn('rep_id_number', form.errors)
+
+    def test_edit_form_allows_distinct_representative(self):
+        beneficiary = _make_beneficiary(
+            senior_citizen_id='SC-EDIT-00002', valid_id_type='PhilSys', valid_id_number='PSN-8888',
+        )
+        data = _edit_data_from(
+            beneficiary,
+            valid_id_type='PhilSys', valid_id_number='PSN-8888',
+            **self._rep_data(rep_id_type='Passport', rep_id_number='P7654321'),
+        )
+        form = BeneficiaryEditForm(data, instance=beneficiary)
+        self.assertTrue(form.is_valid(), form.errors)
+
+
+class RepresentativeIdentityViewTest(TestCase):
+    """Direct-POST regression coverage: the server-side block cannot be
+    bypassed by crafting requests straight to add_representative for an
+    existing beneficiary (client-side validation alone would not catch this)."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.admin = User.objects.create_user(username='rep_id_admin', password='TestPass1!', role='admin')
+        self.client.force_login(self.admin)
+
+    def test_add_representative_blocks_beneficiary_own_id(self):
+        b = _make_beneficiary(
+            senior_citizen_id='SC-ADDREP-001', valid_id_type='PhilSys', valid_id_number='PSN-1111',
+        )
+        resp = self.client.post(f'/dashboard/beneficiaries/{b.pk}/representative/add/', {
+            'rep_first_name': 'Jose', 'rep_last_name': 'Rizal',
+            'rep_relationship': 'Son', 'rep_contact': '09171234567',
+            'rep_id_type': 'PhilSys', 'rep_id_number': 'PSN-1111',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(Representative.objects.filter(beneficiary=b).exists())
+
+    def test_add_representative_blocks_senior_citizen_id_match(self):
+        b = _make_beneficiary(senior_citizen_id='SC-ADDREP-002')
+        resp = self.client.post(f'/dashboard/beneficiaries/{b.pk}/representative/add/', {
+            'rep_first_name': 'Jose', 'rep_last_name': 'Rizal',
+            'rep_relationship': 'Son', 'rep_contact': '09171234567',
+            'rep_id_type': 'Senior Citizen ID', 'rep_id_number': 'SC-ADDREP-002',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertFalse(Representative.objects.filter(beneficiary=b).exists())
+
+    def test_add_representative_allows_distinct_id(self):
+        b = _make_beneficiary(
+            senior_citizen_id='SC-ADDREP-003', valid_id_type='PhilSys', valid_id_number='PSN-2222',
+        )
+        resp = self.client.post(f'/dashboard/beneficiaries/{b.pk}/representative/add/', {
+            'rep_first_name': 'Jose', 'rep_last_name': 'Rizal',
+            'rep_relationship': 'Son', 'rep_contact': '09171234567',
+            'rep_id_type': 'Passport', 'rep_id_number': 'P9998887',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.assertTrue(Representative.objects.filter(beneficiary=b).exists())
+
+    def test_add_representative_block_message_is_visible_to_the_user(self):
+        """Not just server-side-blocked: the operator must actually SEE why
+        (finding B requires the block to 'explain' itself, not just fail)."""
+        b = _make_beneficiary(
+            senior_citizen_id='SC-ADDREP-004', valid_id_type='PhilSys', valid_id_number='PSN-3333',
+        )
+        resp = self.client.post(f'/dashboard/beneficiaries/{b.pk}/representative/add/', {
+            'rep_first_name': 'Jose', 'rep_last_name': 'Rizal',
+            'rep_relationship': 'Son', 'rep_contact': '09171234567',
+            'rep_id_type': 'PhilSys', 'rep_id_number': 'PSN-3333',
+        }, follow=True)
+        self.assertContains(resp, "own identity document")
+
+    def test_registration_wizard_step2_view_blocks_and_shows_error(self):
+        """End-to-end (not just form-unit-level): drives the real
+        register_step1 -> register_step2 session-backed view flow, and
+        asserts the block message is actually rendered in the step2 HTML —
+        catches template-level regressions that a form-only test would miss."""
+        session = self.client.session
+        session['reg_step1'] = {
+            'first_name': 'Same', 'middle_name': '', 'last_name': 'Identity',
+            'date_of_birth': '1948-05-01', 'gender': 'F',
+            'municipality': 'Quezon City', 'house_no': '', 'street': 'Test St',
+            'barangay': 'Commonwealth', 'province': 'Metro Manila (NCR)',
+            'contact_number': '', 'senior_citizen_id': 'SC-WIZ-001',
+            'valid_id_type': 'PhilSys', 'valid_id_number': 'PSN-WIZ-1',
+        }
+        session.save()
+        resp = self.client.post('/dashboard/register/step2/', {
+            'has_representative': 'on',
+            'rep_first_name': 'Rep', 'rep_last_name': 'Person',
+            'rep_relationship': 'Son', 'rep_contact': '09171234567',
+            'rep_id_type': 'PhilSys', 'rep_id_number': 'PSN-WIZ-1',
+        })
+        self.assertEqual(resp.status_code, 200)  # re-rendered, not redirected to step3
+        self.assertContains(resp, "own identity document")
+        self.assertNotIn('reg_step2', self.client.session)
+
+    def test_edit_view_blocks_and_shows_error(self):
+        """End-to-end check for the edit path — BeneficiaryEditForm.clean()
+        blocks it, and the edit.html template must actually render the
+        error, not just fail the form silently."""
+        b = _make_beneficiary(
+            senior_citizen_id='SC-EDITVIEW-001', valid_id_type='PhilSys', valid_id_number='PSN-EV-1',
+        )
+        data = _edit_data_from(
+            b, valid_id_type='PhilSys', valid_id_number='PSN-EV-1',
+            has_representative=True,
+            rep_first_name='Rep', rep_last_name='Person', rep_relationship='Son',
+            rep_contact='09171234567', rep_id_type='PhilSys', rep_id_number='PSN-EV-1',
+        )
+        resp = self.client.post(f'/dashboard/beneficiaries/{b.pk}/edit/', data)
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, "own identity document")
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v2.1.17 member-testing audit — Finding E: Date of Birth protection /
+# Birthday Bonus eligibility integrity
+# ──────────────────────────────────────────────────────────────────────────────
+
+class DobEditProtectionFormTest(TestCase):
+    """BeneficiaryEditForm must not allow DOB mutation for a reviewed
+    (non-PENDING) beneficiary through the ordinary edit form."""
+
+    def test_pending_beneficiary_dob_editable(self):
+        b = _make_beneficiary(senior_citizen_id='SC-DOB-P1', status=Beneficiary.STATUS_PENDING)
+        data = _edit_data_from(b, date_of_birth='1948-03-10')
+        form = BeneficiaryEditForm(data, instance=b)
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_active_beneficiary_dob_change_blocked(self):
+        b = _make_beneficiary(senior_citizen_id='SC-DOB-A1', status=Beneficiary.STATUS_ACTIVE)
+        data = _edit_data_from(b, date_of_birth='1948-03-10')
+        form = BeneficiaryEditForm(data, instance=b)
+        self.assertFalse(form.is_valid())
+        self.assertIn('date_of_birth', form.errors)
+
+    def test_active_beneficiary_unchanged_dob_still_valid(self):
+        """Submitting the SAME DOB on an active beneficiary's edit form must
+        not be rejected — only an actual change is blocked."""
+        b = _make_beneficiary(senior_citizen_id='SC-DOB-A2', status=Beneficiary.STATUS_ACTIVE)
+        data = _edit_data_from(b)  # date_of_birth defaults to the existing value
+        form = BeneficiaryEditForm(data, instance=b)
+        self.assertTrue(form.is_valid(), form.errors)
+
+    def test_inactive_beneficiary_dob_change_blocked(self):
+        """Deactivate/edit/reactivate must not be usable as a bypass route."""
+        b = _make_beneficiary(senior_citizen_id='SC-DOB-I1', status=Beneficiary.STATUS_INACTIVE)
+        data = _edit_data_from(b, date_of_birth='1948-03-10')
+        form = BeneficiaryEditForm(data, instance=b)
+        self.assertFalse(form.is_valid())
+        self.assertIn('date_of_birth', form.errors)
+
+
+class DobCorrectionViewTest(TestCase):
+    """Direct-POST regression coverage for the privileged, audited DOB
+    correction action."""
+
+    def setUp(self):
+        from django.contrib.auth import get_user_model
+        User = get_user_model()
+        self.admin = User.objects.create_user(username='dob_admin', password='TestPass1!', role='admin')
+        self.president = User.objects.create_user(username='dob_president', password='TestPass1!', role='president')
+        self.it = User.objects.create_user(username='dob_it', password='TestPass1!', role='it')
+        self.staff = User.objects.create_user(username='dob_staff', password='TestPass1!', role='staff')
+        self.beneficiary = _make_beneficiary(
+            senior_citizen_id='SC-DOBCORR-001', status=Beneficiary.STATUS_ACTIVE,
+            date_of_birth=datetime.date(1950, 5, 1),
+        )
+
+    def _url(self):
+        return f'/dashboard/beneficiaries/{self.beneficiary.pk}/correct-dob/'
+
+    def test_staff_cannot_correct_dob(self):
+        self.client.force_login(self.staff)
+        resp = self.client.post(self._url(), {
+            'new_date_of_birth': '1950-06-01', 'reason': 'Data entry correction after ID review.',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.beneficiary.refresh_from_db()
+        self.assertEqual(self.beneficiary.date_of_birth, datetime.date(1950, 5, 1))
+
+    def test_technical_admin_cannot_correct_dob(self):
+        """IT role has broad read access but must NOT gain financial authority
+        — DOB drives Birthday Bonus eligibility, so this must be blocked too,
+        consistent with has_financial_authority excluding Technical Admin."""
+        self.client.force_login(self.it)
+        resp = self.client.post(self._url(), {
+            'new_date_of_birth': '1950-06-01', 'reason': 'Data entry correction after ID review.',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.beneficiary.refresh_from_db()
+        self.assertEqual(self.beneficiary.date_of_birth, datetime.date(1950, 5, 1))
+
+    def test_admin_can_correct_dob_with_reason(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(self._url(), {
+            'new_date_of_birth': '1950-06-01', 'reason': 'Data entry correction after ID review.',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.beneficiary.refresh_from_db()
+        self.assertEqual(self.beneficiary.date_of_birth, datetime.date(1950, 6, 1))
+
+    def test_president_can_correct_dob_with_reason(self):
+        self.client.force_login(self.president)
+        resp = self.client.post(self._url(), {
+            'new_date_of_birth': '1950-06-01', 'reason': 'Data entry correction after ID review.',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.beneficiary.refresh_from_db()
+        self.assertEqual(self.beneficiary.date_of_birth, datetime.date(1950, 6, 1))
+
+    def test_correction_requires_reason(self):
+        self.client.force_login(self.admin)
+        resp = self.client.post(self._url(), {
+            'new_date_of_birth': '1950-06-01', 'reason': 'short',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.beneficiary.refresh_from_db()
+        self.assertEqual(self.beneficiary.date_of_birth, datetime.date(1950, 5, 1))
+
+    def test_correction_is_audited_with_old_and_new_dob(self):
+        from logs.models import AuditLog
+        self.client.force_login(self.admin)
+        self.client.post(self._url(), {
+            'new_date_of_birth': '1950-06-01', 'reason': 'Data entry correction after ID review.',
+        })
+        entry = AuditLog.objects.filter(
+            target_type='Beneficiary', target_id=str(self.beneficiary.id),
+            details__action='dob_correction',
+        ).latest('timestamp')
+        self.assertEqual(entry.details['old_date_of_birth'], '1950-05-01')
+        self.assertEqual(entry.details['new_date_of_birth'], '1950-06-01')
+        self.assertEqual(entry.details['reason'], 'Data entry correction after ID review.')
+
+    def test_ordinary_edit_post_cannot_bypass_dob_protection(self):
+        """A crafted direct POST to the ordinary edit endpoint must not be
+        able to change DOB for an active beneficiary — only correct-dob can."""
+        self.client.force_login(self.admin)
+        data = _edit_data_from(self.beneficiary, date_of_birth='1999-01-01')
+        self.client.post(f'/dashboard/beneficiaries/{self.beneficiary.pk}/edit/', data)
+        self.beneficiary.refresh_from_db()
+        self.assertEqual(self.beneficiary.date_of_birth, datetime.date(1950, 5, 1))
+
+    def test_birthday_eligibility_reflects_corrected_dob(self):
+        """After a legitimate correction, StipendEvent eligibility must use
+        the corrected DOB — the claim flow still checks the real birthday
+        month, it just can no longer be manipulated via the ordinary edit form."""
+        from verification.models import StipendEvent
+        self.client.force_login(self.admin)
+        self.client.post(self._url(), {
+            'new_date_of_birth': '1950-06-15', 'reason': 'Data entry correction after ID review.',
+        })
+        self.beneficiary.refresh_from_db()
+        june_event = StipendEvent(event_type=StipendEvent.EVENT_TYPE_BIRTHDAY, date=datetime.date(2026, 6, 1))
+        may_event = StipendEvent(event_type=StipendEvent.EVENT_TYPE_BIRTHDAY, date=datetime.date(2026, 5, 1))
+        self.assertTrue(june_event.is_beneficiary_eligible(self.beneficiary))
+        self.assertFalse(may_event.is_beneficiary_eligible(self.beneficiary))

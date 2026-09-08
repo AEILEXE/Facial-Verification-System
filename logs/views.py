@@ -112,6 +112,7 @@ def audit_log_list(request):
             import csv
             from django.http import HttpResponse
             from django.utils import timezone as _tz
+            from fans.report_export import sanitize_export_cell
             response = HttpResponse(content_type='text/csv')
             response['Content-Disposition'] = (
                 'attachment; filename="fansc-audit-logs.csv"'
@@ -125,7 +126,7 @@ def audit_log_list(request):
             ])
             for log in queryset[:10000]:
                 d = log.details or {}
-                writer.writerow([
+                writer.writerow([sanitize_export_cell(v) for v in [
                     log.timestamp.astimezone().strftime('%Y-%m-%d %H:%M:%S'),
                     log.user.username if log.user else '',
                     log.action,
@@ -140,7 +141,7 @@ def audit_log_list(request):
                     d.get('anti_spoof_score', ''),
                     (d.get('reason') or d.get('block_reason') or
                      d.get('outcome') or '')[:280],
-                ])
+                ]])
             AuditLog.log(
                 action=AuditLog.ACTION_REPORT_EXPORT,
                 user=request.user,

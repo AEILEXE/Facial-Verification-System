@@ -305,12 +305,13 @@ def beneficiary_master_list_report(request):
     if export_fmt == 'csv':
         import csv
         from django.http import HttpResponse
+        from fans.report_export import sanitize_export_cell
         response = HttpResponse(content_type='text/csv')
         response['Content-Disposition'] = 'attachment; filename="fansc-beneficiary-master-list.csv"'
         writer = csv.writer(response)
         writer.writerow(columns)
         for row in _rows():
-            writer.writerow(row)
+            writer.writerow([sanitize_export_cell(v) for v in row])
         AuditLog.log(
             action=AuditLog.ACTION_REPORT_EXPORT, user=request.user,
             details={'report': 'beneficiary_master_list', 'format': 'csv', 'filters': filter_log, 'row_count': len(qs) if isinstance(qs, list) else qs.count()},
@@ -518,6 +519,73 @@ def beneficiary_edit(request, pk):
 
 
 @login_required
+@require_POST
+def beneficiary_correct_dob(request, pk):
+    """
+    Privileged, audited Date of Birth correction — the only way to change DOB
+    for a beneficiary once reviewed (see BeneficiaryEditForm.clean_date_of_birth,
+    which blocks DOB mutation through the ordinary edit form for any non-PENDING
+    status). Restricted to President/Admin (has_financial_authority — NOT
+    Technical Administrator) because DOB drives Birthday Bonus eligibility, a
+    financial matter. Requires a written reason and records old/new DOB on the
+    audit trail. Does not attempt to snapshot historical eligibility — see
+    v2.1.17 audit notes.
+    """
+    if not request.user.has_financial_authority:
+        messages.error(request, 'President or Admin authority is required to correct Date of Birth.')
+        return redirect('beneficiaries:beneficiary_detail', pk=pk)
+
+    beneficiary = get_object_or_404(Beneficiary, pk=pk)
+
+    new_dob_raw = request.POST.get('new_date_of_birth', '').strip()
+    reason = request.POST.get('reason', '').strip()
+
+    if len(reason) < 10:
+        messages.error(request, 'A written reason of at least 10 characters is required to correct Date of Birth.')
+        return redirect('beneficiaries:beneficiary_detail', pk=pk)
+
+    import datetime
+    try:
+        new_dob = datetime.date.fromisoformat(new_dob_raw)
+    except (ValueError, TypeError):
+        messages.error(request, 'Enter a valid Date of Birth.')
+        return redirect('beneficiaries:beneficiary_detail', pk=pk)
+
+    from .validators import validate_senior_citizen_dob
+    from django.core.exceptions import ValidationError as DjangoValidationError
+    try:
+        validate_senior_citizen_dob(new_dob)
+    except DjangoValidationError as e:
+        messages.error(request, ' '.join(e.messages))
+        return redirect('beneficiaries:beneficiary_detail', pk=pk)
+
+    old_dob = beneficiary.date_of_birth
+    if new_dob == old_dob:
+        messages.info(request, 'Date of birth is unchanged.')
+        return redirect('beneficiaries:beneficiary_detail', pk=pk)
+
+    beneficiary.date_of_birth = new_dob
+    beneficiary.save(update_fields=['date_of_birth', 'updated_at'])
+
+    AuditLog.log(
+        action=AuditLog.ACTION_UPDATE,
+        user=request.user,
+        target_type='Beneficiary',
+        target_id=beneficiary.id,
+        details={
+            'beneficiary_id': beneficiary.beneficiary_id,
+            'action': 'dob_correction',
+            'old_date_of_birth': str(old_dob),
+            'new_date_of_birth': str(new_dob),
+            'reason': reason,
+        },
+        request=request,
+    )
+    messages.success(request, f"Date of birth corrected for {beneficiary.full_name}.")
+    return redirect('beneficiaries:beneficiary_detail', pk=beneficiary.pk)
+
+
+@login_required
 @require_http_methods(['GET', 'POST'])
 def beneficiary_deactivate(request, pk):
     """
@@ -635,8 +703,18 @@ def register_step2(request):
     if 'reg_step1' not in request.session:
         return redirect('beneficiaries:register_step1')
 
+    step1 = request.session['reg_step1']
     if request.method == 'POST':
-        form = RepresentativeForm(request.POST)
+        # Carry the not-yet-saved beneficiary's own ID fields on a transient
+        # instance so RepresentativeForm.clean() can block a representative
+        # from using the beneficiary's own identity document. This instance
+        # is never saved by this form.
+        instance = Beneficiary(
+            valid_id_type=step1.get('valid_id_type', ''),
+            valid_id_number=step1.get('valid_id_number', ''),
+            senior_citizen_id=step1.get('senior_citizen_id', ''),
+        )
+        form = RepresentativeForm(request.POST, instance=instance)
         if form.is_valid():
             request.session['reg_step2'] = form.cleaned_data
             return redirect('beneficiaries:register_step3')
@@ -1137,6 +1215,17 @@ def add_representative(request, pk):
         errors.append(f'"{valid_id_type}" is not a valid ID type. Please select from the list.')
     if not valid_id_number:
         errors.append('Valid ID number is required.')
+
+    if not errors:
+        from .validators import representative_uses_beneficiary_identity
+        if representative_uses_beneficiary_identity(
+            beneficiary.valid_id_type,
+            beneficiary.valid_id_number,
+            beneficiary.senior_citizen_id,
+            valid_id_type,
+            valid_id_number,
+        ):
+            errors.append("The representative cannot use the beneficiary's own identity document.")
 
     if errors:
         for e in errors:

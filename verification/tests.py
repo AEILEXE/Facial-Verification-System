@@ -2672,6 +2672,65 @@ class StipendListPastEventsTest(TestCase):
         self.assertIn(event.pk, upcoming_ids)
 
 
+class PastEventsEmptyStateTest(TestCase):
+    """v2.1.17 member-testing audit — Finding F: the Past Events panel must
+    distinguish "no past events exist yet" from "no past events match these
+    filters", instead of one message covering both cases."""
+
+    def setUp(self):
+        self.admin = CustomUser.objects.create_user(
+            username='admin_pees', password='TestPass123!',
+            role=CustomUser.ROLE_ADMIN, employee_id='EMP-PEES',
+        )
+        self.client = Client()
+        self.client.force_login(self.admin)
+
+    def test_no_past_events_at_all(self):
+        resp = self.client.get(reverse('verification:stipend_list'))
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(resp.context['any_past_events_exist'])
+        self.assertContains(resp, 'No past events exist yet.')
+        self.assertNotContains(resp, 'No past events match these filters.')
+
+    def test_past_events_exist_but_filter_matches_none(self):
+        import datetime
+        from verification.models import StipendEvent
+        StipendEvent.objects.create(
+            title='A Genuinely Past Event', date=datetime.date(2020, 1, 1),
+            created_by=self.admin,
+        )
+        resp = self.client.get(reverse('verification:stipend_list'), {'past_q': 'NoSuchTitleXYZ'})
+        self.assertEqual(resp.status_code, 200)
+        self.assertTrue(resp.context['any_past_events_exist'])
+        self.assertContains(resp, 'No past events match these filters.')
+        self.assertNotContains(resp, 'No past events exist yet.')
+
+    def test_past_event_search_is_case_insensitive_partial_match(self):
+        import datetime
+        from verification.models import StipendEvent
+        StipendEvent.objects.create(
+            title='Unique Fiesta Distribution 2020', date=datetime.date(2020, 3, 1),
+            created_by=self.admin,
+        )
+        resp = self.client.get(reverse('verification:stipend_list'), {'past_q': 'fiesta'})
+        self.assertEqual(resp.status_code, 200)
+        titles = [e.title for e in resp.context['past']]
+        self.assertIn('Unique Fiesta Distribution 2020', titles)
+
+    def test_upcoming_event_never_leaks_into_past_search(self):
+        import datetime
+        from verification.models import StipendEvent
+        today = datetime.date.today()
+        StipendEvent.objects.create(
+            title='Shared Keyword Event', date=today + datetime.timedelta(days=10),
+            created_by=self.admin,
+        )
+        resp = self.client.get(reverse('verification:stipend_list'), {'past_q': 'Shared Keyword'})
+        self.assertEqual(resp.status_code, 200)
+        titles = [e.title for e in resp.context['past']]
+        self.assertNotIn('Shared Keyword Event', titles)
+
+
 # ──────────────────────────────────────────────────────────────────────────────
 # v2.1.3 — Payout office hours validation (07:00–20:00)
 # ──────────────────────────────────────────────────────────────────────────────
@@ -12990,3 +13049,264 @@ class DistributionSummaryDateFilterTest(TestCase):
         resp = self.client.get(reverse('verification:report_event_summary'), {'event_type': 'not_a_type'})
         self.assertEqual(resp.status_code, 200)
         self.assertEqual(resp.context['event_type_filter'], '')
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v2.1.17 member-testing audit — Finding D: payout amount must reject
+# ambiguous leading-zero input server-side (create AND edit paths, plus the
+# claim-amount override path)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class PayoutAmountParserTest(TestCase):
+    """Unit tests for the shared parse_payout_amount canonical-format parser."""
+
+    def _parse(self, raw):
+        from verification.models import parse_payout_amount
+        return parse_payout_amount(raw)
+
+    def test_accepts_zero(self):
+        from decimal import Decimal
+        self.assertEqual(self._parse('0'), Decimal('0'))
+
+    def test_accepts_zero_with_decimals(self):
+        from decimal import Decimal
+        self.assertEqual(self._parse('0.00'), Decimal('0.00'))
+
+    def test_accepts_plain_integer(self):
+        from decimal import Decimal
+        self.assertEqual(self._parse('123'), Decimal('123'))
+
+    def test_accepts_two_decimal_places(self):
+        from decimal import Decimal
+        self.assertEqual(self._parse('123.50'), Decimal('123.50'))
+
+    def test_accepts_large_integer(self):
+        from decimal import Decimal
+        self.assertEqual(self._parse('100000'), Decimal('100000'))
+
+    def test_accepts_empty_as_zero(self):
+        from decimal import Decimal
+        self.assertEqual(self._parse(''), Decimal('0'))
+
+    def test_rejects_leading_zero(self):
+        with self.assertRaises(ValueError):
+            self._parse('0123')
+
+    def test_rejects_leading_zeros_larger(self):
+        with self.assertRaises(ValueError):
+            self._parse('001000')
+
+    def test_rejects_leading_zero_with_decimals(self):
+        with self.assertRaises(ValueError):
+            self._parse('00.50')
+
+    def test_rejects_malformed_sign(self):
+        with self.assertRaises(ValueError):
+            self._parse('+123')
+
+    def test_rejects_non_numeric(self):
+        with self.assertRaises(ValueError):
+            self._parse('abc')
+
+    def test_rejects_negative(self):
+        with self.assertRaises(ValueError):
+            self._parse('-5')
+
+    def test_rejects_excess_precision_digits(self):
+        with self.assertRaises(ValueError):
+            self._parse('123.999')
+
+    def test_rejects_too_many_integer_digits(self):
+        with self.assertRaises(ValueError):
+            self._parse('12345678901')  # 11 digits > max_digits(12) - decimal_places(2) = 10
+
+
+class PayoutAmountViewTest(TestCase):
+    """Create AND edit paths must share the same server-side validation."""
+
+    def setUp(self):
+        self.client = Client()
+        self.president = _make_staff('amt_president', role=CustomUser.ROLE_PRESIDENT)
+        self.client.force_login(self.president)
+
+    def test_create_rejects_leading_zero_amount(self):
+        from verification.models import StipendEvent
+        resp = self.client.post(reverse('verification:stipend_create'), {
+            'title': 'Leading Zero Test Event',
+            'date': '2026-09-01',
+            'event_type': 'regular',
+            'amount': '0123',
+        })
+        self.assertEqual(resp.status_code, 200)
+        self.assertFalse(StipendEvent.objects.filter(title='Leading Zero Test Event').exists())
+
+    def test_create_accepts_canonical_amount(self):
+        from verification.models import StipendEvent
+        resp = self.client.post(reverse('verification:stipend_create'), {
+            'title': 'Canonical Amount Test Event',
+            'date': '2026-09-01',
+            'event_type': 'regular',
+            'amount': '1500.50',
+        })
+        self.assertEqual(resp.status_code, 302)
+        event = StipendEvent.objects.get(title='Canonical Amount Test Event')
+        self.assertEqual(str(event.amount), '1500.50')
+
+    def test_edit_rejects_leading_zero_amount(self):
+        from decimal import Decimal
+        from verification.models import StipendEvent
+        event = StipendEvent.objects.create(
+            title='Edit Amount Event', date=datetime.date(2026, 9, 5),
+            amount=Decimal('500'), created_by=self.president,
+            approval_status=StipendEvent.APPROVAL_APPROVED,
+        )
+        resp = self.client.post(reverse('verification:stipend_edit', args=[event.pk]), {
+            'title': event.title,
+            'date': '2026-09-05',
+            'event_type': 'regular',
+            'amount': '001000',
+        })
+        self.assertEqual(resp.status_code, 200)
+        event.refresh_from_db()
+        self.assertEqual(event.amount, Decimal('500'))
+
+    def test_edit_accepts_canonical_amount(self):
+        from decimal import Decimal
+        from verification.models import StipendEvent
+        event = StipendEvent.objects.create(
+            title='Edit Amount Event 2', date=datetime.date(2026, 9, 6),
+            amount=Decimal('500'), created_by=self.president,
+            approval_status=StipendEvent.APPROVAL_APPROVED,
+        )
+        resp = self.client.post(reverse('verification:stipend_edit', args=[event.pk]), {
+            'title': event.title,
+            'date': '2026-09-06',
+            'event_type': 'regular',
+            'amount': '750.25',
+        })
+        self.assertEqual(resp.status_code, 302)
+        event.refresh_from_db()
+        self.assertEqual(event.amount, Decimal('750.25'))
+
+
+class ClaimAmountOverrideValidationTest(TestCase):
+    """The claim-amount override path (payout_action) must use the same
+    canonical-format validation, and must never rewrite historical
+    ClaimRecord amounts on a rejected/malformed override attempt."""
+
+    def setUp(self):
+        from decimal import Decimal
+        from beneficiaries.models import Beneficiary
+        from verification.models import StipendEvent, ClaimRecord
+        self.client = Client()
+        self.admin = _make_staff('amt_override_admin', role=CustomUser.ROLE_ADMIN)
+        self.client.force_login(self.admin)
+        self.beneficiary = Beneficiary.objects.create(
+            first_name='Amt', last_name='Override', date_of_birth=datetime.date(1945, 1, 1),
+            gender='M', municipality='Quezon City', barangay='Commonwealth',
+            province='Metro Manila (NCR)', senior_citizen_id='SC-AMTOV-001', status='active',
+        )
+        self.event = StipendEvent.objects.create(
+            title='Override Amount Event', date=datetime.date(2026, 1, 1),
+            amount=Decimal('500'), created_by=self.admin,
+            approval_status=StipendEvent.APPROVAL_APPROVED,
+        )
+        self.claim = ClaimRecord.objects.create(
+            beneficiary=self.beneficiary, stipend_event=self.event, claimant_type='beneficiary',
+            status=ClaimRecord.STATUS_CLAIMED, claimed_by=self.admin, amount=Decimal('500'),
+        )
+
+    def test_override_rejects_leading_zero_amount(self):
+        from decimal import Decimal
+        resp = self.client.post(reverse('verification:payout_action', args=[self.claim.pk]), {
+            'action': 'override',
+            'override_reason': 'Correcting a data entry mistake in the release amount.',
+            'amount': '0750',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.claim.refresh_from_db()
+        self.assertEqual(self.claim.amount, Decimal('500'))
+
+    def test_override_accepts_canonical_amount(self):
+        from decimal import Decimal
+        resp = self.client.post(reverse('verification:payout_action', args=[self.claim.pk]), {
+            'action': 'override',
+            'override_reason': 'Correcting a data entry mistake in the release amount.',
+            'amount': '750',
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.claim.refresh_from_db()
+        self.assertEqual(self.claim.amount, Decimal('750'))
+
+
+# ──────────────────────────────────────────────────────────────────────────────
+# v2.1.17 audit — shared-representative authorization document upload must be
+# restricted to a safe extension allowlist (direct request.FILES -> model
+# field write, bypasses ModelForm/full_clean entirely)
+# ──────────────────────────────────────────────────────────────────────────────
+
+class SharedRepAuthorizationDocumentUploadTest(TestCase):
+    def setUp(self):
+        from django.core.files.uploadedfile import SimpleUploadedFile
+        from beneficiaries.models import Beneficiary, Representative, SharedRepresentativeReview
+        self.SimpleUploadedFile = SimpleUploadedFile
+        self.SharedRepresentativeReview = SharedRepresentativeReview
+        self.client = Client()
+        self.admin = _make_staff('sharedrep_doc_admin', role=CustomUser.ROLE_ADMIN)
+        self.client.force_login(self.admin)
+        beneficiary = Beneficiary.objects.create(
+            first_name='Doc', last_name='Upload', date_of_birth=datetime.date(1945, 1, 1),
+            gender='M', municipality='Quezon City', barangay='Commonwealth',
+            province='Metro Manila (NCR)', senior_citizen_id='SC-DOCUP-001', status='active',
+        )
+        rep = Representative.objects.create(
+            beneficiary=beneficiary, first_name='Rep', last_name='Person',
+            relationship='Son', contact_number='09171234567',
+            valid_id_type='PhilSys', valid_id_number='PSN-DOCUP-1',
+            registered_by=self.admin,
+        )
+        self.review = SharedRepresentativeReview.objects.create(
+            representative=rep, matched_beneficiary_id='BEN-OTHER-001',
+            matched_beneficiary_name='Other Beneficiary', matched_score=0.9, matched_threshold=0.8,
+            flagged_by=self.admin,
+        )
+
+    def _url(self):
+        return reverse('verification:shared_rep_review_detail', args=[self.review.pk])
+
+    def test_html_upload_rejected(self):
+        upload = self.SimpleUploadedFile(
+            'evil.html', b'<script>alert(1)</script>', content_type='text/html',
+        )
+        resp = self.client.post(self._url(), {
+            'action': 'approve', 'decision_notes': 'Reviewed supporting documents.',
+            'authorization_document': upload,
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.review.refresh_from_db()
+        self.assertFalse(self.review.authorization_document)
+        self.assertEqual(self.review.status, self.SharedRepresentativeReview.STATUS_PENDING)
+
+    def test_svg_upload_rejected(self):
+        upload = self.SimpleUploadedFile(
+            'evil.svg', b'<svg onload="alert(1)"></svg>', content_type='image/svg+xml',
+        )
+        resp = self.client.post(self._url(), {
+            'action': 'approve', 'decision_notes': 'Reviewed supporting documents.',
+            'authorization_document': upload,
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.review.refresh_from_db()
+        self.assertFalse(self.review.authorization_document)
+
+    def test_pdf_upload_accepted(self):
+        upload = self.SimpleUploadedFile(
+            'guardianship.pdf', b'%PDF-1.4 fake pdf content', content_type='application/pdf',
+        )
+        resp = self.client.post(self._url(), {
+            'action': 'approve', 'decision_notes': 'Reviewed supporting documents.',
+            'authorization_document': upload,
+        })
+        self.assertEqual(resp.status_code, 302)
+        self.review.refresh_from_db()
+        self.assertTrue(self.review.authorization_document)

@@ -154,10 +154,12 @@
             <div class="col-md-4">
               <label class="form-label fw-semibold small" for="{{ form.rep_first_name.id_for_label }}">Rep. First Name</label>
               {{ form.rep_first_name }}
+              {% if form.rep_first_name.errors %}<div class="text-danger small mt-1">{{ form.rep_first_name.errors.0 }}</div>{% endif %}
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold small" for="{{ form.rep_last_name.id_for_label }}">Rep. Last Name</label>
               {{ form.rep_last_name }}
+              {% if form.rep_last_name.errors %}<div class="text-danger small mt-1">{{ form.rep_last_name.errors.0 }}</div>{% endif %}
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold small" for="{{ form.rep_relationship.id_for_label }}">Relationship</label>
@@ -166,14 +168,17 @@
             <div class="col-md-4">
               <label class="form-label fw-semibold small" for="{{ form.rep_contact.id_for_label }}">Contact</label>
               {{ form.rep_contact }}
+              {% if form.rep_contact.errors %}<div class="text-danger small mt-1">{{ form.rep_contact.errors.0 }}</div>{% endif %}
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold small" for="{{ form.rep_id_type.id_for_label }}">ID Type</label>
               {{ form.rep_id_type }}
+              {% if form.rep_id_type.errors %}<div class="text-danger small mt-1">{{ form.rep_id_type.errors.0 }}</div>{% endif %}
             </div>
             <div class="col-md-4">
               <label class="form-label fw-semibold small" for="{{ form.rep_id_number.id_for_label }}">ID Number</label>
               {{ form.rep_id_number }}
+              {% if form.rep_id_number.errors %}<div class="text-danger small mt-1">{{ form.rep_id_number.errors.0 }}</div>{% endif %}
             </div>
           </div>
         </div>

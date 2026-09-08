@@ -257,7 +257,19 @@
       <div class="card-body p-0">
         <table class="table table-sm table-borderless mb-0">
           <tbody>
-            <tr><th class="text-muted ps-3" style="width:42%;">Date of Birth</th><td>{{ beneficiary.date_of_birth|date:"F d, Y" }}</td></tr>
+            <tr>
+              <th class="text-muted ps-3" style="width:42%;">Date of Birth</th>
+              <td>
+                {{ beneficiary.date_of_birth|date:"F d, Y" }}
+                {% if user.has_financial_authority and beneficiary.status != 'pending' %}
+                <button type="button" class="btn btn-link btn-sm p-0 ms-2 align-baseline"
+                        data-bs-toggle="modal" data-bs-target="#correctDobModal"
+                        title="Correct Date of Birth (requires a reason; audited)">
+                  <i class="bi bi-pencil-square"></i> Correct
+                </button>
+                {% endif %}
+              </td>
+            </tr>
             <tr>
               <th class="text-muted ps-3">Age</th>
               <td>
@@ -646,4 +658,40 @@
 
   </div>
 </div>
+
+{% if user.has_financial_authority and beneficiary.status != 'pending' %}
+<div class="modal fade" id="correctDobModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <form method="POST" action="{% url 'beneficiaries:beneficiary_correct_dob' beneficiary.pk %}">
+      {% csrf_token %}
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Correct Date of Birth</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+        </div>
+        <div class="modal-body">
+          <p class="text-muted small">
+            Date of birth affects Birthday Bonus eligibility. This change is recorded
+            in the audit log with the reason given below.
+          </p>
+          <label class="form-label" for="correctDobCurrentDate">Current Date of Birth</label>
+          <input type="text" class="form-control mb-3" id="correctDobCurrentDate" disabled
+                 value="{{ beneficiary.date_of_birth|date:'F d, Y' }}">
+          <label class="form-label" for="correctDobNewDate">New Date of Birth <span class="text-danger">*</span></label>
+          <input type="date" class="form-control mb-3" id="correctDobNewDate"
+                 name="new_date_of_birth" value="{{ beneficiary.date_of_birth|date:'Y-m-d' }}" required>
+          <label class="form-label" for="correctDobReason">Reason <span class="text-danger">*</span></label>
+          <textarea class="form-control" id="correctDobReason" name="reason" rows="3" required
+                    placeholder="Explain why this correction is needed (e.g. registration data entry error, supporting document reviewed)..."></textarea>
+          <div class="form-text">Minimum 10 characters.</div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">Save Correction</button>
+        </div>
+      </div>
+    </form>
+  </div>
+</div>
+{% endif %}
 {% endblock %}

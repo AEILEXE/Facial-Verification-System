@@ -788,11 +788,24 @@ def user_create_full(request):
         messages.error(request, 'Only the President can create a President account.')
         return redirect('accounts:user_list')
 
+    # v2.1.17 audit fix: Admin carries the same has_financial_authority as
+    # President (payout release, Manual Review approval, stipend-event
+    # approval, etc.) — the checks above already stop a Technical
+    # Administrator (is_admin=True but not is_president) from creating an
+    # IT or President account directly, but left creating a plain Admin
+    # account open. That let IT create a new Admin account (whose password
+    # IT itself sets) and log in as it, indirectly obtaining exactly the
+    # financial authority IT must never have. Require President for Admin
+    # creation too, same as IT/President.
+    if request.method == 'POST' and request.POST.get('role') == CustomUser.ROLE_ADMIN and not request.user.is_president:
+        messages.error(request, 'Only the President can create an Admin account.')
+        return redirect('accounts:user_list')
+
     form = UserCreateFullForm(request.POST or None)
     if not request.user.is_president:
         form.fields['role'].choices = [
             c for c in form.fields['role'].choices
-            if c[0] not in (CustomUser.ROLE_IT, CustomUser.ROLE_PRESIDENT)
+            if c[0] not in (CustomUser.ROLE_ADMIN, CustomUser.ROLE_IT, CustomUser.ROLE_PRESIDENT)
         ]
     if request.method == 'POST' and form.is_valid():
         # ModelForm.save(commit=False) skips the form's _save_officer_assignment
@@ -869,14 +882,22 @@ def user_edit_full(request, pk):
             return redirect('accounts:user_list')
 
     # Only the President may promote ANY account (including Staff) into
-    # Technical Administrator or President — raw-POST checks, independent of
-    # the tier check above so they also cover Staff -> Technical
-    # Administrator / Staff -> President (the tier check above only fires
-    # when the TARGET is already admin-level, which a Staff account is not).
+    # Technical Administrator, Admin, or President — raw-POST checks,
+    # independent of the tier check above so they also cover Staff ->
+    # Technical Administrator / Staff -> Admin / Staff -> President (the tier
+    # check above only fires when the TARGET is already admin-level, which a
+    # Staff account is not). The Admin case closes a v2.1.17 audit gap: Admin
+    # carries the same has_financial_authority as President, so promoting a
+    # Staff account to Admin is just as much an escalation for a
+    # non-President (especially Technical Administrator) actor as promoting
+    # to IT/President was already recognized to be.
     if request.method == 'POST':
         _new_role = request.POST.get('role', '')
         if _new_role == CustomUser.ROLE_IT and target_user.role != CustomUser.ROLE_IT and not request.user.is_president:
             messages.error(request, 'Only the President can promote an account to Technical Administrator.')
+            return redirect('accounts:user_list')
+        if _new_role == CustomUser.ROLE_ADMIN and target_user.role != CustomUser.ROLE_ADMIN and not request.user.is_president:
+            messages.error(request, 'Only the President can promote an account to Admin.')
             return redirect('accounts:user_list')
         if _new_role == CustomUser.ROLE_PRESIDENT and target_user.role != CustomUser.ROLE_PRESIDENT and not request.user.is_president:
             messages.error(request, 'Only the President can promote an account to President.')
@@ -887,6 +908,8 @@ def user_edit_full(request, pk):
         _hidden_roles = set()
         if target_user.role != CustomUser.ROLE_IT:
             _hidden_roles.add(CustomUser.ROLE_IT)
+        if target_user.role != CustomUser.ROLE_ADMIN:
+            _hidden_roles.add(CustomUser.ROLE_ADMIN)
         if target_user.role != CustomUser.ROLE_PRESIDENT:
             _hidden_roles.add(CustomUser.ROLE_PRESIDENT)
         form.fields['role'].choices = [c for c in form.fields['role'].choices if c[0] not in _hidden_roles]

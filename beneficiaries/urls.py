@@ -9,6 +9,7 @@ urlpatterns = [
     path('beneficiaries/reports/master-list/', views.beneficiary_master_list_report, name='beneficiary_master_list_report'),
     path('beneficiaries/<uuid:pk>/', views.beneficiary_detail, name='beneficiary_detail'),
     path('beneficiaries/<uuid:pk>/edit/', views.beneficiary_edit, name='beneficiary_edit'),
+    path('beneficiaries/<uuid:pk>/correct-dob/', views.beneficiary_correct_dob, name='beneficiary_correct_dob'),
     path('beneficiaries/<uuid:pk>/deactivate/', views.beneficiary_deactivate, name='beneficiary_deactivate'),
     path('beneficiaries/<uuid:pk>/reactivate/', views.beneficiary_reactivate, name='beneficiary_reactivate'),
     path('register/step1/', views.register_step1, name='register_step1'),

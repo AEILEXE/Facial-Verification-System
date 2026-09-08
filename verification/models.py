@@ -3,7 +3,42 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, MaxValueValidator
 from beneficiaries.models import Beneficiary
+from decimal import Decimal, InvalidOperation
+import re
 import uuid
+
+# Canonical, unambiguous decimal string for a peso amount: optional-but-not-
+# required integer part with no unnecessary leading zeros (bare "0" is the
+# only allowed leading zero), and an optional 1-2 digit fraction. Rejects
+# ambiguous/leading-zero input like "0123" or "001000" that Decimal() would
+# otherwise silently accept as 123 / 1000. Used for every payout-amount input
+# (stipend event create/edit, claim amount override) so create and edit paths
+# share one definition of "valid".
+_PAYOUT_AMOUNT_RE = re.compile(r'^(0|[1-9]\d*)(\.\d{1,2})?$')
+
+
+def parse_payout_amount(raw: str) -> Decimal:
+    """
+    Parse a user-submitted payout amount string into a Decimal, enforcing the
+    canonical format above. Raises ValueError with a human-readable message on
+    anything malformed, negative, ambiguous (leading zeros), or exceeding the
+    amount field's precision (max_digits=12, decimal_places=2).
+    """
+    value = (raw or '').strip()
+    if not value:
+        value = '0'
+    if not _PAYOUT_AMOUNT_RE.match(value):
+        raise ValueError(
+            'Amount must be a plain non-negative number without unnecessary '
+            'leading zeros (e.g. 123 or 123.50, not 0123).'
+        )
+    integer_part = value.split('.', 1)[0]
+    if integer_part != '0' and len(integer_part) > 10:
+        raise ValueError('Amount exceeds the maximum allowed number of digits.')
+    try:
+        return Decimal(value)
+    except InvalidOperation:
+        raise ValueError('Amount must be a non-negative number.')
 
 
 class StipendEvent(models.Model):

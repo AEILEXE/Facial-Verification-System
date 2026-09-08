@@ -59,10 +59,16 @@
             <div class="col-md-6">
               <label class="form-label" for="{{ form.rep_first_name.id_for_label }}">Representative First Name <span class="text-danger">*</span></label>
               {{ form.rep_first_name }}
+              {% if form.rep_first_name.errors %}
+                <div class="text-danger small mt-1">{{ form.rep_first_name.errors|join:", " }}</div>
+              {% endif %}
             </div>
             <div class="col-md-6">
               <label class="form-label" for="{{ form.rep_last_name.id_for_label }}">Representative Last Name <span class="text-danger">*</span></label>
               {{ form.rep_last_name }}
+              {% if form.rep_last_name.errors %}
+                <div class="text-danger small mt-1">{{ form.rep_last_name.errors|join:", " }}</div>
+              {% endif %}
             </div>
             <div class="col-md-4">
               <label class="form-label" for="{{ form.rep_relationship.id_for_label }}">Relationship to Beneficiary</label>
@@ -79,10 +85,16 @@
             <div class="col-md-4">
               <label class="form-label" for="{{ form.rep_id_type.id_for_label }}">ID Type <span class="text-danger">*</span></label>
               {{ form.rep_id_type }}
+              {% if form.rep_id_type.errors %}
+                <div class="text-danger small mt-1">{{ form.rep_id_type.errors|join:", " }}</div>
+              {% endif %}
             </div>
             <div class="col-md-6">
               <label class="form-label" for="{{ form.rep_id_number.id_for_label }}">ID Number <span class="text-danger">*</span></label>
               {{ form.rep_id_number }}
+              {% if form.rep_id_number.errors %}
+                <div class="text-danger small mt-1">{{ form.rep_id_number.errors|join:", " }}</div>
+              {% endif %}
             </div>
           </div>
         </div>

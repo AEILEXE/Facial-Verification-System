@@ -297,6 +297,21 @@ def sync_all(batch_size: int = 50) -> dict:
         logger.debug('SYNC SKIP | SYNC_API_URL not configured — offline mode only')
         return {'synced': 0, 'failed': 0, 'conflicts': 0, 'rejected': 0, 'skipped': 1}
 
+    # v2.1.17 audit fix: SYNC_API_URL was documented as required to be
+    # https:// (see module docstring) but never actually checked — a
+    # misconfigured .env (e.g. left as http:// from local testing) would
+    # silently send the Bearer token and full beneficiary PII/face-embedding
+    # payload in plaintext over the network on every sync run. Refuse to
+    # sync rather than downgrade silently.
+    if not api_url.lower().startswith('https://'):
+        logger.warning(
+            'SYNC SKIP | SYNC_API_URL is not https:// (%s) — refusing to sync '
+            'to avoid sending the Bearer token and beneficiary PII/embeddings '
+            'over an unencrypted connection. Fix SYNC_API_URL in .env.',
+            api_url,
+        )
+        return {'synced': 0, 'failed': 0, 'conflicts': 0, 'rejected': 0, 'skipped': 1}
+
     pending = (
         Beneficiary.objects
         .filter(sync_status=Beneficiary.SYNC_PENDING)

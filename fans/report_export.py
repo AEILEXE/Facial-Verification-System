@@ -21,6 +21,26 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 from django.utils import timezone as _tz
 
+# Cell values starting with one of these are treated as a formula by
+# Excel/Sheets when the exported file is reopened. A prefixed leading
+# apostrophe forces the cell to render as literal text instead — applied to
+# every string cell in both the XLSX builder below and the plain CSV export
+# call sites (beneficiaries/views.py, verification/views.py), since free-text
+# fields (names, override reasons, remarks) are never restricted from
+# starting with these characters at entry time.
+_FORMULA_TRIGGER_CHARS = ('=', '+', '-', '@', '\t', '\r')
+
+
+def sanitize_export_cell(value):
+    """Defuse CSV/XLSX formula injection for one cell value. Only strings
+    starting with a formula-trigger character are touched — numbers,
+    Decimals, dates, and None pass through unchanged so a real negative
+    number still sorts/sums correctly."""
+    if isinstance(value, str) and value.startswith(_FORMULA_TRIGGER_CHARS):
+        return "'" + value
+    return value
+
+
 HEADER_FILL = PatternFill(start_color='1A3A6B', end_color='1A3A6B', fill_type='solid')
 HEADER_FONT = Font(color='FFFFFF', bold=True)
 TITLE_FONT = Font(bold=True, size=14, color='1A3A6B')
@@ -85,7 +105,7 @@ def build_report_workbook(*, title, sheet_name, headers, rows, generated_by, fil
 
     for row_idx, row in enumerate(rows, start=header_row + 1):
         for col_idx, value in enumerate(row, start=1):
-            cell = ws.cell(row=row_idx, column=col_idx, value=value)
+            cell = ws.cell(row=row_idx, column=col_idx, value=sanitize_export_cell(value))
             zero_indexed = col_idx - 1
             if value is not None and zero_indexed in currency_columns:
                 cell.number_format = CURRENCY_FORMAT

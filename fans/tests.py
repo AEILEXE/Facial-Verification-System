@@ -23,6 +23,45 @@ from django.urls import reverse, resolve, NoReverseMatch
 from django.conf import settings
 
 
+class ExportCellSanitizationTest(TestCase):
+    """v2.1.17 audit — CSV/XLSX formula-injection defense shared by every
+    export call site (fans/report_export.py, beneficiaries/views.py CSV,
+    verification/views.py CSV exports, logs/views.py audit log CSV)."""
+
+    def _sanitize(self, value):
+        from fans.report_export import sanitize_export_cell
+        return sanitize_export_cell(value)
+
+    def test_formula_prefix_neutralized(self):
+        self.assertEqual(self._sanitize('=cmd|"/c calc"!A0'), "'=cmd|\"/c calc\"!A0")
+
+    def test_plus_prefix_neutralized(self):
+        self.assertEqual(self._sanitize('+1+1'), "'+1+1")
+
+    def test_minus_prefix_neutralized(self):
+        self.assertEqual(self._sanitize('-2+3'), "'-2+3")
+
+    def test_at_prefix_neutralized(self):
+        self.assertEqual(self._sanitize('@SUM(A1:A2)'), "'@SUM(A1:A2)")
+
+    def test_ordinary_name_untouched(self):
+        self.assertEqual(self._sanitize('Juan Dela Cruz'), 'Juan Dela Cruz')
+
+    def test_non_string_values_untouched(self):
+        from decimal import Decimal
+        import datetime
+        self.assertEqual(self._sanitize(Decimal('123.45')), Decimal('123.45'))
+        self.assertEqual(self._sanitize(42), 42)
+        self.assertIsNone(self._sanitize(None))
+        d = datetime.date(2026, 1, 1)
+        self.assertEqual(self._sanitize(d), d)
+
+    def test_already_prefixed_value_not_double_prefixed(self):
+        once = self._sanitize('=A1')
+        twice = self._sanitize(once)
+        self.assertEqual(once, twice)
+
+
 class SettingsTest(TestCase):
     """Verify that critical settings are present and well-formed."""
 

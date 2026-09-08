@@ -2510,6 +2510,64 @@ class TechnicalAdministratorCreationPolicyTest(TestCase):
         self.staff.refresh_from_db()
         self.assertEqual(self.staff.role, CustomUser.ROLE_STAFF)
 
+    # ── v2.1.17 audit fix: Admin carries has_financial_authority same as
+    # President, so creating/promoting to Admin must be President-only too,
+    # same as the existing Technical Administrator / President policy above.
+
+    def _admin_create_payload(self, username):
+        payload = self._create_payload(username)
+        payload['role'] = CustomUser.ROLE_ADMIN
+        return payload
+
+    def test_president_can_create_administrator(self):
+        self.client.force_login(self.president)
+        self.client.post(reverse('accounts:user_create'), self._admin_create_payload('new_admin_by_pres'))
+        self.assertTrue(CustomUser.objects.filter(username='new_admin_by_pres', role=CustomUser.ROLE_ADMIN).exists())
+
+    def test_administrator_cannot_create_another_administrator(self):
+        self.client.force_login(self.admin)
+        self.client.post(reverse('accounts:user_create'), self._admin_create_payload('new_admin_by_admin'))
+        self.assertFalse(CustomUser.objects.filter(username='new_admin_by_admin').exists())
+
+    def test_technical_administrator_cannot_create_administrator(self):
+        """CRITICAL: this is the exact escalation path — Technical
+        Administrator creates a new Admin account (whose password it sets
+        itself) to indirectly obtain financial authority it must never have."""
+        self.client.force_login(self.ta)
+        self.client.post(reverse('accounts:user_create'), self._admin_create_payload('new_admin_by_ta'))
+        self.assertFalse(CustomUser.objects.filter(username='new_admin_by_ta').exists())
+
+    def test_administrator_role_stripped_from_create_choices_for_non_president(self):
+        self.client.force_login(self.ta)
+        resp = self.client.get(reverse('accounts:user_create'))
+        self.assertNotContains(resp, '<option value="admin"')
+
+    def test_technical_administrator_cannot_promote_staff_to_administrator(self):
+        """Direct-POST edit attempt — the exact bypass a hidden form choice
+        alone would not stop."""
+        self.client.force_login(self.ta)
+        self.client.post(reverse('accounts:user_edit', args=[self.staff.pk]), {
+            'first_name': self.staff.first_name or 'S', 'last_name': self.staff.last_name or 'T',
+            'email': 'staffpromote2@example.com', 'role': CustomUser.ROLE_ADMIN,
+            'employee_id': self.staff.employee_id, 'phone': '', 'assigned_office': '',
+            'account_status': CustomUser.STATUS_ACTIVE, 'must_change_password': '',
+            'officer_position': '', 'officer_start_date': '', 'officer_is_current': 'on',
+        })
+        self.staff.refresh_from_db()
+        self.assertEqual(self.staff.role, CustomUser.ROLE_STAFF)
+
+    def test_president_can_promote_staff_to_administrator(self):
+        self.client.force_login(self.president)
+        self.client.post(reverse('accounts:user_edit', args=[self.staff.pk]), {
+            'first_name': self.staff.first_name or 'S', 'last_name': self.staff.last_name or 'T',
+            'email': 'staffpromote3@example.com', 'role': CustomUser.ROLE_ADMIN,
+            'employee_id': self.staff.employee_id, 'phone': '', 'assigned_office': '',
+            'account_status': CustomUser.STATUS_ACTIVE, 'must_change_password': '',
+            'officer_position': '', 'officer_start_date': '', 'officer_is_current': 'on',
+        })
+        self.staff.refresh_from_db()
+        self.assertEqual(self.staff.role, CustomUser.ROLE_ADMIN)
+
 
 class InitialPresidentBootstrapTest(TestCase):
     """Section 8B/41 — Technical Administrator may create the initial
