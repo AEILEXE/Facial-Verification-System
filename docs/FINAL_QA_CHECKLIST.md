@@ -112,7 +112,7 @@ Tester: _______________   Date: _______________   Build/commit: _______________
   1. Attempt a face capture with the subject too far from the camera (small face / large inter-eye distance shortfall).
   2. Attempt a capture with the face partially out of frame or at a steep angle.
   3. Attempt a capture in very poor lighting.
-- **Expected result:** Each case is rejected with a specific, human-readable reason (e.g. "Face too small", quality/lighting guidance) — no HTTP 500, no silent pass-through to a low-quality embedding. Low-quality captures that do get through are routed to MANUAL_REVIEW rather than auto-verified later (`LOW_QUALITY_FORCES_MANUAL_REVIEW`).
+- **Expected result:** Each case is rejected with a specific, human-readable reason (e.g. "Face too small", quality/lighting guidance) — no HTTP 500, no silent pass-through to a low-quality embedding. Note: `LOW_QUALITY_FORCES_MANUAL_REVIEW` (downgrading a high-similarity low-quality capture to MANUAL_REVIEW) only applies on `verify_submit`'s fallback identity path, not the normal liveness-transaction-bound capture flow this test exercises — do not expect a low-quality-but-high-similarity capture on the normal flow to be downgraded on quality grounds alone (see `docs/SECURITY-CHECKLIST.md`'s 2026-09-08 entry).
 - [ ] Pass  [ ] Fail
 
 ### B5. Edit / deactivate / reactivate beneficiary

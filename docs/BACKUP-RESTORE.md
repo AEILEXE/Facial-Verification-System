@@ -103,6 +103,14 @@ To run the backup script directly as an Administrator:
 
 ## 4. Manual Backup (Fallback — if Automated Backup is Unavailable)
 
+**A manual backup folder holds the same sensitive contents as the automated
+one — beneficiary PII, claim/payout records, encrypted FaceNet embeddings,
+and `.env` secrets (`SECRET_KEY`, `EMBEDDING_ENCRYPTION_KEY`) — so it must
+end up with the same restricted permissions.** A folder created with plain
+`New-Item` inherits its parent directory's (often broad) permissions. Apply
+the ACL restriction immediately after creating the folder and **before**
+copying anything into it.
+
 Run as an Administrator from PowerShell:
 
 ```powershell
@@ -110,15 +118,36 @@ $ts   = Get-Date -Format "yyyy-MM-dd_HHmm"
 $src  = "C:\FANSC"
 $dst  = "C:\FANSC\backups\$ts"
 New-Item -ItemType Directory -Force -Path $dst | Out-Null
+
+# Restrict to Administrators + SYSTEM only, BEFORE copying any sensitive file
+# in. Reuses the exact ACL policy the automated backup applies — dot-sourcing
+# the script only defines its functions (New-FansBackupAcl, etc.); it does not
+# run a backup, so this is safe to call standalone.
+. "C:\FANSC\scripts\admin\daily-backup.ps1"
+Set-Acl -LiteralPath $dst -AclObject (New-FansBackupAcl)
+
 Copy-Item "$src\db.sqlite3" -Destination $dst
 Copy-Item "$src\.env"       -Destination $dst
 Copy-Item "$src\media"      -Destination $dst -Recurse
 Write-Host "Backup saved to $dst"
 ```
 
+If `daily-backup.ps1` is not available to dot-source, apply the equivalent
+ACL directly instead of the two lines above:
+
+```powershell
+$acl    = New-Object System.Security.AccessControl.DirectorySecurity
+$acl.SetAccessRuleProtection($true, $false)   # disable inheritance, drop inherited ACEs
+$admins = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::BuiltinAdministratorsSid, $null)
+$system = New-Object System.Security.Principal.SecurityIdentifier([System.Security.Principal.WellKnownSidType]::LocalSystemSid, $null)
+$acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($admins, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')))
+$acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($system, 'FullControl', 'ContainerInherit,ObjectInherit', 'None', 'Allow')))
+Set-Acl -LiteralPath $dst -AclObject $acl
+```
+
 Tips:
 - Stop FANSC before copying `db.sqlite3` to guarantee a consistent snapshot, or use the hot-backup method in Section 5 below.
-- Copy the resulting folder to an **external USB drive** or **secure shared folder** on a different machine.
+- Copy the resulting folder to an **external USB drive** or **secure shared folder** on a different machine — the ACL restriction above only protects the folder while it stays on an NTFS volume; a broad-permissions destination (e.g. a shared folder open to "Everyone") re-exposes the same data regardless of the source folder's ACL.
 - Rotate: keep at least the last 7 daily backups, plus one per month for 12 months.
 
 ---
@@ -131,6 +160,13 @@ If you cannot stop the service:
 $ts  = Get-Date -Format "yyyy-MM-dd_HHmm"
 $dst = "C:\FANSC\backups\$ts"
 New-Item -ItemType Directory -Force -Path $dst | Out-Null
+
+# Same restricted ACL as Section 4 — apply BEFORE the hot-backup and BEFORE
+# copying .env/media in, since the destination folder will hold the same
+# sensitive contents (PII, biometric embeddings, secrets) as any other backup.
+. "C:\FANSC\scripts\admin\daily-backup.ps1"
+Set-Acl -LiteralPath $dst -AclObject (New-FansBackupAcl)
+
 # NOTE: if your install path contains an apostrophe (e.g. "C:\Citizen's Apps\FANSC"),
 # do NOT wrap the destination in quotes as shown in older versions of this guide --
 # the sqlite3.exe shell's .backup command cannot safely quote an embedded apostrophe.
@@ -141,6 +177,9 @@ Pop-Location
 Copy-Item "C:\FANSC\.env" -Destination $dst
 Copy-Item "C:\FANSC\media" -Destination $dst -Recurse
 ```
+
+If `daily-backup.ps1` is not available to dot-source, apply the equivalent ACL
+commands shown in Section 4 instead of the two lines above.
 
 The SQLite `.backup` command creates a consistent copy even while the database is being written.
 
