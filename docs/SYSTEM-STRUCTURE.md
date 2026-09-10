@@ -295,7 +295,7 @@ Result page shows "Claim Recorded" section with reference number
 ### 2.4b Registration Liveness Flow
 
 Note: Registration uses a **risk-based** challenge (only when anti-spoof score < 0.30 or quality poor).
-Final stipend verification uses a **strict mandatory** challenge (always, v2.3.0+). These are different flows.
+Final stipend verification uses a **strict mandatory** challenge (always). These are different flows.
 
 ```
 Staff captures face during beneficiary registration
@@ -665,7 +665,7 @@ When the client-side (browser) score and the server-side score diverge slightly,
 
 ### Why is the head-movement challenge always required for stipend verification?
 
-The head-movement challenge is a **strict mandatory gate** for final stipend verification (v2.3.0+). Every verification attempt — regardless of anti-spoof score or face quality — must complete the challenge before FaceNet face matching runs. This eliminates the risk that a high-texture printed photo or a phone screen captures a score above the soft threshold and bypasses active liveness confirmation.
+The head-movement challenge is a **strict mandatory gate** for final stipend verification. Every verification attempt — regardless of anti-spoof score or face quality — must complete the challenge before FaceNet face matching runs. This eliminates the risk that a high-texture printed photo or a phone screen captures a score above the soft threshold and bypasses active liveness confirmation.
 
 The challenge direction is `'side'`: the beneficiary must visibly turn their head to either side. Because the challenge accepts movement in either direction, it accommodates the mirrored camera preview without requiring the operator to instruct "your left" vs. "screen left."
 

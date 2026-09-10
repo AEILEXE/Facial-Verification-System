@@ -2,7 +2,7 @@
 
 **FANS-C: A Secure FaceNet-Based Facial Verification System for Senior Citizen Stipend Distribution**
 
-**Version:** v2.1.16 — 2026-09-05 (branch `4.0-Final-v2.1.16-hardening`; includes the v2.1.16 Post-UAT Stabilization pass and the v2.1.16 Final Hardening Patch). Development between 2026-08-27 and 2026-09-02 was tracked internally under the "v2.2.0" / "Post-UAT hardening" milestone labels — that work shipped under this v2.1.x version line, not as a separate v2.2.0 release; see [README.md](../README.md#latest-release) for the full note. Supersedes the "Phase 1 Complete" snapshot below; see [CHANGELOG.md](../CHANGELOG.md) for the authoritative version/date history.
+**Version:** v2.1.17 — 2026-09-06 (Final Official Release; builds on the v2.1.16 Post-UAT Stabilization pass and the v2.1.16 Final Hardening Patch). Development between 2026-08-27 and 2026-09-02 was tracked internally under the "v2.1.18" / "v2.2.0" / "Post-UAT hardening" milestone labels — that work shipped under this v2.1.x version line, not as a separate release; see [README.md](../README.md#latest-release) for the full note. Supersedes the "Phase 1 Complete" snapshot below; see [CHANGELOG.md](../CHANGELOG.md) for the authoritative version/date history.
 **Audience:** Capstone evaluators, barangay administrators, IT staff, developers
 
 ---
@@ -26,7 +26,7 @@ The system runs on **one dedicated server PC** inside the barangay office. Staff
 |---|---|---|
 | **President** | `president` | All operational tasks: register beneficiaries, run verification, approve/deny claims and manual reviews, manage users, run reports, reset passwords for all roles |
 | **Admin** | `admin` | Administrative tasks: register, approve claims/manual-reviews, manage users and officer assignments, run reports, reset Staff passwords |
-| **IT** | `it` | All President and Admin permissions + system diagnostics, connection info, network setup pages |
+| **IT** (user-facing label: **Technical Administrator**) | `it` | Broad **read** access to admin-tier screens (diagnostics, connection info, network setup, analytics) — but **not** financial-mutation authority. Cannot create/edit/delete stipend events, override a verification decision, release/cancel/fail/correct a payout, approve/reject Manual Review or Special Claim requests, or assign/close officer assignments — those require `has_financial_authority`, which is limited to President and Admin. See [TECHNICAL-ADMINISTRATOR-ROLE-MODEL.md](TECHNICAL-ADMINISTRATOR-ROLE-MODEL.md) for the full authority table. |
 | **Staff** | `staff` | Register beneficiaries, run verification, submit manual-review or special-claim requests; no user management, no reports, no approvals |
 
 > **System Role vs Officer Position (v2.1.12).**
@@ -61,7 +61,7 @@ Roles are enforced in the Django views, not just in the UI. A Staff user cannot 
 | Stipend events / payouts | `verification` | Schedule and manage multi-day distribution events, each requiring President approval (admin-created schedules) before claims can be processed against them; an optional daily claiming time window can further restrict when a published event is actually open |
 | Claims | `verification` | Record verified claims tied to payout events |
 | Reports | `verification` | Claims, event summary, staff performance, override/fallback, suspicious attempts |
-| Audit logs | `logs` | Permanent, tamper-evident record of every significant system action |
+| Audit logs | `logs` | Permanent, structured, append-only record of every significant system action. Read-only in Django admin (UI-layer restriction); no cryptographic tamper-evidence (hash chaining, signing) is implemented. |
 | Verification logs | `logs` | Full detail of every face verification attempt |
 | Notifications | `logs` | In-app notification center (navbar bell) for duplicate-face reviews, security alerts, and pending approvals — role-gated to President/Admin/IT |
 | User management | `accounts` | Create, edit, deactivate/suspend (reason required, entered via a modal) staff/admin accounts |
@@ -333,7 +333,7 @@ In **assisted rollout mode** (`LIVENESS_REQUIRED=False`):
 
 ## 7. Registration Liveness
 
-Registration liveness is **risk-based** (v2.2.1):
+Registration liveness is **risk-based** (introduced during the 2026-08-29 "v2.2.0" development milestone; shipped under the v2.1.x line — see the version-numbering note in [CHANGELOG.md](../CHANGELOG.md)):
 
 | Capture quality | Anti-spoof score | Action |
 |---|---|---|
@@ -348,7 +348,7 @@ Settings (`.env`):
 - `REGISTRATION_CHALLENGE_REQUIRED=False` — force challenge on every registration (default: False = risk-based)
 - `LIVENESS_CHALLENGE_TRIGGER_THRESHOLD=0.30` — score below which challenge is required
 
-**Liveness challenge baseline (v2.3.1):** The baseline yaw value is now captured explicitly in a dedicated `_baselineYaw` variable and is visible in debug logs immediately after the 10-frame stable wait. The `baseYaw=n/a` issue that prevented challenge completion in certain launch sequences is resolved.
+**Liveness challenge baseline:** The baseline yaw value is now captured explicitly in a dedicated `_baselineYaw` variable and is visible in debug logs immediately after the 10-frame stable wait. The `baseYaw=n/a` issue that prevented challenge completion in certain launch sequences is resolved.
 
 ---
 
@@ -431,7 +431,7 @@ See [Section 2](#2-user-roles) above.
 
 ### Profile picture / avatar
 
-Profile picture upload is **not available** (removed in v2.3.0).  The navbar user badge shows a person-icon for all users.  User accounts are managed by name, role, and employee ID only.
+Profile picture upload for staff/admin user accounts is **not available**.  The navbar user badge shows a person-icon for all users.  (This is separate from `Beneficiary.profile_picture`, an optional senior-citizen registration photo — see [DATABASE-GUIDE.md](DATABASE-GUIDE.md).)  User accounts are managed by name, role, and employee ID only.
 
 ### Creating and editing users
 
@@ -559,6 +559,13 @@ This separation is critical: `_internal\` is overwritten on every reinstall; `C:
 
 ### Test count history
 
+> Rows labeled `v2.2.x`/`v2.3.x` below are historical internal milestone
+> labels from mid-development, interleaved chronologically with the real
+> `v2.1.x` rows around them. Per the version-numbering note in
+> [CHANGELOG.md](../CHANGELOG.md), none of those labels was ever packaged
+> as a separate installer — that work shipped under the v2.1.x line, most
+> recently as v2.1.17 (final official release).
+
 | Version | Tests |
 |---|---|
 | v2.0.3 | 56 |
@@ -588,6 +595,8 @@ This separation is critical: `_internal\` is overwritten on every reinstall; `C:
 | Post-UAT Followup Fix Report (2026-09-01) | 880 (6 issues, incl. the session-collision `session_id` guard; see [docs/POST-UAT-FOLLOWUP-FIX-REPORT.md](POST-UAT-FOLLOWUP-FIX-REPORT.md)) |
 | v2.1.16 Post-UAT Stabilization (2026-09-04) | 904 (see [UAT.md](../UAT.md) and CHANGELOG.md) |
 | v2.1.16 Final Hardening Patch (2026-09-05) | **1407** (PAD production-configuration enforcement, liveness challenge/session binding, atomic perceptual-hash replay reservation, migration `0031` upgrade-safety dedupe — see CHANGELOG.md and `docs/SECURITY-CHECKLIST.md` items 8.41–8.44) |
+| v2.1.17 (2026-09-06, at CHANGELOG entry time) | 1435 |
+| v2.1.17 (2026-09-10, current repository — Final Official Release) | **1511**, 0 failures, 0 errors, 0 skips (`python manage.py test`, full run) |
 
 Per README.md and CHANGELOG.md's version-numbering note: treat any specific
 count above other than the most recent row as a historical snapshot, not a

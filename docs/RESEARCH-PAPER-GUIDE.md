@@ -131,7 +131,7 @@ These gaps create opportunities for fraud and errors in distribution. They also 
 FANS-C addresses these problems by:
 - Replacing paper identity checks with biometric verification using FaceNet facial recognition
 - Requiring liveness proof before any identity match runs (blocking phone screens, photos, and replay attacks)
-- Creating a permanent, tamper-evident audit log of every claim, verification attempt, and administrative action
+- Creating a permanent, structured, append-only audit log of every claim, verification attempt, and administrative action (UI-restricted, not cryptographically tamper-evident)
 - Providing a structured approval workflow for edge cases (manual reviews, representative claims, duplicate detections)
 
 ---
@@ -169,7 +169,7 @@ The system covers the following within a single barangay deployment:
 - **Claims recording:** Verified claim records tied to payout events, including override and representative claims
 - **Duplicate face review:** Admin queue for resolving potential twin/lookalike detections at registration
 - **Reports and export:** Claims reports, event summary, staff performance, override/fallback reports, suspicious attempt reports, beneficiary history
-- **Audit and verification logs:** Permanent tamper-evident records
+- **Audit and verification logs:** Permanent, structured, append-only records (UI-restricted, not cryptographically tamper-evident)
 - **Role-based access control:** Four roles (President, Admin, IT, Staff)
 - **Officer positions:** 14 org-chart titles tracked separately from system roles
 - **User management:** Create, edit, suspend, deactivate staff accounts; password management
@@ -211,7 +211,7 @@ The system is built on five Django applications:
 | `accounts/` | User authentication, login throttling, role-based access control, password management, officer positions and assignments |
 | `beneficiaries/` | Beneficiary registration and records, representative management, face enrollment, duplicate face review, offline sync support |
 | `verification/` | FaceNet face verification engine, liveness detection (anti-spoof + challenge), LivenessTransaction (tx_token), stipend events, claims, approval workflow, reports, system diagnostics |
-| `logs/` | AuditLog model (permanent tamper-evident audit trail), verification log, template tags for log display |
+| `logs/` | AuditLog model (permanent, structured, append-only audit trail — UI-restricted, not cryptographically tamper-evident), verification log, template tags for log display |
 
 **Supporting infrastructure (outside Django apps):**
 
@@ -825,10 +825,10 @@ The project uses Django's built-in `TestCase` framework. Tests cover URL routing
 | v2.1.0 | 286 |
 | v2.1.3 | 308 |
 | v2.1.4 | 316 |
-| v2.2.1 | 323 |
-| v2.2.2 | 323 |
-| v2.3.0 | 328 |
-| v2.3.1 | 339 |
+| v2.2.1 *(historical internal label, folded into v2.1.x — never a separate release; see CHANGELOG.md)* | 323 |
+| v2.2.2 *(same as above)* | 323 |
+| v2.3.0 *(same as above)* | 328 |
+| v2.3.1 *(same as above)* | 339 |
 | v2.1.8 | 365 |
 | v2.1.9 | 382 |
 | v2.1.10 | 423 |

@@ -1,6 +1,6 @@
 # FANS-C Deployment Checklist
 
-**Current version:** v2.1.16 — 2026-09-05 (development tracked internally through 2026-08-29 as "v2.2.0 — Analytics, Intelligence, Notification, UX, and Workflow Improvement Release"; that work shipped under the v2.1.x line, not a separate v2.2.0 — see [README.md](../README.md#latest-release))
+**Current version:** v2.1.17 — 2026-09-06 (Final Official Release; development was tracked internally through 2026-08-29 as "v2.1.18" and "v2.2.0 — Analytics, Intelligence, Notification, UX, and Workflow Improvement Release"; that work shipped under the v2.1.x line, not as a separate release — see [README.md](../README.md#latest-release))
 
 Use this checklist before putting the system into production or after any significant update. Work top to bottom. Do not skip items.
 
@@ -68,7 +68,7 @@ for the full test coverage of this guard.
   ```powershell
   .\.venv\Scripts\python.exe manage.py collectstatic --noinput
   ```
-- [ ] **Regression tests pass** (1407 tests across fans/verification/accounts/beneficiaries/logs, 0 failures, as of the v2.1.16 Final Hardening Patch, 2026-09-05 — see CHANGELOG.md for the current count; do not treat this number as fixed):
+- [ ] **Regression tests pass** (1511 tests across fans/verification/accounts/beneficiaries/logs, 0 failures, 0 errors, 0 skips, as of v2.1.17 Final Official Release, 2026-09-10 — see CHANGELOG.md for the current count; do not treat this number as fixed):
   ```powershell
   .\.venv\Scripts\python.exe manage.py test fans verification accounts logs beneficiaries --verbosity=1
   ```
@@ -234,10 +234,10 @@ Run on a freshly installed machine or after each build release.
 - [ ] **TX token issued** — browser receives `tx_token` after liveness challenge; verify_submit consumes it
 - [ ] **Sequence frame gate** — attempt with zero motion frames returns a denial (no tx_token); operator sees retry message
 - [ ] Technical liveness mismatch banner is **not shown** — no raw score text visible to operators
-- [ ] User Management edit form has **no** profile picture upload field (removed in v2.3.0)
+- [ ] User Management edit form has **no** profile picture upload field
 - [ ] **User Management route** — Admin → User Management at `/accounts/users/`; create/edit/reset all functional
 - [ ] **Admin password reset** → sets `must_change_password`; user redirected to Change Password on next login
-- [ ] MediaPipe FaceMesh loads without 404 — `face_mesh.binarypb` included in bundle (v2.3.1+)
+- [ ] MediaPipe FaceMesh loads without 404 — `face_mesh.binarypb` included in bundle
 - [ ] Browser console shows `baseYaw=<number>` (not `n/a`) after 10 stable frames
 - [ ] Liveness challenge debug log shows `[FANS-C Challenge] completed` with `absYawDelta ≥ 5`
 - [ ] Navbar user badge shows person-icon for all users (no profile photo)

@@ -3,12 +3,14 @@
 All notable changes to FANS-C are documented here.
 
 > **Version-numbering note:** development between 2026-08-27 and 2026-09-02
-> was tracked internally under the milestone labels "v2.2.0" and "Post-UAT
-> Hardening Pass," seen throughout the entries below. That work was never
-> packaged as a separate v2.2.0 installer — the project's released version
-> line stayed on v2.1.x (see `dev/installer/fans_c.iss`'s `AppVersion`, now
-> at 2.1.17, and the `main` branch). Everything recorded under the "v2.2.0"
-> label is real, shipped functionality — only the version *number* attached
+> was tracked internally under the milestone labels "v2.1.18", "v2.2.0", and
+> "Post-UAT Hardening Pass," seen throughout the entries below and in several
+> `dev/` planning documents. None of those labels was ever packaged as a
+> separate installer — the project's released version line stayed on v2.1.x
+> (see `dev/installer/fans_c.iss`'s `AppVersion`, now at 2.1.17, and the
+> `main` branch) and the next real release after v2.1.16 is v2.1.17, the
+> final official release. Everything recorded under the "v2.1.18" or "v2.2.0"
+> labels is real, shipped functionality — only the version *number* attached
 > to it was superseded, not the content. See the "Release Information"
 > section of [README.md](README.md) for the current released version.
 
@@ -72,7 +74,7 @@ several admin list views. No biometric algorithm or threshold changes.
 ## [Unreleased] — v2.1.16 Final Hardening Patch (2026-09-05)
 
 A focused, source-only security patch closing the remaining findings from an
-external review of the liveness/PAD pipeline (informally "Codex NO-GO"
+external review of the liveness/PAD pipeline (informally "NO-GO"
 findings). No architectural redesign, no EXE rebuilt, no installer built,
 nothing committed as of this entry. Full test suite re-run clean:
 **1407 tests, 0 failures, 0 errors.**
@@ -2160,7 +2162,7 @@ The main path that allowed a phone displaying the registered beneficiary's own p
 - **First-run setup wizard** — automatically generates security
   keys, runs migrations, creates HTTPS certificate, creates admin
   account, and registers autostart on first launch.
-- **logs Django app** — permanent tamper-evident audit trail.
+- **logs Django app** — permanent, structured, append-only audit trail (UI-restricted, not cryptographically tamper-evident).
   Audit Log and Verification Log accessible to Head Barangay and
   IT/Admin via Navbar → Logs.
 - **Representative face enrollment** — authorized representatives

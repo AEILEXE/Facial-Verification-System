@@ -1,10 +1,16 @@
 # Face Verification Intelligence — v2.2.0 Phase 9 Audit
 
+> **Note:** written during development under the temporary "v2.2.0"
+> milestone naming scheme; the capabilities described shipped under the
+> v2.1.x release line (final release: v2.1.17), not as a separate v2.2.0
+> installer. See the version-numbering note in
+> [CHANGELOG.md](../CHANGELOG.md).
+
 Audit-only pass. Every capability below already existed before this release; nothing was rebuilt. Where a genuine gap existed, it's called out explicitly rather than silently assumed away.
 
 ## Matching method
 
-FaceNet embeddings (128-d, `keras-facenet`), compared via cosine similarity (`verification/face_utils.py compare_with_all_embeddings`). Multi-template: a beneficiary's primary `FaceEmbedding` plus any `AdditionalFaceEmbedding` rows (added via the re-enrollment workflow) are all compared; the best-scoring template wins the match. `VerificationAttempt.matched_template` records which one won, per attempt — analyzed by `verification/template_analytics.py` (per-template win stats, advisory re-enrollment suggestions).
+FaceNet embeddings (512-d, `keras-facenet`, checkpoint `20180402-114759` — runtime-verified, not the 128-d checkpoints the package also ships), compared via cosine similarity (`verification/face_utils.py compare_with_all_embeddings`). Multi-template: a beneficiary's primary `FaceEmbedding` plus any `AdditionalFaceEmbedding` rows (added via the re-enrollment workflow) are all compared; the best-scoring template wins the match. `VerificationAttempt.matched_template` records which one won, per attempt — analyzed by `verification/template_analytics.py` (per-template win stats, advisory re-enrollment suggestions).
 
 ## Confidence threshold
 

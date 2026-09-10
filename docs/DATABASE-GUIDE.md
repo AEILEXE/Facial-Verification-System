@@ -79,7 +79,7 @@ Legacy roles (migrated, no longer assignable): `admin_it` → `admin` (accounts/
 
 | Model | Contents |
 |---|---|
-| `AuditLog` | Tamper-evident audit trail — action type, actor, target, timestamp, IP address, details |
+| `AuditLog` | Structured, append-only audit trail — action type, actor, target, timestamp, IP address, details. Read-only in Django admin (UI-layer restriction); no cryptographic tamper-evidence (hash chaining, signing) is implemented — see SECURITY-CHECKLIST.md item 7.5. |
 
 ---
 

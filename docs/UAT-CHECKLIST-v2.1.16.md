@@ -1,3 +1,11 @@
+> **HISTORICAL DOCUMENTATION.** This checklist targets the v2.1.16 installer
+> specifically (installer filename and version strings below). It has been
+> superseded by the v2.1.17 Final Official Release; the workflow described
+> is still broadly applicable, but do not use the specific installer
+> filename or version-string checks against a v2.1.17 build. See
+> [CHANGELOG.md](../CHANGELOG.md) for the current authoritative version
+> history.
+
 # FANS-C v2.1.16 — User Acceptance Testing (UAT) Checklist
 
 **For: non-developer testers** (barangay staff, admin, officers). No coding or technical knowledge is needed to use this document — just follow each step in order and record what actually happens.

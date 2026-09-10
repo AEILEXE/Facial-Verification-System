@@ -2,7 +2,7 @@
 
 **Purpose:** Step-by-step manual test script for the final human testing pass before release. This is a *procedure*, not a policy document — for security posture and pre-deployment config verification, see [SECURITY-CHECKLIST.md](SECURITY-CHECKLIST.md) and [DEPLOYMENT-CHECKLIST.md](DEPLOYMENT-CHECKLIST.md).
 
-**Automated status going into this pass:** 740 tests passing, `manage.py check` clean, no unapplied migrations (verified 2026-08-30).
+**Automated status going into this pass:** 740 tests passing, `manage.py check` clean, no unapplied migrations (verified 2026-08-30). *(Historical snapshot — as of the v2.1.17 Final Official Release, 2026-09-10, the current count is 1511 tests, 0 failures, 0 errors, 0 skips; re-run `python manage.py test` for the current number rather than treating either figure as fixed.)*
 
 **How to use this document:**
 - Work top to bottom, section by section. Each item has a Test Objective, Steps, Expected Result, and a Pass/Fail checkbox.

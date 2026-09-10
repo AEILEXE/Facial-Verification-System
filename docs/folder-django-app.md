@@ -97,11 +97,12 @@ Django's built-in user model has no application-specific roles. FANS-C extends i
 |---|---|---|---|
 | President | `president` | `is_admin=True`, `is_president=True`, `is_head_barangay=True` (alias) | Operational head; approves claims, oversees distribution |
 | Admin | `admin` | `is_admin=True` | Administrative; manages users and beneficiary records |
-| IT | `it` | `is_admin=True`, `is_admin_it=True` | Technical; full system access, server setup, diagnostics |
+| IT (user-facing label: Technical Administrator) | `it` | `is_admin=True`, `is_admin_it=True`, `has_financial_authority=False` | Technical; broad read access, server setup, diagnostics — but not financial-mutation authority |
 | Staff | `staff` | `is_staff_member=True` | Frontline; runs verifications, no admin access |
 
-`is_admin` = True when role is president, admin, or it (any non-Staff role). Gates all management-level access.
+`is_admin` = True when role is president, admin, or it (any non-Staff role). Gates all management-level *read* access.
 `is_admin_it` = True only for the `it` role. Gates system-diagnostic, connection, and network pages.
+`has_financial_authority` = True only for president and admin, explicitly excluding `it` — gates stipend event CRUD, verification overrides, payout release/cancel/fail/correct, Manual Review and Special Claim approval, and officer assignment create/close. See [TECHNICAL-ADMINISTRATOR-ROLE-MODEL.md](TECHNICAL-ADMINISTRATOR-ROLE-MODEL.md) for the full rationale and authority table.
 `is_president` / `is_head_barangay` = True only for the `president` role. Gates President-exclusive actions (pending claim approval, resetting other admin passwords).
 
 **Legacy roles** (not assignable to new users):
@@ -237,7 +238,7 @@ The beneficiary registry is the core data layer of the system. Before any verifi
 ### Defense notes
 
 **Why store face embeddings instead of photos?**
-Face embeddings are compact (128 floating-point numbers vs. kilobytes for a photo), encrypted at rest, and are not directly reversible to a photo. Storing embeddings also means the computationally expensive FaceNet model only needs to run during enrollment — verification is just a vector comparison.
+Face embeddings are compact (512 floating-point numbers vs. kilobytes for a photo), encrypted at rest, and are not directly reversible to a photo. Storing embeddings also means the computationally expensive FaceNet model only needs to run during enrollment — verification is just a vector comparison.
 
 **What happens if the embedding key changes?**
 If `EMBEDDING_ENCRYPTION_KEY` changes (or is not set, causing a random key to be generated each restart), all previously stored embeddings cannot be decrypted. Verification will fail for all previously enrolled beneficiaries. This is why backing up `.env` is critical.
@@ -359,7 +360,7 @@ The threshold is the minimum cosine similarity score required to declare a match
 
 ### Purpose
 
-The `logs/` app records every significant system action in a tamper-evident audit trail and exposes a filtered view of the verification history. It is the primary accountability mechanism for the system — every login, verification, admin override, and stipend claim is logged here.
+The `logs/` app records every significant system action in a structured, append-only audit trail (read-only in Django admin as a UI-layer restriction; no cryptographic tamper-evidence such as hash chaining is implemented) and exposes a filtered view of the verification history. It is the primary accountability mechanism for the system — every login, verification, admin override, and stipend claim is logged here.
 
 ### Why it exists
 

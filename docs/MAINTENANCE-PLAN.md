@@ -1,8 +1,8 @@
 # FANS-C Maintenance Plan
 
-**Branch:** `4.0-Final-v2.1.16-hardening` | **Current Version:** v2.1.16 (updated through the Final Hardening Patch) | **Date:** 2026-09-05 (originally Phase 1, 2026-08-27)
+**Branch:** `main` | **Current Version:** v2.1.17 — Final Official Release (builds on the v2.1.16 Final Hardening Patch) | **Date:** 2026-09-10 (originally Phase 1, 2026-08-27)
 
-This document records findings from the Phase 1 project inspection and the maintenance actions taken on branches `2.0` through `2.1`, extended below (Section 9) through the v2.1.16 Final Hardening Patch. It is the living reference for IT and developer maintenance tasks.
+This document records findings from the Phase 1 project inspection and the maintenance actions taken on branches `2.0` through `2.1`, extended below through the v2.1.16 Final Hardening Patch (Section 9) and the v2.1.17 Final Official Release (Section 10). It is the living reference for IT and developer maintenance tasks.
 
 ---
 
@@ -16,7 +16,7 @@ This document records findings from the Phase 1 project inspection and the maint
 | `accounts/` | User auth, role management, login throttling, password validation |
 | `beneficiaries/` | Beneficiary CRUD, representative model, offline sync logic |
 | `verification/` | FaceNet/MTCNN verification engine, liveness, face update workflow |
-| `logs/` | AuditLog model, tamper-evident audit trail, template tags |
+| `logs/` | AuditLog model, structured append-only audit trail (UI-restricted, not cryptographically tamper-evident), template tags |
 | `templates/` | All HTML templates |
 | `static/` | Source CSS/JS/images (Bootstrap 5.3.2 + Bootstrap Icons 1.11.3 vendored) |
 | `staticfiles/` | Collected static files (WhiteNoise serves from here in production) |
@@ -310,3 +310,30 @@ committed as of this entry.
 | `manage.py test` (1407 tests) | PASS |
 | `manage.py makemigrations --check --dry-run` | No pending changes |
 | Biometric pipeline (FaceNet/thresholds) | Unchanged |
+
+---
+
+## 10. v2.1.17 — Final Official Release (2026-09-06)
+
+A UI/UX modernization and operational-usability pass across authentication, dashboard, analytics, and reporting screens, plus filtering improvements on several admin list views (see `CHANGELOG.md` for the full item list). No biometric algorithm or threshold changes from the v2.1.16 Final Hardening Patch above.
+
+FANSC v2.1.17 is the final official release in the v2.1.x line — no further feature development is planned. This is now a documentation-maintenance-only project.
+
+### Test Suite Summary (current repository, 2026-09-10)
+
+| Check | Result |
+|---|---|
+| `manage.py check` | PASS (0 issues) |
+| `manage.py test` (1511 tests) | PASS — 0 failures, 0 errors, 0 skips |
+| `manage.py makemigrations --check --dry-run` | No pending changes |
+
+### Release Artifact
+
+| Field | Value |
+|---|---|
+| Installer | `FANS-C-Setup-v2.1.17.exe` |
+| Size | 221,414,699 bytes |
+| SHA-256 | `2f36084b1c67423786a620015c99e9bdcad4572e6b09768d9b1c17b2d4693b5d` |
+| Code signing | Unsigned |
+
+See [docs/FANSC-SYSTEM-REFERENCE.md](FANSC-SYSTEM-REFERENCE.md) for the complete system reference.

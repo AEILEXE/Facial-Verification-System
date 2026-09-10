@@ -1,4 +1,12 @@
-> **HISTORICAL — superseded by v2.1.18 and all later releases.** Kept for reference only; do not use this checklist to validate a current build. See [CHANGELOG.md](../CHANGELOG.md) for the current release.
+> **HISTORICAL — superseded by the final shipped v2.1.17 build.** This
+> checklist documents an earlier v2.1.17 release-candidate build (SHA-256
+> `8293fa82...`, built 2026-08-28). "v2.1.18" was only ever an internal
+> development label, never a released version (see the version-numbering
+> note in [CHANGELOG.md](../CHANGELOG.md)) — it did not supersede this file.
+> The installer actually shipped as v2.1.17 (built 2026-09-09) has a
+> different SHA-256; see `docs/FANSC-SYSTEM-REFERENCE.md`, "Release
+> Identity," for the current hash. Kept for reference only; do not use this
+> checklist to validate a current build.
 
 # FANS-C v2.1.17 Release Candidate — Clean-VM Validation Checklist
 

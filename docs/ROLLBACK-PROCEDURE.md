@@ -108,6 +108,12 @@ the input for the next release's fix.
 
 ### Rolling back v2.2.0 → v2.1.18
 
+> Note: neither "v2.2.0" nor "v2.1.18" was ever packaged as a real,
+> separately released installer — both were internal development labels
+> later folded into the v2.1.x release line (final release: v2.1.17). This
+> appendix is kept as a historical record of the rollback reasoning used
+> at the time; for the current release, see the general procedure above.
+
 - All four v2.2.0 migrations (`logs/0012`, `logs/0013`,
   `verification/0021`, `verification/0022`) are additive/label-only and
   non-destructive going forward, but v2.1.18 code does not know about the

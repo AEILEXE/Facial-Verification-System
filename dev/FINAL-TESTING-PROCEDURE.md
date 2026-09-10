@@ -1,3 +1,13 @@
+> **HISTORICAL DOCUMENTATION — DO NOT USE FOR A CURRENT VALIDATION RUN.**
+> "v2.1.18" was an internal development build label used briefly between
+> the v2.1.16 and v2.1.17 releases; it was never packaged or shipped as a
+> separate installer (see the version-numbering note in
+> [CHANGELOG.md](../CHANGELOG.md)). The installer filename and SHA-256 below
+> refer to that internal build, not the real, final release. For a current
+> clean-machine validation procedure, use the equivalent checklist for the
+> actual shipped `FANS-C-Setup-v2.1.17.exe` build and its real hash (see
+> `docs/FANSC-SYSTEM-REFERENCE.md`, "Release Identity").
+
 # FANS-C v2.1.18 — Clean Windows Machine Validation Plan
 
 **Do not execute destructive steps (Uninstall section, restore-from-backup) without explicit approval from whoever owns the test machine's data.** Everything else here is safe to run in sequence on a clean laptop that has never had FANS-C installed.

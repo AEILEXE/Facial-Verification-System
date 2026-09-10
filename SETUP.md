@@ -4,7 +4,7 @@
 >
 > **New to this repo?** The project was reorganized for clarity. Scripts are now under `scripts/` (setup, start, admin), dev/build tools under `dev/`, and deprecated files under `legacy/`. See the folder structure below.
 >
-> **Current system version:** FANS-C v2.1.16 (branch `4.0-Final-v2.1.16-hardening`) — the development work tracked internally under the "v2.2.0" / "Post-UAT hardening" milestone labels was folded into this v2.1.x release line rather than shipping as a separate version (see [README.md](README.md#latest-release) for the full note). See [CHANGELOG.md](CHANGELOG.md) for exact version history; do not rely on a hardcoded version number in this file. Five Django apps: `fans`, `accounts`, `beneficiaries`, `verification`, `logs`. The staff face verification gate (step-up biometric after login) was removed in v2.0 — staff log in directly to the dashboard. The `logs` app provides a permanent tamper-evident audit trail of all system actions.
+> **Current system version:** FANS-C v2.1.17 — Final Official Release (builds on branch `4.0-Final-v2.1.16-hardening`) — the development work tracked internally under the "v2.1.18" / "v2.2.0" / "Post-UAT hardening" milestone labels was folded into this v2.1.x release line rather than shipping as a separate version (see [README.md](README.md#latest-release) for the full note). See [CHANGELOG.md](CHANGELOG.md) for exact version history; do not rely on a hardcoded version number in this file. Five Django apps: `fans`, `accounts`, `beneficiaries`, `verification`, `logs`. The staff face verification gate (step-up biometric after login) was removed in v2.0 — staff log in directly to the dashboard. The `logs` app provides a permanent, structured, append-only audit trail of all system actions (read-only in Django admin as a UI-layer restriction; no cryptographic tamper-evidence such as hash chaining is implemented).
 
 ---
 
@@ -1101,13 +1101,13 @@ These are two separate security checks that run in sequence. Both are required.
 
 In strict mode (`LIVENESS_REQUIRED=True`, the default), face matching never runs if liveness fails. The server makes the final liveness decision. Client-side scores (browser MediaPipe) are advisory only.
 
-**Final verification (v2.3.0+):** The head-movement challenge ('side' direction) is **always required** before FaceNet runs. There is no fast path for high anti-spoof scores. Challenge timeout is a denial.
+**Final verification:** The head-movement challenge ('side' direction) is **always required** before FaceNet runs. There is no fast path for high anti-spoof scores. Challenge timeout is a denial.
 
-**Liveness baseline (v2.3.1+):** Baseline yaw is captured into a dedicated `_baselineYaw` variable after 10 stable frames. Console logs show `baseYaw=<number>` confirming capture. The `baseYaw=n/a` issue in prior builds is resolved.
+**Liveness baseline:** Baseline yaw is captured into a dedicated `_baselineYaw` variable after 10 stable frames. Console logs show `baseYaw=<number>` confirming capture. The `baseYaw=n/a` issue in prior builds is resolved.
 
 **Two-phase LivenessTransaction (v2.1.x):** After the challenge completes, `verify_check_liveness` issues a one-time `tx_token` that binds the liveness proof to the FaceNet embedding computed from the **neutral/frontal frame** (not the angled challenge frame). `verify_submit` only runs face matching after consuming a valid token. The token is never issued if the embedding step fails, if anti-spoof fails on the neutral frame, or if fewer than 3 sequence frames are submitted.
 
-**Registration liveness** is also enforced server-side. Anti-spoof score and an optional head-movement challenge run before any face embedding is saved. The challenge is risk-based for registration only — required when the anti-spoof score is below 0.30 or face quality is poor (v2.2.1). The hard anti-spoof threshold (0.25) always rejects phone screens regardless of challenge.
+**Registration liveness** is also enforced server-side. Anti-spoof score and an optional head-movement challenge run before any face embedding is saved. The challenge is risk-based for registration only — required when the anti-spoof score is below 0.30 or face quality is poor. The hard anti-spoof threshold (0.25) always rejects phone screens regardless of challenge.
 
 ## Demo Mode vs. Model Unavailable
 

@@ -6,7 +6,7 @@ anyone relying on this document.
 ## Automated regression suite (proves correctness of logic, not the live UI)
 
 Run `python manage.py test` from the project root. As of this repository
-audit (v2.1.16 Final Hardening Patch, 2026-09-05): **1407/1407 tests pass**,
+audit (v2.1.17 Final Official Release, 2026-09-10): **1511/1511 tests pass**,
 `python manage.py check` reports 0 issues, and
 `python manage.py makemigrations --check --dry-run` reports no pending
 changes. This number changes with every release — treat any specific count

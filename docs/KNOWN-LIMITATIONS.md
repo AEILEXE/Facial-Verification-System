@@ -17,7 +17,7 @@ The version presented for the First Defense covers the **end-to-end stipend dist
 - **Liveness checking:** Server-side anti-spoofing (texture analysis + presentation-attack detection), risk-based head-movement challenge, liveness-proof-bound token.
 - **Manual review:** Admin queue for borderline matches, face update requests, pending-claim approvals, and special-claim requests.
 - **Claim processing:** ClaimRecord lifecycle (claimed / pending / failed / cancelled / rejected), reference number, override/fallback flagging.
-- **Audit logs:** Tamper-evident AuditLog with structured `details`, searchable + filterable, CSV export.
+- **Audit logs:** Append-only AuditLog with structured `details`, searchable + filterable, CSV export. Read-only in Django admin (UI-layer restriction only); no cryptographic tamper-evidence such as hash chaining or signing is implemented — see SECURITY-CHECKLIST.md item 7.5.
 - **Reports:** Payout Claims Report, Distribution Summary Report, Staff Distribution Activity, Override/Fallback, Security Alerts &mdash; with Excel, CSV, and Print-to-PDF export.
 - **Privacy &amp; consent notice:** Documented data collection, retention, correction, and deactivation flow.
 - **Backup &amp; restore documentation:** This repository ships `docs/BACKUP-RESTORE.md` and the Database &amp; Backup Status page.
@@ -163,7 +163,10 @@ cause first, then fix). Full detail in `CHANGELOG.md`.
 
 This pass did not touch code covered by the "Phase A final acceptance
 correction" navbar/header work above, and did not rebuild the installer
-`.exe` (still last built at v2.1.18 — see README.md's "Latest Release").
+`.exe` at the time of this entry (the installer label "v2.1.18" mentioned
+here was an internal development build, never a released version — the
+next real release after v2.1.16 is v2.1.17, the final official release;
+see the version-numbering note in [CHANGELOG.md](../CHANGELOG.md)).
 
 ### v2.1.16 Final Hardening Patch (2026-09-05)
 
@@ -177,6 +180,19 @@ replay race — see 2.8 below for its single-process scope), and an
 upgrade-safety data migration for pre-existing evidence-hash duplicates.
 Source-only — no EXE/installer built, nothing committed as of this entry.
 1407 tests pass, 0 failures.
+
+### v2.1.17 — Final Official Release (2026-09-06)
+
+A UI/UX modernization and operational-usability pass (authentication,
+dashboard, analytics, and reporting screens; admin list-view filtering). No
+biometric algorithm or threshold changes from the v2.1.16 Final Hardening
+Patch above. Full detail in `CHANGELOG.md`. Installer built and hashed:
+`FANS-C-Setup-v2.1.17.exe` (see `docs/FANSC-SYSTEM-REFERENCE.md`, "Release
+Identity," for the current SHA-256). As of the current repository
+(2026-09-10): **1511 tests pass, 0 failures, 0 errors, 0 skips**;
+`manage.py check`: 0 issues; `manage.py makemigrations --check --dry-run`:
+no changes detected. This is the final release in the FANSC v2.1.x line —
+no further feature development is planned.
 
 ---
 

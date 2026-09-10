@@ -278,6 +278,7 @@ Additional documentation:
 
 | Document | Purpose |
 |---|---|
+| [docs/FANSC-SYSTEM-REFERENCE.md](docs/FANSC-SYSTEM-REFERENCE.md) | **Complete technical system reference** — architecture, data model, biometric pipeline, security, deployment, and more, in one document |
 | SETUP.md | Installation and environment setup |
 | DEPLOYMENT.md | Deployment procedures |
 | CLIENT_ACCESS.md | Client workstation configuration |
