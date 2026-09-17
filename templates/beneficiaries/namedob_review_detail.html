@@ -25,11 +25,11 @@
       <div class="card-body">
         <strong>{{ req.new_beneficiary.full_name }}</strong><br>
         <span class="font-mono text-muted small">{{ req.new_beneficiary.beneficiary_id }}</span><br>
-        <span class="small">DOB: {{ req.new_beneficiary.date_of_birth|date:"Y-m-d" }}</span><br>
-        <span class="small">Address: {{ req.new_beneficiary.full_address|default:"&mdash;" }}</span><br>
-        <span class="small">Contact: {{ req.new_beneficiary.contact_number|default:"&mdash;" }}</span><br>
-        <span class="small">Senior ID: {{ req.new_beneficiary.senior_citizen_id|default:"&mdash;" }}</span><br>
-        <span class="small">Status: <span class="badge bg-secondary">{{ req.new_beneficiary.get_status_display }}</span></span><br>
+        <span class="small"><strong>DOB:</strong> {{ req.new_beneficiary.date_of_birth|date:"Y-m-d" }}</span><br>
+        <span class="small"><strong>Address:</strong> {{ req.new_beneficiary.full_address|default:"&mdash;" }}</span><br>
+        <span class="small"><strong>Contact:</strong> {{ req.new_beneficiary.contact_number|default:"&mdash;" }}</span><br>
+        <span class="small"><strong>Senior ID:</strong> {{ req.new_beneficiary.senior_citizen_id|default:"&mdash;" }}</span><br>
+        <span class="small"><strong>Status:</strong> <span class="badge bg-secondary">{{ req.new_beneficiary.get_status_display }}</span></span><br>
         <a href="{% url 'beneficiaries:beneficiary_detail' req.new_beneficiary.pk %}"
            class="btn btn-sm btn-outline-primary mt-2" target="_blank">
           <i class="bi bi-box-arrow-up-right me-1"></i> View Full Profile
@@ -46,11 +46,11 @@
         {% if req.existing_beneficiary %}
         <strong>{{ req.existing_beneficiary.full_name }}</strong><br>
         <span class="font-mono text-muted small">{{ req.existing_beneficiary.beneficiary_id }}</span><br>
-        <span class="small">DOB: {{ req.existing_beneficiary.date_of_birth|date:"Y-m-d" }}</span><br>
-        <span class="small">Address: {{ req.existing_beneficiary.full_address|default:"&mdash;" }}</span><br>
-        <span class="small">Contact: {{ req.existing_beneficiary.contact_number|default:"&mdash;" }}</span><br>
-        <span class="small">Senior ID: {{ req.existing_beneficiary.senior_citizen_id|default:"&mdash;" }}</span><br>
-        <span class="small">Status: <span class="badge bg-secondary">{{ req.existing_beneficiary.get_status_display }}</span></span><br>
+        <span class="small"><strong>DOB:</strong> {{ req.existing_beneficiary.date_of_birth|date:"Y-m-d" }}</span><br>
+        <span class="small"><strong>Address:</strong> {{ req.existing_beneficiary.full_address|default:"&mdash;" }}</span><br>
+        <span class="small"><strong>Contact:</strong> {{ req.existing_beneficiary.contact_number|default:"&mdash;" }}</span><br>
+        <span class="small"><strong>Senior ID:</strong> {{ req.existing_beneficiary.senior_citizen_id|default:"&mdash;" }}</span><br>
+        <span class="small"><strong>Status:</strong> <span class="badge bg-secondary">{{ req.existing_beneficiary.get_status_display }}</span></span><br>
         <a href="{% url 'beneficiaries:beneficiary_detail' req.existing_beneficiary.pk %}"
            class="btn btn-sm btn-outline-primary mt-2" target="_blank">
           <i class="bi bi-box-arrow-up-right me-1"></i> View Full Profile

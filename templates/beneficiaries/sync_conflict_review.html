@@ -51,41 +51,41 @@
     <div class="card-body">
       <div class="row g-3">
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">FULL NAME</div>
-          <div class="fw-bold">{{ beneficiary.full_name }}</div>
+          <div class="detail-label">FULL NAME</div>
+          <div class="detail-value">{{ beneficiary.full_name }}</div>
           <div class="font-mono text-muted small">{{ beneficiary.beneficiary_id }}</div>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">DATE OF BIRTH</div>
+          <div class="detail-label">DATE OF BIRTH</div>
           <div>{{ beneficiary.date_of_birth|date:"F d, Y" }}</div>
           <div class="text-muted small">Gender: {{ beneficiary.get_gender_display }}</div>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">ADDRESS</div>
+          <div class="detail-label">ADDRESS</div>
           <div class="small">{{ beneficiary.address }}</div>
           <div class="small text-muted">{{ beneficiary.barangay }}, {{ beneficiary.municipality }}, {{ beneficiary.province }}</div>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">CONTACT</div>
+          <div class="detail-label">CONTACT</div>
           <div class="small">{{ beneficiary.contact_number|default:"&mdash;" }}</div>
         </div>
         {% if beneficiary.senior_citizen_id %}
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">SENIOR CITIZEN ID</div>
+          <div class="detail-label">SENIOR CITIZEN ID</div>
           <div class="font-mono small">{{ beneficiary.senior_citizen_id }}</div>
         </div>
         {% endif %}
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">REGISTERED BY</div>
+          <div class="detail-label">REGISTERED BY</div>
           <div class="small">{% if beneficiary.registered_by %}{{ beneficiary.registered_by.get_full_name|default:beneficiary.registered_by.username }}{% else %}&mdash;{% endif %}</div>
           <div class="text-muted small">{{ beneficiary.created_at|date:"M d, Y H:i" }}</div>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">OFFLINE DEVICE</div>
+          <div class="detail-label">OFFLINE DEVICE</div>
           <div class="font-mono small">{{ beneficiary.offline_device|default:"&mdash;" }}</div>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">SYNC ATTEMPTED</div>
+          <div class="detail-label">SYNC ATTEMPTED</div>
           <div class="small">{{ beneficiary.sync_attempted_at|date:"M d, Y H:i"|default:"&mdash;" }}</div>
         </div>
       </div>

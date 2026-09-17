@@ -487,18 +487,16 @@ def _payout_blocked_message(reason: str) -> str:
 
 @login_required
 def verify_select(request):
-    from django.db.models import Q
     query = request.GET.get('q', '')
     beneficiaries = []
     if query:
-        # Single query with OR conditions — faster than unioning four separate querysets.
+        # Identification is by Senior Citizen ID only — name-based lookup was
+        # removed so staff cannot select the wrong beneficiary via an
+        # ambiguous name match.
         beneficiaries = (
             Beneficiary.objects
             .filter(
-                Q(last_name__icontains=query) |
-                Q(first_name__icontains=query) |
-                Q(beneficiary_id__icontains=query) |
-                Q(senior_citizen_id__icontains=query),
+                senior_citizen_id__icontains=query,
                 status=Beneficiary.STATUS_ACTIVE,
             )
             .distinct()

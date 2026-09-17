@@ -258,7 +258,7 @@
         <table class="table table-sm table-borderless mb-0">
           <tbody>
             <tr>
-              <th class="text-muted ps-3" style="width:42%;">Date of Birth</th>
+              <th class="detail-label ps-3" style="width:42%;">Date of Birth</th>
               <td>
                 {{ beneficiary.date_of_birth|date:"F d, Y" }}
                 {% if user.has_financial_authority and beneficiary.status != 'pending' %}
@@ -271,7 +271,7 @@
               </td>
             </tr>
             <tr>
-              <th class="text-muted ps-3">Age</th>
+              <th class="detail-label ps-3">Age</th>
               <td>
                 {{ beneficiary.age }}
                 {% if beneficiary.is_senior_citizen %}
@@ -279,8 +279,8 @@
                 {% endif %}
               </td>
             </tr>
-            <tr><th class="text-muted ps-3">Gender</th><td>{{ beneficiary.get_gender_display }}</td></tr>
-            <tr><th class="text-muted ps-3">Contact</th><td>{{ beneficiary.contact_number|default:"&mdash;" }}</td></tr>
+            <tr><th class="detail-label ps-3">Gender</th><td>{{ beneficiary.get_gender_display }}</td></tr>
+            <tr><th class="detail-label ps-3">Contact</th><td>{{ beneficiary.contact_number|default:"&mdash;" }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -294,7 +294,7 @@
         <table class="table table-sm table-borderless mb-0">
           <tbody>
             <tr>
-              <th class="text-muted ps-3" style="width:42%;">Address</th>
+              <th class="detail-label ps-3" style="width:42%;">Address</th>
               <td>
                 {% if beneficiary.full_address %}
                   {{ beneficiary.full_address }}
@@ -305,8 +305,8 @@
                 {% endif %}
               </td>
             </tr>
-            <tr><th class="text-muted ps-3">Barangay</th><td>{{ beneficiary.barangay|default:"&mdash;" }}</td></tr>
-            <tr><th class="text-muted ps-3">Province</th><td>{{ beneficiary.province|default:"&mdash;" }}</td></tr>
+            <tr><th class="detail-label ps-3">Barangay</th><td>{{ beneficiary.barangay|default:"&mdash;" }}</td></tr>
+            <tr><th class="detail-label ps-3">Province</th><td>{{ beneficiary.province|default:"&mdash;" }}</td></tr>
           </tbody>
         </table>
       </div>
@@ -328,7 +328,7 @@
         <table class="table table-sm table-borderless mb-0">
           <tbody>
             <tr>
-              <th class="text-muted ps-3" style="width:40%; white-space:nowrap;">Senior Citizen ID</th>
+              <th class="detail-label ps-3" style="width:40%; white-space:nowrap;">Senior Citizen ID</th>
               <td class="font-mono small" style="word-break:break-all; overflow-wrap:anywhere;">
                 {% if beneficiary.senior_citizen_id %}{{ beneficiary.senior_citizen_id }}
                 {% else %}<span class="text-danger fst-italic">Not provided &mdash; <a href="{% url 'beneficiaries:beneficiary_edit' beneficiary.pk %}">add it</a></span>{% endif %}
@@ -336,13 +336,13 @@
             </tr>
             {% if beneficiary.valid_id_type %}
             <tr>
-              <th class="text-muted ps-3" style="white-space:nowrap;">Valid ID Type</th>
+              <th class="detail-label ps-3" style="white-space:nowrap;">Valid ID Type</th>
               <td>{{ beneficiary.valid_id_type }}</td>
             </tr>
             {% endif %}
             {% if beneficiary.valid_id_number %}
             <tr>
-              <th class="text-muted ps-3" style="white-space:nowrap;">Valid ID Number</th>
+              <th class="detail-label ps-3" style="white-space:nowrap;">Valid ID Number</th>
               <td class="font-mono small" style="word-break:break-all; overflow-wrap:anywhere;">{{ beneficiary.valid_id_number }}</td>
             </tr>
             {% endif %}

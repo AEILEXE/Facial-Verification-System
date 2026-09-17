@@ -30,6 +30,46 @@ function fanscRunCountUp() {
   });
 }
 
+/* Shared tooltip/label formatting helpers, used by every chart below so
+   hover text is consistent across tabs. */
+
+// "2026-03-10" -> "March 10, 2026". Leaves anything not matching that shape
+// (already-formatted labels, unexpected input) untouched rather than guessing.
+function fanscFormatDate(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return value;
+  var parts = value.split('-');
+  var d = new Date(Date.UTC(+parts[0], +parts[1] - 1, +parts[2]));
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', timeZone: 'UTC' });
+}
+
+// "2026-03" or "2026-03-01" -> "March 2026".
+function fanscFormatMonth(value) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}/.test(value)) return value;
+  var parts = value.split('-');
+  var d = new Date(Date.UTC(+parts[0], +parts[1] - 1, 1));
+  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long', timeZone: 'UTC' });
+}
+
+function fanscFormatCount(value) {
+  var n = Number(value);
+  return isNaN(n) ? String(value) : n.toLocaleString('en-US');
+}
+
+// Server sends Decimal amounts as strings (e.g. "125000.00") — displayed
+// here exactly as computed server-side, just formatted for reading.
+function fanscFormatPHP(value) {
+  var n = Number(value);
+  if (isNaN(n)) return 'PHP ' + value;
+  return 'PHP ' + n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+// Percentage derived client-side from two actual server-provided counts.
+// Never used to invent a denominator that wasn't already in the payload.
+function fanscPct(part, total) {
+  if (!total) return '0%';
+  return Math.round((part / total) * 100) + '%';
+}
+
 document.addEventListener('DOMContentLoaded', function () {
   fanscRunCountUp();
 
@@ -76,7 +116,7 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     var trendDatasets = [
       {
-        label: 'Attempts',
+        label: 'Verification Attempts',
         data: data.daily_trend.map(function (r) { return r.total; }),
         borderColor: '#0d6efd',
         backgroundColor: 'rgba(13,110,253,0.1)',
@@ -115,8 +155,20 @@ document.addEventListener('DOMContentLoaded', function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              title: function (items) { return 'Date: ' + fanscFormatDate(items[0].label); },
+              label: function (item) { return item.dataset.label + ': ' + fanscFormatCount(item.parsed.y); },
+            },
+          },
+        },
+        scales: {
+          x: { title: { display: true, text: 'Date' } },
+          y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Verification Attempts' } },
+        },
       },
     });
     markChartReady(trendCanvas);
@@ -139,8 +191,19 @@ document.addEventListener('DOMContentLoaded', function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: function (items) { return 'Date: ' + fanscFormatDate(items[0].label); },
+              label: function (item) { return 'New Registrations: ' + fanscFormatCount(item.parsed.y); },
+            },
+          },
+        },
+        scales: {
+          x: { title: { display: true, text: 'Date' } },
+          y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'New Registrations' } },
+        },
       },
     });
     markChartReady(regCanvas);
@@ -151,13 +214,14 @@ document.addEventListener('DOMContentLoaded', function () {
   // Executive tab charts (v2.2.0 Phase 6).
   var growthCanvas = document.getElementById('beneficiaryGrowthChart');
   if (growthCanvas && data.beneficiary_growth && data.beneficiary_growth.length) {
+    var growthRows = data.beneficiary_growth;
     new Chart(growthCanvas, {
       type: 'line',
       data: {
-        labels: data.beneficiary_growth.map(function (r) { return r.month; }),
+        labels: growthRows.map(function (r) { return r.month; }),
         datasets: [{
           label: 'Cumulative Beneficiaries',
-          data: data.beneficiary_growth.map(function (r) { return r.cumulative; }),
+          data: growthRows.map(function (r) { return r.cumulative; }),
           borderColor: '#0d6efd',
           backgroundColor: 'rgba(13,110,253,0.1)',
           tension: 0.2,
@@ -167,8 +231,23 @@ document.addEventListener('DOMContentLoaded', function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: function (items) { return 'Month: ' + fanscFormatMonth(items[0].label); },
+              label: function (item) { return 'Cumulative Beneficiaries: ' + fanscFormatCount(item.parsed.y); },
+              afterLabel: function (item) {
+                var row = growthRows[item.dataIndex];
+                return row ? 'New This Month: ' + fanscFormatCount(row.new) : '';
+              },
+            },
+          },
+        },
+        scales: {
+          x: { title: { display: true, text: 'Month' } },
+          y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Cumulative Beneficiaries' } },
+        },
       },
     });
     markChartReady(growthCanvas);
@@ -178,21 +257,37 @@ document.addEventListener('DOMContentLoaded', function () {
 
   var distCanvas = document.getElementById('monthlyDistributionChart');
   if (distCanvas && data.monthly_distribution && data.monthly_distribution.length) {
+    var distRows = data.monthly_distribution;
     new Chart(distCanvas, {
       type: 'bar',
       data: {
-        labels: data.monthly_distribution.map(function (r) { return r.month; }),
+        labels: distRows.map(function (r) { return r.month; }),
         datasets: [{
           label: 'Total Released (PHP)',
-          data: data.monthly_distribution.map(function (r) { return r.total; }),
+          data: distRows.map(function (r) { return r.total; }),
           backgroundColor: '#198754',
         }],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: function (items) { return 'Month: ' + fanscFormatMonth(items[0].label); },
+              label: function (item) { return 'Released Amount: ' + fanscFormatPHP(item.parsed.y); },
+              afterLabel: function (item) {
+                var row = distRows[item.dataIndex];
+                return row && row.count !== undefined ? 'Claims Released: ' + fanscFormatCount(row.count) : '';
+              },
+            },
+          },
+        },
+        scales: {
+          x: { title: { display: true, text: 'Month' } },
+          y: { beginAtZero: true, title: { display: true, text: 'Amount Released (PHP)' } },
+        },
       },
     });
     markChartReady(distCanvas);
@@ -205,6 +300,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var dp = data.distribution_progress;
   var claimProgressCanvas = document.getElementById('claimProgressChart');
   if (claimProgressCanvas && dp) {
+    var claimTotal = dp.claimed + dp.remaining;
     new Chart(claimProgressCanvas, {
       type: 'doughnut',
       data: {
@@ -217,7 +313,20 @@ document.addEventListener('DOMContentLoaded', function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom' } },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: function (item) { return item.label + ': ' + fanscFormatCount(item.parsed); },
+              footer: function () {
+                return [
+                  'Total Eligible: ' + fanscFormatCount(claimTotal),
+                  'Claimed Rate: ' + fanscPct(dp.claimed, claimTotal),
+                ];
+              },
+            },
+          },
+        },
       },
     });
     markChartReady(claimProgressCanvas);
@@ -237,20 +346,34 @@ document.addEventListener('DOMContentLoaded', function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: function (item) { return item.label + ': ' + fanscFormatCount(item.parsed.y); },
+              afterLabel: function (item) {
+                if (item.label === 'Expected' || !dp.expected) return '';
+                return 'Share of Expected: ' + fanscPct(item.parsed.y, dp.expected);
+              },
+            },
+          },
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Beneficiaries' } },
+        },
       },
     });
     markChartReady(payoutCompletionCanvas);
   }
 
-  // v2.2.0 Post-UAT Phase 13 — Verification Results (Operational tab).
+  // v2.2.0 Post-UAT Phase 13 — Verification Outcomes (Operational tab).
   var resultsCanvas = document.getElementById('verificationResultsChart');
   if (resultsCanvas && data.decision_breakdown && data.decision_breakdown.length) {
     var decisionColors = {
       verified: '#198754', not_verified: '#dc3545',
       manual_review: '#ffc107', denied: '#6c757d', unknown: '#adb5bd',
     };
+    var decisionTotal = data.decision_breakdown.reduce(function (sum, r) { return sum + r.n; }, 0);
     new Chart(resultsCanvas, {
       type: 'doughnut',
       data: {
@@ -267,7 +390,21 @@ document.addEventListener('DOMContentLoaded', function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom' } },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              label: function (item) { return item.label + ': ' + fanscFormatCount(item.parsed); },
+              footer: function (items) {
+                var n = items[0].parsed;
+                return [
+                  'Total Attempts: ' + fanscFormatCount(decisionTotal),
+                  'Share: ' + fanscPct(n, decisionTotal),
+                ];
+              },
+            },
+          },
+        },
       },
     });
     markChartReady(resultsCanvas);
@@ -275,10 +412,19 @@ document.addEventListener('DOMContentLoaded', function () {
     showEmptyState(resultsCanvas, 'No verification results in this period.');
   }
 
-  // v2.2.0 Post-UAT Phase 13 — Review/Security Cases (Security tab).
+  // v2.2.0 Post-UAT Phase 13 — Review/Security Cases (Security tab). Mixed
+  // time scopes across bars: the first three are current open-queue counts
+  // (point-in-time), Fraud Alerts uses a fixed lookback window independent
+  // of the selected date range — called out per-bar so the mix isn't misread.
   var reviewCasesCanvas = document.getElementById('reviewCasesChart');
   if (reviewCasesCanvas && data.review_cases) {
     var rc = data.review_cases;
+    var reviewCaseScopes = [
+      'Current open queue (point-in-time)',
+      'Current open queue (point-in-time)',
+      'Current open queue (point-in-time)',
+      'Fixed lookback window (not the selected date range)',
+    ];
     new Chart(reviewCasesCanvas, {
       type: 'bar',
       data: {
@@ -292,8 +438,19 @@ document.addEventListener('DOMContentLoaded', function () {
         indexAxis: 'y',
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { display: false } },
-        scales: { x: { beginAtZero: true, ticks: { precision: 0 } } },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              title: function (items) { return 'Category: ' + items[0].label; },
+              label: function (item) { return 'Count: ' + fanscFormatCount(item.parsed.x); },
+              afterLabel: function (item) { return 'Scope: ' + reviewCaseScopes[item.dataIndex]; },
+            },
+          },
+        },
+        scales: {
+          x: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Open Cases' } },
+        },
       },
     });
     markChartReady(reviewCasesCanvas);
@@ -341,8 +498,20 @@ document.addEventListener('DOMContentLoaded', function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              title: function (items) { return 'Date: ' + fanscFormatDate(items[0].label); },
+              label: function (item) { return 'Category: ' + item.dataset.label + ' — Count: ' + fanscFormatCount(item.parsed.y); },
+            },
+          },
+        },
+        scales: {
+          x: { title: { display: true, text: 'Date' } },
+          y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Event Count' } },
+        },
       },
     });
     markChartReady(securityTrendCanvas);
@@ -378,8 +547,19 @@ document.addEventListener('DOMContentLoaded', function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
-        scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              title: function (items) { return 'Date: ' + fanscFormatDate(items[0].label); },
+              label: function (item) { return item.dataset.label + ': ' + fanscFormatCount(item.parsed.y); },
+            },
+          },
+        },
+        scales: {
+          y: { beginAtZero: true, ticks: { precision: 0 } },
+        },
       },
     });
     markChartReady(dashTrendCanvas);
@@ -391,6 +571,7 @@ document.addEventListener('DOMContentLoaded', function () {
   var statusCanvas = document.getElementById('beneficiaryStatusChart');
   if (statusCanvas && data.beneficiary_status) {
     var bs = data.beneficiary_status;
+    var statusTotal = bs.active + bs.pending + bs.inactive + bs.deceased;
     new Chart(statusCanvas, {
       type: 'doughnut',
       data: {
@@ -403,7 +584,17 @@ document.addEventListener('DOMContentLoaded', function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } } },
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+          tooltip: {
+            callbacks: {
+              label: function (item) {
+                return item.label + ': ' + fanscFormatCount(item.parsed) + ' (' + fanscPct(item.parsed, statusTotal) + ')';
+              },
+              footer: function () { return 'Total Beneficiaries: ' + fanscFormatCount(statusTotal); },
+            },
+          },
+        },
       },
     });
     markChartReady(statusCanvas);

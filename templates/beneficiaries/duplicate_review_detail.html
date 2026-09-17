@@ -62,22 +62,22 @@
         </div>
         <div class="card-body">
           <dl class="row small mb-0">
-            <dt class="col-sm-5">Full Name</dt>
-            <dd class="col-sm-7">{{ beneficiary.full_name }}</dd>
-            <dt class="col-sm-5">Beneficiary ID</dt>
-            <dd class="col-sm-7 font-mono">{{ beneficiary.beneficiary_id }}</dd>
-            <dt class="col-sm-5">Date of Birth</dt>
-            <dd class="col-sm-7">{{ beneficiary.date_of_birth }}</dd>
-            <dt class="col-sm-5">Gender</dt>
-            <dd class="col-sm-7">{{ beneficiary.get_gender_display }}</dd>
-            <dt class="col-sm-5">Senior Citizen ID</dt>
-            <dd class="col-sm-7">{{ beneficiary.senior_citizen_id|default:"—" }}</dd>
-            <dt class="col-sm-5">Address</dt>
-            <dd class="col-sm-7">{{ beneficiary.full_address|default:"—" }}</dd>
-            <dt class="col-sm-5">Registered</dt>
-            <dd class="col-sm-7">{{ beneficiary.created_at|date:"Y-m-d H:i" }}</dd>
-            <dt class="col-sm-5">Registered By</dt>
-            <dd class="col-sm-7">{% if beneficiary.registered_by %}{{ beneficiary.registered_by.get_full_name|default:beneficiary.registered_by.username }}{% else %}&mdash;{% endif %}</dd>
+            <dt class="col-sm-5 detail-label">Full Name</dt>
+            <dd class="col-sm-7 detail-value">{{ beneficiary.full_name }}</dd>
+            <dt class="col-sm-5 detail-label">Beneficiary ID</dt>
+            <dd class="col-sm-7 font-mono detail-value">{{ beneficiary.beneficiary_id }}</dd>
+            <dt class="col-sm-5 detail-label">Date of Birth</dt>
+            <dd class="col-sm-7 detail-value">{{ beneficiary.date_of_birth }}</dd>
+            <dt class="col-sm-5 detail-label">Gender</dt>
+            <dd class="col-sm-7 detail-value">{{ beneficiary.get_gender_display }}</dd>
+            <dt class="col-sm-5 detail-label">Senior Citizen ID</dt>
+            <dd class="col-sm-7 detail-value">{{ beneficiary.senior_citizen_id|default:"—" }}</dd>
+            <dt class="col-sm-5 detail-label">Address</dt>
+            <dd class="col-sm-7 detail-value">{{ beneficiary.full_address|default:"—" }}</dd>
+            <dt class="col-sm-5 detail-label">Registered</dt>
+            <dd class="col-sm-7 detail-value">{{ beneficiary.created_at|date:"Y-m-d H:i" }}</dd>
+            <dt class="col-sm-5 detail-label">Registered By</dt>
+            <dd class="col-sm-7 detail-value">{% if beneficiary.registered_by %}{{ beneficiary.registered_by.get_full_name|default:beneficiary.registered_by.username }}{% else %}&mdash;{% endif %}</dd>
           </dl>
         </div>
       </div>
@@ -93,20 +93,20 @@
           {% if beneficiary.duplicate_match_beneficiary %}
           {% with m=beneficiary.duplicate_match_beneficiary %}
           <dl class="row small mb-0">
-            <dt class="col-sm-5">Full Name</dt>
-            <dd class="col-sm-7">{{ m.full_name }}</dd>
-            <dt class="col-sm-5">Beneficiary ID</dt>
-            <dd class="col-sm-7 font-mono">{{ m.beneficiary_id }}</dd>
-            <dt class="col-sm-5">Date of Birth</dt>
-            <dd class="col-sm-7">{{ m.date_of_birth }}</dd>
-            <dt class="col-sm-5">Gender</dt>
-            <dd class="col-sm-7">{{ m.get_gender_display }}</dd>
-            <dt class="col-sm-5">Senior Citizen ID</dt>
-            <dd class="col-sm-7">{{ m.senior_citizen_id|default:"—" }}</dd>
-            <dt class="col-sm-5">Address</dt>
-            <dd class="col-sm-7">{{ m.full_address|default:"—" }}</dd>
-            <dt class="col-sm-5">Status</dt>
-            <dd class="col-sm-7">
+            <dt class="col-sm-5 detail-label">Full Name</dt>
+            <dd class="col-sm-7 detail-value">{{ m.full_name }}</dd>
+            <dt class="col-sm-5 detail-label">Beneficiary ID</dt>
+            <dd class="col-sm-7 font-mono detail-value">{{ m.beneficiary_id }}</dd>
+            <dt class="col-sm-5 detail-label">Date of Birth</dt>
+            <dd class="col-sm-7 detail-value">{{ m.date_of_birth }}</dd>
+            <dt class="col-sm-5 detail-label">Gender</dt>
+            <dd class="col-sm-7 detail-value">{{ m.get_gender_display }}</dd>
+            <dt class="col-sm-5 detail-label">Senior Citizen ID</dt>
+            <dd class="col-sm-7 detail-value">{{ m.senior_citizen_id|default:"—" }}</dd>
+            <dt class="col-sm-5 detail-label">Address</dt>
+            <dd class="col-sm-7 detail-value">{{ m.full_address|default:"—" }}</dd>
+            <dt class="col-sm-5 detail-label">Status</dt>
+            <dd class="col-sm-7 detail-value">
               <span class="badge {% if m.status == 'active' %}bg-success{% elif m.status == 'inactive' %}bg-secondary{% else %}bg-warning text-dark{% endif %}">
                 {{ m.get_status_display }}
               </span>

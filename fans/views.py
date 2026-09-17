@@ -71,11 +71,15 @@ def health_network(request):
     """
     GET /health/network/ — returns LAN IP and connection info as JSON.
     No login required; used by the installer during setup to verify
-    that the server is reachable on the LAN.
+    that the server is reachable on the LAN, and by
+    CLIENT-SETUP/refresh-server-connection.ps1 to identify which host on
+    the LAN is the FANS-C server when the server's IP has changed (e.g.
+    after moving to another network) — see 'service' below.
     """
     lan_ip = _detect_lan_ip()
     return JsonResponse({
         'status': 'ok',
+        'service': 'fans-c',
         'lan_ip': lan_ip,
         'reachable_from_lan': lan_ip is not None,
         'scheme': 'https' if request.is_secure() else 'http',

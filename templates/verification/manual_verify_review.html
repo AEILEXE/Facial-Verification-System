@@ -27,32 +27,32 @@
     <div class="card-body">
       <div class="row g-3">
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">BENEFICIARY</div>
-          <div class="fw-bold">{{ mvr.beneficiary.full_name }}</div>
+          <div class="detail-label">BENEFICIARY</div>
+          <div class="detail-value">{{ mvr.beneficiary.full_name }}</div>
           <div class="font-mono text-muted small">{{ mvr.beneficiary.beneficiary_id }}</div>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">CLAIMANT TYPE</div>
+          <div class="detail-label">CLAIMANT TYPE</div>
           <div class="fw-semibold">{{ mvr.get_claimant_type_display }}</div>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">SUBMITTED BY</div>
+          <div class="detail-label">SUBMITTED BY</div>
           <div>{% if mvr.requested_by %}{{ mvr.requested_by.get_full_name|default:mvr.requested_by.username }}{% else %}&mdash;{% endif %}</div>
           <div class="text-muted small">{{ mvr.created_at|date:"M d, Y H:i" }}</div>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">STIPEND EVENT</div>
+          <div class="detail-label">STIPEND EVENT</div>
           <div>{{ mvr.stipend_event.title|default:"&mdash;" }}</div>
         </div>
         <div class="col-12">
-          <div class="text-muted small fw-semibold mb-1">REASON</div>
+          <div class="detail-label">REASON</div>
           <div class="p-2 rounded" style="background:#f8fafc; border:1px solid #e2e8f0; font-size:0.9rem;">
             {{ mvr.reason }}
           </div>
         </div>
         {% if mvr.notes %}
         <div class="col-12">
-          <div class="text-muted small fw-semibold mb-1">ADDITIONAL NOTES</div>
+          <div class="detail-label">ADDITIONAL NOTES</div>
           <div class="text-muted small">{{ mvr.notes }}</div>
         </div>
         {% endif %}

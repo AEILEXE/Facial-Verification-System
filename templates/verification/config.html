@@ -42,12 +42,12 @@
     <div class="card-body p-4">
       <div class="row g-3 mb-4 text-center">
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">AUTOMATIC VERIFICATION THRESHOLD</div>
+          <div class="detail-label">AUTOMATIC VERIFICATION THRESHOLD</div>
           <div class="display-6 fw-bold text-success font-mono">{{ auto_verify_threshold }}</div>
           <div class="text-muted" style="font-size:0.7rem;">Score at/above this releases the stipend automatically. No in-app editor exists for this value (see note below).</div>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">MANUAL REVIEW THRESHOLD</div>
+          <div class="detail-label">MANUAL REVIEW THRESHOLD</div>
           <div class="display-6 fw-bold text-qc-blue font-mono">{{ manual_review_threshold }}</div>
           <div class="text-muted" style="font-size:0.7rem;">Score at/above this (but below the automatic threshold) is routed to Manual Review, not auto-verified.</div>
         </div>
@@ -99,7 +99,7 @@
       <table class="table table-sm table-borderless mb-0">
         <tbody>
           <tr>
-            <th class="text-muted ps-3" style="width:40%;">Model</th>
+            <th class="detail-label ps-3" style="width:40%;">Model</th>
             <td>
               {% if using_mock %}
                 <span class="badge bg-danger">MOCK &mdash; not loaded</span>
@@ -109,7 +109,7 @@
             </td>
           </tr>
           <tr>
-            <th class="text-muted ps-3">Verification Status</th>
+            <th class="detail-label ps-3">Verification Status</th>
             <td>
               {% if using_mock %}
                 <span class="text-danger fw-semibold small">Real verification is DISABLED. All scores are random.</span>
@@ -120,12 +120,12 @@
           </tr>
           {% if model_load_error %}
           <tr>
-            <th class="text-muted ps-3">Load Error</th>
+            <th class="detail-label ps-3">Load Error</th>
             <td class="font-mono small text-danger">{{ model_load_error }}</td>
           </tr>
           {% endif %}
           <tr>
-            <th class="text-muted ps-3">Assisted Rollout Mode</th>
+            <th class="detail-label ps-3">Assisted Rollout Mode</th>
             <td>
               {% if demo_mode %}
                 <span class="badge bg-warning text-dark">On &mdash; Assisted Rollout</span>
@@ -168,7 +168,7 @@
       <table class="table table-sm table-borderless mb-0">
         <tbody>
           <tr>
-            <th class="text-muted ps-3" style="width:55%;">Liveness Mode</th>
+            <th class="detail-label ps-3" style="width:55%;">Liveness Mode</th>
             <td>
               {% if liveness_required %}
                 <span class="badge bg-danger">Strict &mdash; blocks verification on failure</span>
@@ -178,7 +178,7 @@
             </td>
           </tr>
           <tr>
-            <th class="text-muted ps-3">Anti-Spoof Threshold</th>
+            <th class="detail-label ps-3">Anti-Spoof Threshold</th>
             <td class="font-mono">{{ anti_spoof_threshold }}</td>
           </tr>
         </tbody>

@@ -134,6 +134,26 @@ class UrlResolutionTest(TestCase):
         self.assertIn('admin', url)
 
 
+class HealthNetworkEndpointTest(TestCase):
+    """GET /health/network/ — no login required; used by the installer and by
+    CLIENT-SETUP/refresh-server-connection.ps1 to identify the FANS-C server
+    on the LAN after it moves to a different network."""
+
+    def test_no_login_required(self):
+        client = Client()
+        response = client.get(reverse('health_network'))
+        self.assertEqual(response.status_code, 200)
+
+    def test_response_identifies_service_for_client_discovery(self):
+        client = Client()
+        response = client.get(reverse('health_network'))
+        data = response.json()
+        self.assertEqual(data['status'], 'ok')
+        self.assertEqual(data['service'], 'fans-c')
+        self.assertIn('lan_ip', data)
+        self.assertIn('reachable_from_lan', data)
+
+
 class LoginAccessTest(TestCase):
     """Verify that the login page is accessible and requires no auth."""
 

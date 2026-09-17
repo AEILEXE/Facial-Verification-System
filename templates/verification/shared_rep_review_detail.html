@@ -47,33 +47,33 @@
     <div class="card-body">
       <div class="row g-3">
         <div class="col-md-6">
-          <div class="text-muted small fw-semibold mb-1">FULL NAME</div>
-          <div class="fw-bold">{{ rep.full_name }}</div>
+          <div class="detail-label">FULL NAME</div>
+          <div class="detail-value">{{ rep.full_name }}</div>
         </div>
         <div class="col-md-6">
-          <div class="text-muted small fw-semibold mb-1">RELATIONSHIP TO BENEFICIARY</div>
+          <div class="detail-label">RELATIONSHIP TO BENEFICIARY</div>
           <div>{{ rep.relationship|default:"&mdash;" }}</div>
         </div>
         <div class="col-md-6">
-          <div class="text-muted small fw-semibold mb-1">CONTACT NUMBER</div>
+          <div class="detail-label">CONTACT NUMBER</div>
           <div class="font-mono">{{ rep.contact_number|default:"&mdash;" }}</div>
         </div>
         <div class="col-md-6">
-          <div class="text-muted small fw-semibold mb-1">VALID ID</div>
+          <div class="detail-label">VALID ID</div>
           <div>
             {{ rep.valid_id_type|default:"&mdash;" }}
             {% if rep.valid_id_number %} : <span class="font-mono">{{ rep.valid_id_number }}</span>{% endif %}
           </div>
         </div>
         <div class="col-md-6">
-          <div class="text-muted small fw-semibold mb-1">REGISTERED FOR (THIS BENEFICIARY)</div>
-          <div class="fw-bold">{{ beneficiary.full_name }}</div>
+          <div class="detail-label">REGISTERED FOR (THIS BENEFICIARY)</div>
+          <div class="detail-value">{{ beneficiary.full_name }}</div>
           <div class="font-mono text-muted small">{{ beneficiary.beneficiary_id }}</div>
         </div>
         <div class="col-md-6">
-          <div class="text-muted small fw-semibold mb-1">ALSO LINKED TO (MATCH)</div>
+          <div class="detail-label">ALSO LINKED TO (MATCH)</div>
           {% if matched_beneficiary %}
-          <div class="fw-bold">{{ matched_beneficiary.full_name }}</div>
+          <div class="detail-value">{{ matched_beneficiary.full_name }}</div>
           <div class="font-mono text-muted small">{{ matched_beneficiary.beneficiary_id }}</div>
           {% else %}
           <div class="text-muted small">{{ review.matched_beneficiary_id }} (record not located in current DB)</div>
@@ -92,15 +92,15 @@
       <p class="mb-2 small">{{ review.flag_reason }}</p>
       <div class="row g-2 small">
         <div class="col-sm-4">
-          <div class="text-muted">Match score</div>
+          <div class="detail-label">Match score</div>
           <div class="font-mono fw-bold">{{ review.matched_score|floatformat:3 }}</div>
         </div>
         <div class="col-sm-4">
-          <div class="text-muted">Duplicate threshold</div>
+          <div class="detail-label">Duplicate threshold</div>
           <div class="font-mono">{{ review.matched_threshold|floatformat:2 }}</div>
         </div>
         <div class="col-sm-4">
-          <div class="text-muted">Flagged by</div>
+          <div class="detail-label">Flagged by</div>
           <div>{{ review.flagged_by.username|default:"&mdash;" }} &mdash; {{ review.flagged_at|date:"M d, Y H:i" }}</div>
         </div>
       </div>

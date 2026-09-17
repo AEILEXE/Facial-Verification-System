@@ -1738,7 +1738,8 @@ class AutoApprovalSettingsAccessTest(TestCase):
 
 
 class VerifySearchSCIDTest(TestCase):
-    """Issue 2 — Senior Citizen ID appears in verify-select search results."""
+    """Verify-select identifies beneficiaries by Senior Citizen ID only — no
+    name-based fallback matching."""
 
     def setUp(self):
         self.staff = _make_staff(username='staff_scid')
@@ -1747,15 +1748,69 @@ class VerifySearchSCIDTest(TestCase):
         self.ben.status = Beneficiary.STATUS_ACTIVE
         self.ben.save()
 
-    def test_sc_id_displayed_in_search_results(self):
-        resp = self.client.get(reverse('verification:verify_select') + '?q=Santos')
-        self.assertEqual(resp.status_code, 200)
-        self.assertContains(resp, 'OSCA-12345')
-
     def test_search_by_sc_id_finds_beneficiary(self):
         resp = self.client.get(reverse('verification:verify_select') + '?q=OSCA-12345')
         self.assertEqual(resp.status_code, 200)
         self.assertContains(resp, 'Maria')
+
+    def test_search_by_partial_sc_id_finds_beneficiary(self):
+        resp = self.client.get(reverse('verification:verify_select') + '?q=12345')
+        self.assertEqual(resp.status_code, 200)
+        self.assertContains(resp, 'Maria')
+
+    def test_name_search_does_not_match(self):
+        resp = self.client.get(reverse('verification:verify_select') + '?q=Santos')
+        self.assertEqual(resp.status_code, 200)
+        self.assertNotContains(resp, 'OSCA-12345')
+        self.assertEqual(list(resp.context['beneficiaries']), [])
+
+    def test_first_name_search_does_not_match(self):
+        resp = self.client.get(reverse('verification:verify_select') + '?q=Maria')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(list(resp.context['beneficiaries']), [])
+
+    def test_name_fragment_does_not_accidentally_match(self):
+        # "an" is a substring of both "Maria" and "Santos" but must not
+        # trigger a match now that only senior_citizen_id is searched.
+        resp = self.client.get(reverse('verification:verify_select') + '?q=an')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(list(resp.context['beneficiaries']), [])
+
+    def test_beneficiary_id_search_does_not_match(self):
+        resp = self.client.get(reverse('verification:verify_select') + '?q=BEN-SCID-001')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(list(resp.context['beneficiaries']), [])
+
+    def test_inactive_beneficiary_excluded_from_sc_id_search(self):
+        self.ben.status = Beneficiary.STATUS_INACTIVE
+        self.ben.save()
+        resp = self.client.get(reverse('verification:verify_select') + '?q=OSCA-12345')
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(list(resp.context['beneficiaries']), [])
+
+    def test_verify_link_present_after_sc_id_search(self):
+        resp = self.client.get(reverse('verification:verify_select') + '?q=OSCA-12345')
+        self.assertContains(
+            resp,
+            reverse('verification:verify_start', args=[self.ben.pk]) + '?claimant=beneficiary',
+        )
+
+    def test_representative_option_present_after_sc_id_search(self):
+        from verification.models import RepresentativeFaceEmbedding
+        from cryptography.fernet import Fernet
+        rep = _make_rep(self.ben, self.staff)
+        RepresentativeFaceEmbedding.objects.create(
+            representative=rep,
+            embedding_data=Fernet(Fernet.generate_key()).encrypt(b'\x01' * 512),
+            created_by=self.staff,
+        )
+        resp = self.client.get(reverse('verification:verify_select') + '?q=OSCA-12345')
+        self.assertContains(resp, 'Jose')
+        self.assertContains(
+            resp,
+            reverse('verification:verify_start', args=[self.ben.pk])
+            + f'?claimant=representative&rep_id={rep.pk}',
+        )
 
 
 class PayoutTimeWindowTest(TestCase):

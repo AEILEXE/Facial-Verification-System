@@ -285,13 +285,13 @@
       <div class="row g-3">
         {% if attempt.similarity_score is None %}
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">SIMILARITY SCORE</div>
+          <div class="detail-label">SIMILARITY SCORE</div>
           <div class="fs-3 fw-bold text-muted">&mdash;</div>
           <div class="text-muted small">Manual-Review Threshold Recorded: <span class="font-mono">{{ attempt.threshold_used }}</span></div>
         </div>
         {% endif %}
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">LIVENESS CHECK <span class="text-secondary fw-normal" style="font-size:0.65rem;">(SERVER)</span></div>
+          <div class="detail-label">LIVENESS CHECK <span class="text-secondary fw-normal" style="font-size:0.65rem;">(SERVER)</span></div>
           <div class="fs-3 fw-bold {% if attempt.liveness_passed %}text-success{% elif attempt.liveness_passed is not None %}text-danger{% else %}text-muted{% endif %}">
             {% if attempt.liveness_passed %}PASSED
             {% elif attempt.liveness_passed is not None %}FAILED
@@ -304,7 +304,7 @@
         </div>
         {% if attempt.face_quality_ok is not None %}
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">FACE QUALITY</div>
+          <div class="detail-label">FACE QUALITY</div>
           <div class="fw-semibold {% if attempt.face_quality_ok %}text-success{% else %}text-warning{% endif %}">
             {% if attempt.face_quality_ok %}
               <i class="bi bi-check-circle-fill me-1"></i>Acceptable
@@ -315,12 +315,12 @@
         </div>
         {% endif %}
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">VERIFIED BY</div>
-          <div class="fw-semibold small">{% if attempt.performed_by %}{{ attempt.performed_by.get_full_name|default:attempt.performed_by.username }}{% else %}&mdash;{% endif %}</div>
+          <div class="detail-label">VERIFIED BY</div>
+          <div class="detail-value small">{% if attempt.performed_by %}{{ attempt.performed_by.get_full_name|default:attempt.performed_by.username }}{% else %}&mdash;{% endif %}</div>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">TIMESTAMP</div>
-          <div class="fw-semibold small">{{ attempt.timestamp|date:"M d, Y H:i:s" }}</div>
+          <div class="detail-label">TIMESTAMP</div>
+          <div class="detail-value small">{{ attempt.timestamp|date:"M d, Y H:i:s" }}</div>
         </div>
       </div>
 

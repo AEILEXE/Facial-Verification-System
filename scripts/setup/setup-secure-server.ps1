@@ -590,7 +590,8 @@ function Add-HostsEntry {
 
 # Map loopback so the browser on the server PC resolves https://fans-barangay.local.
 # Caddy binds all interfaces, so 127.0.0.1:443 reaches it correctly.
-# Client devices use the LAN IP instead (handled by trust-local-cert.bat).
+# Client devices use the LAN IP instead (handled by trust-local-cert.bat, or
+# by refresh-server-connection.bat if the server later moves to a new network).
 Add-HostsEntry -Ip '127.0.0.1' -Hostname 'fans-barangay.local'
 
 # 11c: Auto-fill ALLOWED_HOSTS and CSRF_TRUSTED_ORIGINS in .env so the operator

@@ -312,6 +312,23 @@ a:hover { color: var(--qc-blue-dark); }
 
 .card-header.bg-qc-blue .text-muted { color: rgba(255,255,255,0.65) !important; }
 
+/* ── Detail Fields (label/value rows on detail & review screens) ── */
+.detail-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 0.15rem;
+}
+
+.detail-value {
+  font-weight: 400;
+  color: var(--text-dark);
+}
+
+.card-header.bg-qc-blue .detail-label { color: rgba(255,255,255,0.65); }
+
 /* ── Stat Cards ────────────────────────────────────────── */
 .stat-card {
   border-radius: var(--radius-lg);
@@ -1240,6 +1257,19 @@ code, .font-mono {
   .login-bg { padding: 1rem 0.5rem; }
   .login-card { border-radius: 10px; }
 }
+
+/* ── Chart Description (What this shows / How to read / Data scope) ── */
+.chart-description {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+  margin-top: 0.5rem;
+  padding-top: 0.5rem;
+  border-top: 1px dashed var(--border-color);
+}
+.chart-description strong { color: var(--text-dark); font-weight: 600; }
+.chart-description p { margin-bottom: 0.25rem; }
+.chart-description p:last-child { margin-bottom: 0; }
 
 /* ── Analytics Toolbar & KPI Hierarchy (Executive/Operational/Security) ── */
 .analytics-presets .btn.active {

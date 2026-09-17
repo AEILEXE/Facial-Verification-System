@@ -114,6 +114,14 @@ Replace `192.168.1.77` with the server's actual IP address. This must be done on
 
 Ask your IT administrator which method is in use. If you are on a new PC and the domain does not work, Option B may need to be applied to your device.
 
+### `fans-barangay.local` worked before, but stopped after the server moved to a different Wi-Fi/network
+
+This almost always means the hosts-file entry (Option B) on your PC still points to the server's **old** address — the server was given a new address by the new network, but your PC does not know that yet.
+
+**For Windows PCs:** in the `CLIENT-SETUP` folder, double-click `refresh-server-connection.bat`. It looks for the FANS-C server on the network your PC is currently connected to and updates the hosts-file entry automatically — no need to ask the IT administrator for the new IP address. You must be connected to the same Wi-Fi/network as the server when you run it, and it only fixes the PC it is run on (every other client device needs to run it separately). If it cannot find the server, confirm the server PC is powered on and connected to the same network, then contact your IT administrator.
+
+**Android/iOS devices** cannot run this script — the IT administrator must update Option A (router DNS) or connect the device via the server's new IP directly.
+
 ---
 
 ## Logging In

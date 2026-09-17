@@ -27,28 +27,28 @@
     <div class="card-body">
       <div class="row g-3">
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">BENEFICIARY</div>
-          <div class="fw-bold">{{ fur.beneficiary.full_name }}</div>
+          <div class="detail-label">BENEFICIARY</div>
+          <div class="detail-value">{{ fur.beneficiary.full_name }}</div>
           <div class="font-mono text-muted small">{{ fur.beneficiary.beneficiary_id }}</div>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">REQUESTED ACTION</div>
+          <div class="detail-label">REQUESTED ACTION</div>
           <span class="badge {% if fur.action == 'replace' %}bg-danger{% else %}bg-info{% endif %} fs-6">
             {{ fur.get_action_display }}
           </span>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">REASON</div>
+          <div class="detail-label">REASON</div>
           <div>{{ fur.get_reason_display }}</div>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">SUBMITTED BY</div>
+          <div class="detail-label">SUBMITTED BY</div>
           <div>{% if fur.requested_by %}{{ fur.requested_by.get_full_name|default:fur.requested_by.username }}{% else %}&mdash;{% endif %}</div>
           <div class="text-muted small">{{ fur.created_at|date:"M d, Y H:i" }}</div>
         </div>
         {% if fur.notes %}
         <div class="col-12">
-          <div class="text-muted small fw-semibold mb-1">NOTES</div>
+          <div class="detail-label">NOTES</div>
           <div class="p-2 rounded text-muted small" style="background:#f8fafc; border:1px solid #e2e8f0;">
             {{ fur.notes }}
           </div>

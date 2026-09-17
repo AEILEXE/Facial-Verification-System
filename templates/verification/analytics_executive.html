@@ -123,16 +123,18 @@
         <div class="chart-canvas-wrap" style="position:relative; height:300px;">
           <canvas id="beneficiaryGrowthChart"></canvas>
         </div>
+        {% include "includes/chart_description.html" with what="The running total of active-system beneficiaries, month by month, plus how many were newly registered that month." how="Each point is the cumulative beneficiary count at the end of that month. Hover a point for that month's new-registration count." scope="Fixed trailing 12 months — independent of any date filter elsewhere on this page." %}
       </div>
     </div>
   </div>
   <div class="col-12 col-lg-6">
     <div class="card h-100">
-      <div class="card-header fw-semibold">Monthly Distribution — Total Released (PHP, last 12 months)</div>
+      <div class="card-header fw-semibold">Monthly Stipend Distribution — Total Released (PHP, last 12 months)</div>
       <div class="card-body">
         <div class="chart-canvas-wrap" style="position:relative; height:300px;">
           <canvas id="monthlyDistributionChart"></canvas>
         </div>
+        {% include "includes/chart_description.html" with what="Total stipend amount released per month, summed across every claimed payout." how="Each bar is one month's total released amount. Hover a bar for the exact amount and number of claims released that month." scope="Fixed trailing 12 months — independent of any date filter elsewhere on this page." %}
       </div>
     </div>
   </div>
@@ -147,6 +149,7 @@
         <div class="chart-canvas-wrap" style="position:relative; height:260px;">
           <canvas id="claimProgressChart"></canvas>
         </div>
+        {% include "includes/chart_description.html" with what="How many eligible beneficiaries have claimed vs. not yet claimed for this stipend event." how="Hover a slice for its count; the tooltip footer shows the total eligible and the overall claimed rate." scope="Current (or nearest upcoming) stipend event — point-in-time, not the page's date filter." %}
       </div>
     </div>
   </div>
@@ -157,6 +160,7 @@
         <div class="chart-canvas-wrap" style="position:relative; height:260px;">
           <canvas id="payoutCompletionChart"></canvas>
         </div>
+        {% include "includes/chart_description.html" with what="Expected, claimed, and remaining beneficiary counts for this stipend event." how="Hover a bar for its exact count; Claimed and Remaining also show their share of Expected." scope="Current (or nearest upcoming) stipend event — point-in-time, not the page's date filter." %}
       </div>
     </div>
   </div>
@@ -170,22 +174,22 @@
     <div class="hbar-row">
       <span class="hbar-label">Active</span>
       <div class="hbar-track"><div class="hbar-fill bg-success" style="width:{% widthratio beneficiary_counts.active beneficiary_counts.total 100 %}%;"></div></div>
-      <span class="hbar-value">{{ beneficiary_counts.active }}</span>
+      <span class="hbar-value" title="{% widthratio beneficiary_counts.active beneficiary_counts.total 100 %}% of {{ beneficiary_counts.total }} total">{{ beneficiary_counts.active }}</span>
     </div>
     <div class="hbar-row">
       <span class="hbar-label">Pending</span>
       <div class="hbar-track"><div class="hbar-fill" style="background:#fd7e14; width:{% widthratio beneficiary_counts.pending beneficiary_counts.total 100 %}%;"></div></div>
-      <span class="hbar-value">{{ beneficiary_counts.pending }}</span>
+      <span class="hbar-value" title="{% widthratio beneficiary_counts.pending beneficiary_counts.total 100 %}% of {{ beneficiary_counts.total }} total">{{ beneficiary_counts.pending }}</span>
     </div>
     <div class="hbar-row">
       <span class="hbar-label">Inactive</span>
       <div class="hbar-track"><div class="hbar-fill" style="background:#6c757d; width:{% widthratio beneficiary_counts.inactive beneficiary_counts.total 100 %}%;"></div></div>
-      <span class="hbar-value">{{ beneficiary_counts.inactive }}</span>
+      <span class="hbar-value" title="{% widthratio beneficiary_counts.inactive beneficiary_counts.total 100 %}% of {{ beneficiary_counts.total }} total">{{ beneficiary_counts.inactive }}</span>
     </div>
     <div class="hbar-row">
       <span class="hbar-label">Deceased</span>
       <div class="hbar-track"><div class="hbar-fill" style="background:#343a40; width:{% widthratio beneficiary_counts.deceased beneficiary_counts.total 100 %}%;"></div></div>
-      <span class="hbar-value">{{ beneficiary_counts.deceased }}</span>
+      <span class="hbar-value" title="{% widthratio beneficiary_counts.deceased beneficiary_counts.total 100 %}% of {{ beneficiary_counts.total }} total">{{ beneficiary_counts.deceased }}</span>
     </div>
     {% else %}
     <div class="text-center text-muted py-3">No beneficiaries registered yet.</div>

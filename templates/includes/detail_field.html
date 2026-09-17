@@ -1,0 +1,6 @@
+{% comment %}
+Shared label/value row for detail & review screens. Usage:
+{% include 'includes/detail_field.html' with label="Gender" value=beneficiary.get_gender_display %}
+{% endcomment %}
+<div class="detail-label">{{ label }}</div>
+<div class="detail-value">{{ value }}</div>

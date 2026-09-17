@@ -56,13 +56,77 @@ document.addEventListener('DOMContentLoaded', function () {
         borderWidth: 1,
       });
     }
+    // Draws the snapshotted operating-threshold reference lines the template
+    // text above this chart promises ("shown as reference lines below").
+    // Interpolates each threshold's position between the two bin edges it
+    // falls between, since the x-axis is a category scale (one tick per
+    // bin), not a continuous numeric scale.
+    var thresholdLines = [];
+    var ref = data.threshold_reference;
+    if (ref) {
+      ['review_threshold', 'auto_verify_threshold'].forEach(function (key) {
+        var value = ref[key];
+        if (value === null || value === undefined) return;
+        for (var i = 0; i < edges.length - 1; i++) {
+          if (value >= edges[i] && value <= edges[i + 1]) {
+            thresholdLines.push({
+              key: key,
+              value: value,
+              binIndex: i,
+              binFraction: (edges[i + 1] > edges[i]) ? (value - edges[i]) / (edges[i + 1] - edges[i]) : 0,
+              color: key === 'review_threshold' ? '#7c3aed' : '#dc3545',
+              label: key === 'review_threshold' ? 'Manual Review threshold' : 'Auto-Verify threshold',
+            });
+            break;
+          }
+        }
+      });
+    }
+    var thresholdLinePlugin = {
+      id: 'fanscThresholdLines',
+      afterDraw: function (chart) {
+        if (!thresholdLines.length) return;
+        var ctx = chart.ctx;
+        var xScale = chart.scales.x;
+        var yScale = chart.scales.y;
+        thresholdLines.forEach(function (line) {
+          var xLeft = xScale.getPixelForValue(line.binIndex);
+          var xRight = xScale.getPixelForValue(line.binIndex + 1);
+          var x = xLeft + (xRight - xLeft) * line.binFraction;
+          ctx.save();
+          ctx.beginPath();
+          ctx.setLineDash([5, 4]);
+          ctx.strokeStyle = line.color;
+          ctx.lineWidth = 1.5;
+          ctx.moveTo(x, yScale.top);
+          ctx.lineTo(x, yScale.bottom);
+          ctx.stroke();
+          ctx.restore();
+        });
+      },
+    };
+
     new Chart(scoreCanvas, {
       type: 'bar',
       data: { labels: binLabels(edges), datasets: datasets },
+      plugins: [thresholdLinePlugin],
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom' } },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              title: function (items) { return 'Cosine Similarity Bin: ' + items[0].label; },
+              label: function (item) { return item.dataset.label + ' Trials: ' + item.parsed.y.toLocaleString('en-US'); },
+              footer: function () {
+                return thresholdLines.map(function (line) {
+                  return line.label + ' (snapshotted): ' + line.value.toFixed(4);
+                });
+              },
+            },
+          },
+        },
         scales: {
           x: { title: { display: true, text: 'Cosine similarity bin' }, ticks: { maxRotation: 60, minRotation: 60, font: { size: 9 } } },
           y: { beginAtZero: true, ticks: { precision: 0 }, title: { display: true, text: 'Trial count' } },
@@ -103,7 +167,21 @@ document.addEventListener('DOMContentLoaded', function () {
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        plugins: { legend: { position: 'bottom' } },
+        plugins: {
+          legend: { position: 'bottom' },
+          tooltip: {
+            callbacks: {
+              title: function (items) { return items[0].dataset.label; },
+              label: function (item) {
+                if (item.dataset.label === 'Chance line') return 'Reference: random guessing';
+                return [
+                  'False Positive Rate: ' + (item.parsed.x * 100).toFixed(1) + '%',
+                  'True Positive Rate: ' + (item.parsed.y * 100).toFixed(1) + '%',
+                ];
+              },
+            },
+          },
+        },
         scales: {
           x: { min: 0, max: 1, title: { display: true, text: 'False Positive Rate' } },
           y: { min: 0, max: 1, title: { display: true, text: 'True Positive Rate' } },

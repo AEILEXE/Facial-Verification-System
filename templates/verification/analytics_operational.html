@@ -73,17 +73,19 @@
         <div class="chart-canvas-wrap" style="position:relative; height:300px;">
           <canvas id="verificationTrendChart"></canvas>
         </div>
+        {% include "includes/chart_description.html" with what="The number of verification attempts recorded on each day within the selected date range, split by final outcome." how="Each point is one day. Hover a point for the exact attempt count and outcome breakdown for that day." scope="Selected Analytics date range." %}
       </div>
     </div>
   </div>
   <div class="col-12 col-lg-5">
     <div class="card h-100">
-      <div class="card-header fw-semibold">Verification Results (range)</div>
+      <div class="card-header fw-semibold">Verification Outcomes (range)</div>
       <div class="card-body">
         {% if decision_breakdown %}
         <div class="chart-canvas-wrap" style="position:relative; height:260px;">
           <canvas id="verificationResultsChart"></canvas>
         </div>
+        {% include "includes/chart_description.html" with what="Number of verification attempts in the selected range, grouped by final decision outcome." how="Hover a slice for its count and share of total attempts in range." scope="Selected Analytics date range." %}
         {% else %}
         <div class="text-center text-muted py-4">No data in range.</div>
         {% endif %}
@@ -100,6 +102,7 @@
         <div class="chart-canvas-wrap" style="position:relative; height:300px;">
           <canvas id="registrationTrendChart"></canvas>
         </div>
+        {% include "includes/chart_description.html" with what="The number of new beneficiary registrations recorded on each day within the selected date range." scope="Selected Analytics date range." %}
       </div>
     </div>
   </div>

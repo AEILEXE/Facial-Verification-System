@@ -55,27 +55,27 @@
         <div class="card-body p-3">
           <div class="row g-2 small">
             <div class="col-sm-6">
-              <div class="text-muted">Beneficiary ID</div>
+              <div class="detail-label">Beneficiary ID</div>
               <div class="font-mono">{{ claim.beneficiary.beneficiary_id }}</div>
             </div>
             <div class="col-sm-6">
-              <div class="text-muted">Full Name</div>
-              <div class="fw-semibold">{{ claim.beneficiary.full_name }}</div>
+              <div class="detail-label">Full Name</div>
+              <div class="detail-value">{{ claim.beneficiary.full_name }}</div>
             </div>
             <div class="col-sm-4">
-              <div class="text-muted">Age</div>
+              <div class="detail-label">Age</div>
               <div>{{ claim.beneficiary.age }}</div>
             </div>
             <div class="col-sm-4">
-              <div class="text-muted">Senior Citizen ID</div>
+              <div class="detail-label">Senior Citizen ID</div>
               <div>{{ claim.beneficiary.senior_citizen_id|default:"—" }}</div>
             </div>
             <div class="col-sm-4">
-              <div class="text-muted">Barangay</div>
+              <div class="detail-label">Barangay</div>
               <div>{{ claim.beneficiary.barangay }}</div>
             </div>
             <div class="col-12">
-              <div class="text-muted">Address</div>
+              <div class="detail-label">Address</div>
               <div>{{ claim.beneficiary.address }}</div>
             </div>
           </div>

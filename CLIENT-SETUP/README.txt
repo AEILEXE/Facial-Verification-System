@@ -44,6 +44,33 @@ That's it.  You do not need to run setup again on this device.
 
 
 ================================================================
+ THE SERVER MOVED TO A DIFFERENT WI-FI/NETWORK
+================================================================
+
+If https://fans-barangay.local suddenly stops loading after the
+server PC was shut down and reconnected somewhere else (a
+different Wi-Fi, a different router), the most common cause is
+that this PC's saved server address is now out of date -- the
+server got a new address from the new network, but this PC does
+not know that yet.
+
+Fix it without asking IT for the new address every time:
+
+  1. Connect this PC to the SAME Wi-Fi/network as the server.
+  2. Double-click:   refresh-server-connection.bat
+  3. Approve the security prompt.  Wait a few seconds while it
+     looks for the server on this network.
+  4. Open https://fans-barangay.local again.
+
+This only works when this PC and the server are on the same
+Wi-Fi/network right now, and it only updates THIS PC -- every
+other client device still needs to run it (or run
+trust-local-cert.bat again with the new IP) on its own.  It does
+not reach out to the Internet and does not need a new IP typed
+in by hand.
+
+
+================================================================
  FOR IT ADMINISTRATORS -- before distributing this package
 ================================================================
 
@@ -101,7 +128,11 @@ Browser still shows a security warning after setup:
 
 Cannot reach https://fans-barangay.local:
   -> Make sure you are connected to the same network as the server.
-  -> Ask the IT admin for the correct server IP address.
+  -> If the server recently moved to a different Wi-Fi/network, run
+     refresh-server-connection.bat in this folder first -- see
+     "THE SERVER MOVED TO A DIFFERENT WI-FI/NETWORK" above.
+  -> If that does not find the server, ask the IT admin for the
+     correct server IP address and re-run trust-local-cert.bat.
   -> Check that the hosts file entry was added (the script does this).
   -> This is an ERR_CONNECTION_REFUSED error -- see SETUP.md on the
      server for full troubleshooting steps.

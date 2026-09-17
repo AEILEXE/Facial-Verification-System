@@ -143,12 +143,7 @@
         <div class="chart-canvas-wrap" style="position:relative; height:280px;">
           <canvas id="reviewCasesChart"></canvas>
         </div>
-        <div class="small text-muted mt-2">
-          Duplicate face, manual review, and representative-review are current open-queue counts
-          (point-in-time, not range-limited). Fraud alerts (MEDIUM/HIGH indicators — see the status
-          banner above) use each rule's own fixed lookback window, also independent of the date
-          filter above.
-        </div>
+        {% include "includes/chart_description.html" with what="How many cases are currently open in each review/security queue." how="Hover a bar for its exact count; the tooltip also names that bar's time scope, since the four bars are not all measured the same way." scope="Duplicate Face, Manual Review, and Representative Review are current open-queue counts (point-in-time, not range-limited). Fraud Alerts (MEDIUM/HIGH indicators — see the status banner above) use each rule's own fixed lookback window, also independent of the date filter above." %}
       </div>
     </div>
   </div>
@@ -160,7 +155,7 @@
         <div class="chart-canvas-wrap" style="position:relative; height:280px;">
           <canvas id="securityEventsTrendChart"></canvas>
         </div>
-        <div class="small text-muted mt-2">Selected range, by day — same counts as Security Events above.</div>
+        {% include "includes/chart_description.html" with what="Daily counts of failed logins, failed verifications, duplicate-face detections, and payout overrides — the same counts as the Security Events cards above, broken out by day." how="Each point is one day's count for that category. Hover a point for the exact date, category, and count." scope="Selected Analytics date range (only shown when both From and To are set)." %}
         {% else %}
         <div class="text-center text-muted py-4">
           Select both a "From" and "To" date above (or a preset) to see this trend over time.

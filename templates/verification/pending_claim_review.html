@@ -29,27 +29,27 @@
     </div>
     <div class="card-body">
       <dl class="row mb-0">
-        <dt class="col-sm-4">Beneficiary</dt>
-        <dd class="col-sm-8">
+        <dt class="col-sm-4 detail-label">Beneficiary</dt>
+        <dd class="col-sm-8 detail-value">
           {{ claim.beneficiary.full_name }}
           <span class="text-muted small">({{ claim.beneficiary.beneficiary_id }})</span>
         </dd>
-        <dt class="col-sm-4">Claimant Type</dt>
-        <dd class="col-sm-8">
+        <dt class="col-sm-4 detail-label">Claimant Type</dt>
+        <dd class="col-sm-8 detail-value">
           {{ claim.claimant_type|capfirst }}
           {% if claim.representative %}&mdash; {{ claim.representative.full_name }}{% endif %}
         </dd>
-        <dt class="col-sm-4">Submitted By</dt>
-        <dd class="col-sm-8">
+        <dt class="col-sm-4 detail-label">Submitted By</dt>
+        <dd class="col-sm-8 detail-value">
           {% if claim.claimed_by %}
             {{ claim.claimed_by.get_full_name|default:claim.claimed_by.username }}
             ({{ claim.claimed_by.get_role_display }})
           {% else %}Unknown{% endif %}
         </dd>
-        <dt class="col-sm-4">Submitted At</dt>
-        <dd class="col-sm-8">{{ claim.created_at|date:"Y-m-d H:i" }}</dd>
-        <dt class="col-sm-4">Verification</dt>
-        <dd class="col-sm-8">
+        <dt class="col-sm-4 detail-label">Submitted At</dt>
+        <dd class="col-sm-8 detail-value">{{ claim.created_at|date:"Y-m-d H:i" }}</dd>
+        <dt class="col-sm-4 detail-label">Verification</dt>
+        <dd class="col-sm-8 detail-value">
           {% if claim.verification_attempt %}
             Score: {{ claim.verification_attempt.similarity_score|floatformat:3 }}
             &nbsp;|&nbsp; Decision: {{ claim.verification_attempt.decision }}
@@ -60,8 +60,8 @@
             <span class="text-muted">No linked attempt</span>
           {% endif %}
         </dd>
-        <dt class="col-sm-4">Notes</dt>
-        <dd class="col-sm-8">{{ claim.notes|default:"—" }}</dd>
+        <dt class="col-sm-4 detail-label">Notes</dt>
+        <dd class="col-sm-8 detail-value">{{ claim.notes|default:"—" }}</dd>
       </dl>
     </div>
   </div>

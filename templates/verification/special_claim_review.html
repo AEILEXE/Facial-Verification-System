@@ -26,26 +26,26 @@
     <div class="card-body">
       <div class="row g-3">
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">BENEFICIARY</div>
-          <div class="fw-bold">{{ scr.beneficiary.full_name }}</div>
+          <div class="detail-label">BENEFICIARY</div>
+          <div class="detail-value">{{ scr.beneficiary.full_name }}</div>
           <div class="font-mono text-muted small">{{ scr.beneficiary.beneficiary_id }}</div>
           <a href="{% url 'beneficiaries:beneficiary_detail' scr.beneficiary.pk %}"
              class="small text-qc-blue">View profile &rarr;</a>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">STIPEND EVENT</div>
-          <div class="fw-bold">{{ scr.stipend_event.title|default:"&mdash;" }}</div>
+          <div class="detail-label">STIPEND EVENT</div>
+          <div class="detail-value">{{ scr.stipend_event.title|default:"&mdash;" }}</div>
           {% if scr.stipend_event %}
           <div class="text-muted small">{{ scr.stipend_event.date|date:"F d, Y" }}</div>
           {% endif %}
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">SUBMITTED BY</div>
+          <div class="detail-label">SUBMITTED BY</div>
           <div>{% if scr.requested_by %}{{ scr.requested_by.get_full_name|default:scr.requested_by.username }}{% else %}&mdash;{% endif %}</div>
           <div class="text-muted small">{{ scr.created_at|date:"M d, Y H:i" }}</div>
         </div>
         <div class="col-6">
-          <div class="text-muted small fw-semibold mb-1">ORIGINAL CLAIM</div>
+          <div class="detail-label">ORIGINAL CLAIM</div>
           {% if scr.original_claim %}
           <div class="small">
             Claimed on {{ scr.original_claim.claimed_at|date:"M d, Y H:i" }}<br>
@@ -56,14 +56,14 @@
           {% endif %}
         </div>
         <div class="col-12">
-          <div class="text-muted small fw-semibold mb-1">REASON FOR ADDITIONAL CLAIM</div>
+          <div class="detail-label">REASON FOR ADDITIONAL CLAIM</div>
           <div class="p-2 rounded" style="background:#f8fafc; border:1px solid #e2e8f0;">
             {{ scr.reason }}
           </div>
         </div>
         {% if scr.notes %}
         <div class="col-12">
-          <div class="text-muted small fw-semibold mb-1">NOTES</div>
+          <div class="detail-label">NOTES</div>
           <div class="p-2 rounded text-muted small" style="background:#f8fafc; border:1px solid #e2e8f0;">
             {{ scr.notes }}
           </div>

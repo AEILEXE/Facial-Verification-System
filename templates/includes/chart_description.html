@@ -1,0 +1,11 @@
+{% comment %}
+Concise explanatory context under a chart, per FANS-C analytics UX pattern.
+Usage:
+{% include "includes/chart_description.html" with what="..." how="..." scope="..." %}
+`how` is optional — omit it for simple charts that don't need a reading guide.
+{% endcomment %}
+<div class="chart-description">
+  <p><strong>What this shows:</strong> {{ what }}</p>
+  {% if how %}<p><strong>How to read:</strong> {{ how }}</p>{% endif %}
+  <p><strong>Data scope:</strong> {{ scope }}</p>
+</div>

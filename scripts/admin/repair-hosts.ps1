@@ -21,7 +21,9 @@
       - If it still does not load, run check-system-health.ps1 for details.
 
     Client devices need their own hosts entry (different IP -- the server LAN IP).
-    Use CLIENT-SETUP\trust-local-cert.bat on each client device.
+    Use CLIENT-SETUP\trust-local-cert.bat on each client device (first time),
+    or CLIENT-SETUP\refresh-server-connection.bat if the server later moves
+    to a different network and the client's saved IP goes stale.
 
 .NOTES
     Must be run as Administrator (hosts file requires admin to write).

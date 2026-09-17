@@ -52,8 +52,8 @@
           {{ attempt.beneficiary.rep_first_name }} {{ attempt.beneficiary.rep_last_name }}
         </div>
         <div class="small text-muted">
-          Relationship: {{ attempt.beneficiary.rep_relationship }}
-          &bull; Contact: {{ attempt.beneficiary.rep_contact|default:"&mdash;" }}
+          <strong>Relationship:</strong> {{ attempt.beneficiary.rep_relationship }}
+          &bull; <strong>Contact:</strong> {{ attempt.beneficiary.rep_contact|default:"&mdash;" }}
         </div>
         <div class="small text-muted mt-1">
           Registered ID: {{ attempt.beneficiary.rep_id_type|default:"&mdash;" }}
