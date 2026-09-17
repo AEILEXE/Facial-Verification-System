@@ -23,13 +23,14 @@
         subnets) -- it only looks at addresses on the same Wi-Fi/LAN this
         PC is currently connected to.
       - Change any server configuration.
-      - Weaken or bypass the HTTPS certificate check for the real site --
-        the certificate is still fully validated once fans-barangay.local
-        resolves correctly and you open it in the browser. Certificate
-        checking is only relaxed for the brief identification probe this
-        script sends to each candidate address, since those addresses are
-        contacted by raw IP (not by the certificate's hostname) purely to
-        ask "are you the FANS-C server?".
+      - Weaken or bypass the HTTPS certificate check, for the real site or
+        for the identification probe. The probe validates each candidate's
+        certificate against rootCA.pem (shipped in this same folder -- the
+        same file trust-local-cert.bat already imported into this PC's
+        trust store) and pins the expected hostname, so a candidate must
+        present a certificate actually issued by the FANS-C server's own
+        certificate authority to be accepted -- an unrelated device on the
+        network cannot pass the check just by answering on port 443.
 
     LIMITATION: this PC must be run again (or scheduled) each time the
     server moves to a new network -- it does not run automatically in the
@@ -116,31 +117,80 @@ $candidates = for ($i = 1; $i -le $hostCount; $i++) {
     ConvertTo-IPString ($networkInt + [uint32]$i)
 }
 
-# -- Step 2: ping-sweep the subnet, then ask each live host if it's FANS-C ----
+# -- Step 2: TCP-probe the subnet, then ask each live host if it's FANS-C ----
 Write-Host ''
 Write-Host "  [2/3] Scanning $($candidates.Count) addresses on this network..." -ForegroundColor Cyan
 Write-Host '        (This takes a few seconds. No changes are made yet.)' -ForegroundColor DarkGray
 
-$pinger = New-Object System.Net.NetworkInformation.Ping
-$pingTasks = @{}
+# Probe TCP/443 directly instead of ICMP ping. Windows Firewall blocks ICMP
+# Echo Requests by default on many machines ("File and Printer Sharing
+# (Echo Request)" is off unless explicitly enabled), which would otherwise
+# make a fully-reachable FANS-C server (port 443 is opened by
+# setup-secure-server.ps1) invisible to a ping-based sweep and cause this
+# script to wrongly report "no server found".
+$connectTasks = @{}
 foreach ($ip in $candidates) {
-    try { $pingTasks[$ip] = $pinger.SendPingAsync($ip, 300) } catch { }
+    try {
+        $tcpClient = New-Object System.Net.Sockets.TcpClient
+        $connectTasks[$ip] = @{ Client = $tcpClient; Task = $tcpClient.ConnectAsync($ip, 443) }
+    } catch { }
 }
-[System.Threading.Tasks.Task]::WaitAll(@($pingTasks.Values), 8000) | Out-Null
+# WaitAll throws an AggregateException if ANY task faults (e.g. a normal
+# "connection refused" from a live host with port 443 closed) even though
+# a timeout was given -- that is expected/routine here, not a script error,
+# so it is deliberately swallowed. Per-candidate results are read from
+# each TcpClient's .Connected state below regardless of fault status.
+try {
+    [System.Threading.Tasks.Task]::WaitAll(@($connectTasks.Values | ForEach-Object { $_.Task }), 8000) | Out-Null
+} catch { }
 
-$liveHosts = $pingTasks.Keys | Where-Object {
-    try { $pingTasks[$_].Result.Status -eq 'Success' } catch { $false }
+$liveHosts = $connectTasks.Keys | Where-Object {
+    $entry = $connectTasks[$_]
+    try { $isLive = $entry.Client.Connected } catch { $isLive = $false }
+    $entry.Client.Close()
+    $isLive
 }
 
 Write-Host "        $($liveHosts.Count) host(s) responded; checking which one is FANS-C..." -ForegroundColor DarkGray
 
-$curlExe = (Get-Command curl.exe -ErrorAction SilentlyContinue).Source
+# Always use the Windows in-box curl.exe (guaranteed on Windows 10 1803+ /
+# Windows 11) rather than whatever "curl" resolves to on PATH -- some
+# machines have a Git-for-Windows curl.exe earlier on PATH that uses its
+# own bundled CA list instead of the Windows trust store, which would make
+# --cacert below unreliable.
+$curlExe = Join-Path $env:SystemRoot 'System32\curl.exe'
+if (-not (Test-Path $curlExe)) {
+    $curlExe = (Get-Command curl.exe -ErrorAction SilentlyContinue).Source
+}
 if (-not $curlExe) { $curlExe = 'curl' }
+
+$rootCaPath = Join-Path $PSScriptRoot 'rootCA.pem'
+if (-not (Test-Path $rootCaPath)) {
+    Write-Host '  [FAIL] rootCA.pem is missing from this folder.' -ForegroundColor Red
+    Write-Host '         Discovery cannot safely verify which host is the real FANS-C' -ForegroundColor Yellow
+    Write-Host '         server without it. Copy the full CLIENT-SETUP folder from the' -ForegroundColor Yellow
+    Write-Host '         server again (see README.txt) and retry.' -ForegroundColor Yellow
+    Write-Host ''
+    Read-Host '  Press Enter to exit'
+    exit 1
+}
 
 $found = @()
 foreach ($ip in $liveHosts) {
     try {
-        $body = & $curlExe -k -s --max-time 2 "https://${ip}/health/network/" 2>$null
+        # --resolve pins the connection to this candidate IP while still
+        # sending/validating the real hostname over TLS (SNI + certificate
+        # hostname check), and --cacert restricts trust to the FANS-C
+        # server's own certificate authority. A candidate must present a
+        # certificate actually issued by that CA for fans-barangay.local to
+        # be accepted here -- an unrelated device answering on port 443
+        # cannot pass this check.
+        # --ssl-no-revoke: mkcert-issued certificates have no CRL/OCSP
+        # revocation endpoint, so curl's Windows (schannel) backend would
+        # otherwise hard-fail every candidate -- including the real server
+        # -- with "the revocation status is unknown".
+        $body = & $curlExe -s --max-time 2 --ssl-no-revoke --cacert $rootCaPath `
+            --resolve "${hostname}:443:${ip}" "https://${hostname}/health/network/" 2>$null
         if ($body -match '"service"\s*:\s*"fans-c"') {
             $found += $ip
         }
