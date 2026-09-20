@@ -65,9 +65,57 @@ function fanscFormatPHP(value) {
 
 // Percentage derived client-side from two actual server-provided counts.
 // Never used to invent a denominator that wasn't already in the payload.
+// One decimal place (e.g. "61.9%"), not a raw float and not a bare integer.
 function fanscPct(part, total) {
-  if (!total) return '0%';
-  return Math.round((part / total) * 100) + '%';
+  if (!total) return '0.0%';
+  return (Math.round((part / total) * 1000) / 10).toFixed(1) + '%';
+}
+
+// Fades a "#rrggbb" dataset color to a given alpha for the resting state, so
+// the hover state (full opacity, see fanscHoverColors) reads as a clear but
+// subtle highlight rather than a flat, unresponsive bar/slice.
+function fanscWithAlpha(hex, alpha) {
+  var h = String(hex).replace('#', '');
+  if (h.length === 3) h = h.split('').map(function (c) { return c + c; }).join('');
+  var r = parseInt(h.substring(0, 2), 16);
+  var g = parseInt(h.substring(2, 4), 16);
+  var b = parseInt(h.substring(4, 6), 16);
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha + ')';
+}
+
+// Resting-vs-hover color pair for a bar/doughnut dataset, from either a
+// single color or a per-segment color array. Spread onto a dataset so the
+// hovered bar/slice pops to full color while the rest stay faded.
+function fanscHoverColors(colors) {
+  var arr = Array.isArray(colors) ? colors : null;
+  return {
+    backgroundColor: arr ? arr.map(function (c) { return fanscWithAlpha(c, 0.82); }) : fanscWithAlpha(colors, 0.82),
+    hoverBackgroundColor: arr ? arr.slice() : colors,
+  };
+}
+
+// Doughnut/pie legend that names each slice's exact count and share, e.g.
+// "Manual Review — 13 (61.9%)", instead of the bare category name — so the
+// legend itself is informative without hovering. Mirrors Chart.js's own
+// default doughnut generateLabels, just with richer text.
+function fanscDoughnutLegendLabels(chart) {
+  var data = chart.data;
+  if (!data.labels || !data.labels.length || !data.datasets.length) return [];
+  var ds = data.datasets[0];
+  var total = ds.data.reduce(function (a, b) { return a + b; }, 0);
+  var meta = chart.getDatasetMeta(0);
+  return data.labels.map(function (label, i) {
+    var value = ds.data[i];
+    var style = meta.controller.getStyle(i);
+    return {
+      text: label + ' — ' + fanscFormatCount(value) + ' (' + fanscPct(value, total) + ')',
+      fillStyle: style.backgroundColor,
+      strokeStyle: style.borderColor,
+      lineWidth: style.borderWidth,
+      hidden: !chart.getDataVisibility(i),
+      index: i,
+    };
+  });
 }
 
 document.addEventListener('DOMContentLoaded', function () {
@@ -161,7 +209,17 @@ document.addEventListener('DOMContentLoaded', function () {
           tooltip: {
             callbacks: {
               title: function (items) { return 'Date: ' + fanscFormatDate(items[0].label); },
-              label: function (item) { return item.dataset.label + ': ' + fanscFormatCount(item.parsed.y); },
+              label: function (item) {
+                var row = data.daily_trend[item.dataIndex];
+                var text = item.dataset.label + ': ' + fanscFormatCount(item.parsed.y);
+                // Outcome sub-series (Verified / Manual Review / Not Verified) share the
+                // day's total attempts as a valid denominator; the total series itself
+                // (100% of itself) gets no percentage — that would be meaningless.
+                if (row && hasOutcomeSeries && item.dataset.label !== 'Verification Attempts' && row.total) {
+                  text += ' (' + fanscPct(item.parsed.y, row.total) + ')';
+                }
+                return text;
+              },
             },
           },
         },
@@ -182,11 +240,10 @@ document.addEventListener('DOMContentLoaded', function () {
       type: 'bar',
       data: {
         labels: data.registration_trend.map(function (r) { return r.day; }),
-        datasets: [{
+        datasets: [Object.assign({
           label: 'New Registrations',
           data: data.registration_trend.map(function (r) { return r.n; }),
-          backgroundColor: '#0dcaf0',
-        }],
+        }, fanscHoverColors('#0dcaf0'))],
       },
       options: {
         responsive: true,
@@ -262,11 +319,10 @@ document.addEventListener('DOMContentLoaded', function () {
       type: 'bar',
       data: {
         labels: distRows.map(function (r) { return r.month; }),
-        datasets: [{
+        datasets: [Object.assign({
           label: 'Total Released (PHP)',
           data: distRows.map(function (r) { return r.total; }),
-          backgroundColor: '#198754',
-        }],
+        }, fanscHoverColors('#198754'))],
       },
       options: {
         responsive: true,
@@ -305,16 +361,16 @@ document.addEventListener('DOMContentLoaded', function () {
       type: 'doughnut',
       data: {
         labels: ['Claimed', 'Unclaimed'],
-        datasets: [{
+        datasets: [Object.assign({
           data: [dp.claimed, dp.remaining],
-          backgroundColor: ['#198754', '#e2e8f0'],
-        }],
+          hoverOffset: 8,
+        }, fanscHoverColors(['#198754', '#e2e8f0']))],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom' },
+          legend: { position: 'bottom', labels: { generateLabels: fanscDoughnutLegendLabels } },
           tooltip: {
             callbacks: {
               label: function (item) { return item.label + ': ' + fanscFormatCount(item.parsed); },
@@ -338,10 +394,9 @@ document.addEventListener('DOMContentLoaded', function () {
       type: 'bar',
       data: {
         labels: ['Expected', 'Claimed', 'Remaining'],
-        datasets: [{
+        datasets: [Object.assign({
           data: [dp.expected, dp.claimed, dp.remaining],
-          backgroundColor: ['#0d6efd', '#198754', '#fd7e14'],
-        }],
+        }, fanscHoverColors(['#0d6efd', '#198754', '#fd7e14']))],
       },
       options: {
         responsive: true,
@@ -380,18 +435,18 @@ document.addEventListener('DOMContentLoaded', function () {
         labels: data.decision_breakdown.map(function (r) {
           return r.decision.replace(/_/g, ' ').replace(/\b\w/g, function (c) { return c.toUpperCase(); });
         }),
-        datasets: [{
+        datasets: [Object.assign({
           data: data.decision_breakdown.map(function (r) { return r.n; }),
-          backgroundColor: data.decision_breakdown.map(function (r) {
-            return decisionColors[r.decision] || '#adb5bd';
-          }),
-        }],
+          hoverOffset: 8,
+        }, fanscHoverColors(data.decision_breakdown.map(function (r) {
+          return decisionColors[r.decision] || '#adb5bd';
+        })))],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom' },
+          legend: { position: 'bottom', labels: { generateLabels: fanscDoughnutLegendLabels } },
           tooltip: {
             callbacks: {
               label: function (item) { return item.label + ': ' + fanscFormatCount(item.parsed); },
@@ -429,10 +484,9 @@ document.addEventListener('DOMContentLoaded', function () {
       type: 'bar',
       data: {
         labels: ['Duplicate Face', 'Manual Review', 'Representative Review', 'Fraud Alerts'],
-        datasets: [{
+        datasets: [Object.assign({
           data: [rc.duplicate_face, rc.manual_review, rc.representative_review, rc.fraud_alerts],
-          backgroundColor: ['#fd7e14', '#ffc107', '#0dcaf0', '#dc3545'],
-        }],
+        }, fanscHoverColors(['#fd7e14', '#ffc107', '#0dcaf0', '#dc3545']))],
       },
       options: {
         indexAxis: 'y',
@@ -504,7 +558,26 @@ document.addEventListener('DOMContentLoaded', function () {
           tooltip: {
             callbacks: {
               title: function (items) { return 'Date: ' + fanscFormatDate(items[0].label); },
-              label: function (item) { return 'Category: ' + item.dataset.label + ' — Count: ' + fanscFormatCount(item.parsed.y); },
+              label: function (item) {
+                var row = data.security_events_trend[item.dataIndex];
+                var text = 'Category: ' + item.dataset.label + ' — Count: ' + fanscFormatCount(item.parsed.y);
+                if (row) {
+                  // Denominator is the sum of the four categories plotted on THIS chart for
+                  // THIS day only — never a selected-range or all-time total, so the % always
+                  // matches what's actually on screen for that date.
+                  var dayTotal = (row.failed_logins || 0) + (row.failed_verifications || 0) +
+                    (row.duplicate_faces || 0) + (row.payout_overrides || 0);
+                  if (dayTotal) text += ' (' + fanscPct(item.parsed.y, dayTotal) + ' of that day\'s events)';
+                }
+                return text;
+              },
+              footer: function (items) {
+                var row = data.security_events_trend[items[0].dataIndex];
+                if (!row) return '';
+                var dayTotal = (row.failed_logins || 0) + (row.failed_verifications || 0) +
+                  (row.duplicate_faces || 0) + (row.payout_overrides || 0);
+                return 'Day Total (these categories): ' + fanscFormatCount(dayTotal);
+              },
             },
           },
         },
@@ -576,16 +649,16 @@ document.addEventListener('DOMContentLoaded', function () {
       type: 'doughnut',
       data: {
         labels: ['Active', 'Pending', 'Inactive', 'Deceased'],
-        datasets: [{
+        datasets: [Object.assign({
           data: [bs.active, bs.pending, bs.inactive, bs.deceased],
-          backgroundColor: ['#198754', '#fd7e14', '#6c757d', '#343a40'],
-        }],
+          hoverOffset: 8,
+        }, fanscHoverColors(['#198754', '#fd7e14', '#6c757d', '#343a40']))],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
+          legend: { position: 'bottom', labels: { boxWidth: 12, font: { size: 11 }, generateLabels: fanscDoughnutLegendLabels } },
           tooltip: {
             callbacks: {
               label: function (item) {
