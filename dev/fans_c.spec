@@ -37,18 +37,20 @@
 #
 # IMPORTANT LIMITATIONS
 # ---------------------
-# * keras-facenet downloads its model weights (~90 MB, file
-#   20180402-114759-weights.h5) to <install folder>\models\keras-facenet\ on
-#   the FIRST IMPORT after packaging -- a machine-local cache next to
-#   fans_c.exe (see verification/face_utils.py get_facenet_cache_dir()),
-#   NOT %USERPROFILE%\.keras-facenet\ or ~/.keras/ (an unrelated Keras
-#   config directory). Because the cache path is derived from the install
-#   directory rather than any Windows account's profile, both an elevated
-#   interactive first run and the SYSTEM-account autostart/watchdog process
-#   share the same cache -- no per-account re-download. The target machine
-#   still needs internet access once for the initial download. This is NOT
-#   bundled by this spec (no collect_data_files/collect_all for
-#   keras_facenet) -- see SETUP.md, section "ML Model Notes".
+# * keras-facenet's model weights (~90 MB, file
+#   20180402-114759-weights.h5) live at <install folder>\models\keras-facenet\
+#   -- a machine-local cache next to fans_c.exe (see verification/face_utils.py
+#   get_facenet_cache_dir()), NOT %USERPROFILE%\.keras-facenet\ or ~/.keras/
+#   (an unrelated Keras config directory). Because the cache path is derived
+#   from the install directory rather than any Windows account's profile,
+#   both an elevated interactive first run and the SYSTEM-account
+#   autostart/watchdog process share the same cache -- no per-account
+#   re-download. The already-verified weights checked into
+#   models/keras-facenet/ are copied into dist/fans_c/models/keras-facenet/
+#   by the post-COLLECT step below (NOT via `datas`, which would land inside
+#   _internal/ where get_facenet_cache_dir()'s BASE_DIR-relative lookup would
+#   never find them) so a fresh install initializes FaceNet without internet
+#   access -- see SETUP.md, section "ML Model Notes".
 # * .env is NOT bundled  --  it contains secrets.  The user must create .env
 #   in the dist/FANS-C/ folder before running the application.
 # * db.sqlite3 is NOT bundled  --  it is created fresh by `migrate` on first
@@ -445,3 +447,25 @@ _tf_include = os.path.join(DISTPATH, 'fans_c', '_internal', 'tensorflow', 'inclu
 if os.path.isdir(_tf_include):
     print('[spec] Removing {} (MAX_PATH safety) ...'.format(_tf_include))
     shutil.rmtree(_tf_include, ignore_errors=True)
+
+# ---------------------------------------------------------------------------
+# Post-COLLECT: bundle the verified FaceNet weights for offline first run
+# ---------------------------------------------------------------------------
+# get_facenet_cache_dir() (verification/face_utils.py) resolves to
+# BASE_DIR/models/keras-facenet, where BASE_DIR = Path(sys.executable).parent
+# -- the writable top-level install directory (dist/fans_c/ here), NOT
+# sys._MEIPASS/_internal. A `datas` entry lands inside _internal, so it would
+# never satisfy that lookup. Instead, the already sha256-verified weights
+# committed at models/keras-facenet/ are copied here, after COLLECT, straight
+# into dist/fans_c/models/keras-facenet/ -- the same physical path
+# keras-facenet's own cache_folder check already expects -- so a fresh
+# install finds them without an internet download.
+_facenet_src = os.path.join(project_root, 'models', 'keras-facenet')
+_facenet_dst = os.path.join(DISTPATH, 'fans_c', 'models', 'keras-facenet')
+if os.path.isdir(_facenet_src):
+    print('[spec] Bundling FaceNet weights from {} ...'.format(_facenet_src))
+    shutil.copytree(_facenet_src, _facenet_dst, dirs_exist_ok=True)
+else:
+    print('[spec] WARNING: {} not found -- FaceNet weights will NOT be '
+          'bundled; a fresh install will require internet access on first '
+          'use.'.format(_facenet_src))
